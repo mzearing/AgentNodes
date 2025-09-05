@@ -9,6 +9,8 @@ export const mainConfig: Configuration = {
    * that runs in the main process.
    */
   entry: './src/index.ts',
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+  devtool: process.env.NODE_ENV === 'production' ? 'source-map' : 'inline-source-map',
   // Put your normal webpack config below here
   module: {
     rules,
