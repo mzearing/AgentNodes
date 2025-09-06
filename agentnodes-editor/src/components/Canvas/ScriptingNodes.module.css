@@ -1,0 +1,54 @@
+.scriptingNode {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 160px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  transform: translate(-50%, -50%);
+}
+
+.scriptingNode.selected {
+  border-color: #4299e1;
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+}
+
+.scriptingNode:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.nodeHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.nodeIcon {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.nodeTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+  flex: 1;
+}
+
+
+.handle {
+  width: 10px;
+  height: 10px;
+  background: #4a5568;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.handle.react-flow__handle-connecting {
+  background: #4299e1;
+}
+
+.handle.react-flow__handle-valid {
+  background: #48bb78;
+}

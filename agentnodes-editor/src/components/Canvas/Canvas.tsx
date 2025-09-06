@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
-import { nodeTypes, getNodeTypeByCategory, CustomNodeData } from './CustomNodes';
+import { nodeTypes, ScriptingNodeData } from './ScriptingNodes';
 
 interface CanvasProps {
   onNodeAdd?: (node: Node) => void;
@@ -50,30 +50,27 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
 
       if (!reactFlowWrapper.current || !reactFlowInstance) return;
 
-      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
       const nodeData = event.dataTransfer.getData('application/reactflow');
 
       if (!nodeData) return;
 
-      const { type, label, icon, description, category } = JSON.parse(nodeData);
+      const { label } = JSON.parse(nodeData);
+      
+      // Use screenToFlowPosition directly with clientX/Y - this handles zoom and pan automatically
       const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
+        x: event.clientX,
+        y: event.clientY,
       });
 
-      const nodeType = category ? getNodeTypeByCategory(category) : 'default';
-      const customNodeData: CustomNodeData = {
+      const scriptingNodeData: ScriptingNodeData = {
         label,
-        description,
-        nodeType: type,
-        icon,
       };
 
       const newNode: Node = {
         id: getNodeId(),
-        type: nodeType,
+        type: 'scripting-node',
         position,
-        data: customNodeData,
+        data: scriptingNodeData,
       };
 
       setNodes((nds) => nds.concat(newNode));

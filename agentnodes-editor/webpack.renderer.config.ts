@@ -1,4 +1,5 @@
 import type { Configuration } from 'webpack';
+import webpack from 'webpack';
 
 import { rules } from './webpack.rules';
 import { plugins } from './webpack.plugins';
@@ -49,11 +50,34 @@ rules.push({
 export const rendererConfig: Configuration = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   devtool: process.env.NODE_ENV === 'production' ? 'source-map' : 'inline-source-map',
+  target: 'electron-renderer',
   module: {
     rules,
   },
-  plugins,
+  plugins: [
+    ...plugins,
+    new webpack.DefinePlugin({
+      'global': 'globalThis',
+    }),
+    new webpack.ProvidePlugin({
+      process: 'process/browser',
+      Buffer: ['buffer', 'Buffer'],
+    }),
+  ],
   resolve: {
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
+    fallback: {
+      "buffer": require.resolve("buffer"),
+      "process": require.resolve("process/browser"),
+      "events": require.resolve("events/"),
+      "stream": require.resolve("stream-browserify"),
+      "util": require.resolve("util/"),
+      "path": require.resolve("path-browserify"),
+      "fs": false,
+      "os": require.resolve("os-browserify/browser"),
+    },
+  },
+  externals: {
+    'electron': 'commonjs electron',
   },
 };
