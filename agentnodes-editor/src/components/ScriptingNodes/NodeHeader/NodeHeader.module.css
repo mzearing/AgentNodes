@@ -1,0 +1,15 @@
+.nodeHeader{ 
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    grid-area: nodeHeader;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.nodeTitle {
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+}
