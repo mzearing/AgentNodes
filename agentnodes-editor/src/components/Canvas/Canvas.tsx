@@ -9,14 +9,13 @@ import {
   useEdgesState,
   Background,
   Controls,
-  MiniMap,
   BackgroundVariant,
   ReactFlowProvider,
   ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
-import { nodeTypes, ScriptingNodeData } from './ScriptingNodes';
+import { nodeTypes, ScriptingNodeData } from '../ScriptingNodes/ScriptingNode';
 
 interface CanvasProps {
   onNodeAdd?: (node: Node) => void;
@@ -25,6 +24,7 @@ interface CanvasProps {
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
+// temporary global node naming
 let nodeId = 1;
 const getNodeId = () => `node_${nodeId++}`;
 
@@ -33,7 +33,7 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
-
+  
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
@@ -54,17 +54,21 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
 
       if (!nodeData) return;
 
-      const { label } = JSON.parse(nodeData);
-      
-      // Use screenToFlowPosition directly with clientX/Y - this handles zoom and pan automatically
+      const { label, inputs, outputs, variadicInputs, variadicOutputs } = JSON.parse(nodeData);
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
+      
 
       const scriptingNodeData: ScriptingNodeData = {
         label,
+        inputs,
+        outputs,
+        variadicInputs,
+        variadicOutputs
       };
+
 
       const newNode: Node = {
         id: getNodeId(),
@@ -93,21 +97,15 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           className={styles.reactFlow}
+          proOptions={{hideAttribution: true}}
           fitView
         >
           <Background
             variant={BackgroundVariant.Dots}
             gap={20}
             size={1}
-            color="#94a3b8"
           />
           <Controls />
-          <MiniMap
-            className={styles.minimap}
-            nodeColor="#e2e8f0"
-            nodeStrokeColor="#64748b"
-            nodeStrokeWidth={2}
-          />
         </ReactFlow>
       </div>
     </div>

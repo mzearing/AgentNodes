@@ -6,6 +6,6 @@
   grid-template-columns: 200px auto;
   grid-template-rows: 70px auto;
   grid-template-areas:
-    'header header'
+    'sidebar header'
     'sidebar canvas';
 }

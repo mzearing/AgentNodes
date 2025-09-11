@@ -1,0 +1,44 @@
+.scriptingNode {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+
+  min-width: 300px;
+  min-height: 150px;
+
+  display: grid;
+  grid-template-columns: 60px 1fr 60px;
+  grid-template-rows: 50px 1fr;
+  grid-template-areas:
+    'nodeHeader nodeHeader nodeHeader'
+    'nodeTargets nodeProperties nodeSources';
+}
+
+.scriptingNode.selected {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
+}
+
+.scriptingNode:hover {
+  box-shadow: var(--shadow-md);
+}
+
+
+.handle {
+  width: 10px;
+  height: 10px;
+  background: var(--color-text-secondary);
+  border: 2px solid var(--color-surface);
+  border-radius: var(--radius-full);
+}
+
+.handle.react-flow__handle-connecting {
+  background: var(--color-primary);
+}
+
+.handle.react-flow__handle-valid {
+  background: var(--color-success);
+}
