@@ -16,12 +16,14 @@ export interface OutputHandle {
 }
 
 export interface ScriptingNodeData extends Record<string, unknown> {
+  nodeId?: string;
   label: string;
   inputs: InputHandle[];
   outputs: OutputHandle[];
   properties?: Record<string, unknown>;
   variadicInputs?: boolean;
   variadicOutputs?: boolean;
+  solo?: boolean;
 }
 
 const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {

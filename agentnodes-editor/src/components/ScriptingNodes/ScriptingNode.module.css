@@ -9,8 +9,8 @@
   grid-template-columns: auto 1fr auto;
   grid-template-rows: 50px 1fr;
   grid-template-areas:
-    'nodeHeader nodeHeader nodeHeader'
-    'nodeTargets nodeTargets nodeSources';
+    'nodeHeader nodeHeader'
+    'nodeTargets nodeSources';
 }
 
 .scriptingNode.selected {
