@@ -19,4 +19,4 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ label }) => {
   );
 };
 
-export default  React.memo(NodeHeader);
+export default React.memo(NodeHeader);

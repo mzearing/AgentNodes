@@ -93,11 +93,6 @@
   outline-offset: -2px;
 }
 
-.node:active {
-  background-color: var(--color-surface-active);
-  transform: translateY(1px);
-}
-
 .node[draggable="true"]:hover {
   cursor: grab;
 }

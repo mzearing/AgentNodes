@@ -1,6 +1,7 @@
 .nodeHeader{ 
     background-color: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
     grid-area: nodeHeader;
     color: var(--color-text);
     display: flex;
