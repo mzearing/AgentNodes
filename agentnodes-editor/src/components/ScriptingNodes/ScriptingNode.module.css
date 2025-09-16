@@ -6,15 +6,15 @@
   box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
 
-  min-width: 300px;
+  min-width: 380px;
   min-height: 150px;
 
   display: grid;
-  grid-template-columns: 60px 1fr 60px;
+  grid-template-columns: 180px 1fr 180px;
   grid-template-rows: 50px 1fr;
   grid-template-areas:
     'nodeHeader nodeHeader nodeHeader'
-    'nodeTargets nodeProperties nodeSources';
+    'nodeTargets nodeTargets nodeSources';
 }
 
 .scriptingNode.selected {

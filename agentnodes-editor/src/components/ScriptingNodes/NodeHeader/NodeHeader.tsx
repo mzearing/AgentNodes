@@ -8,10 +8,15 @@ interface NodeHeaderProps {
 
 const NodeHeader: React.FC<NodeHeaderProps> = ({ label }) => {
   return (
-    <div className={styles.nodeHeader}>
+    <div className={styles.nodeHeader} title="Drag to move node">
       <span className={styles.nodeTitle}>{label}</span>
+      <div className={styles.dragIndicator}>
+        <div className={styles.dragDots}></div>
+        <div className={styles.dragDots}></div>
+        <div className={styles.dragDots}></div>
+      </div>
     </div>
   );
 };
 
-export default NodeHeader;
+export default  React.memo(NodeHeader);

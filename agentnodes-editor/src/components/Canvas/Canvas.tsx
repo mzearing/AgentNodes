@@ -60,11 +60,21 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
         y: event.clientY,
       });
       
+      // Convert string arrays to handle objects with unique IDs
+      const inputHandles = inputs.map((name: string, index: number) => ({
+        id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
+        name
+      }));
+      
+      const outputHandles = outputs.map((name: string, index: number) => ({
+        id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
+        name
+      }));
 
       const scriptingNodeData: ScriptingNodeData = {
         label,
-        inputs,
-        outputs,
+        inputs: inputHandles,
+        outputs: outputHandles,
         variadicInputs,
         variadicOutputs
       };
@@ -76,6 +86,7 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
         position,
         data: scriptingNodeData,
       };
+      
 
       setNodes((nds) => nds.concat(newNode));
       onNodeAdd?.(newNode);

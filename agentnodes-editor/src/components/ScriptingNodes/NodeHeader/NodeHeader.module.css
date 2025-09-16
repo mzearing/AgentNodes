@@ -6,10 +6,47 @@
     display: flex;
     align-items: center;
     padding: var(--spacing-sm) var(--spacing-md);
+    cursor: grab;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    user-select: none;
+}
+
+.nodeHeader:hover {
+    background-color: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nodeHeader:active {
+    cursor: grabbing;
+    background-color: var(--color-surface-active, rgba(255, 255, 255, 0.12));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .nodeTitle {
     font-size: 14px;
     font-weight: 600;
     flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dragIndicator {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-left: 8px;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.nodeHeader:hover .dragIndicator {
+    opacity: 0.7;
+}
+
+.dragDots {
+    width: 3px;
+    height: 3px;
+    background-color: currentColor;
+    border-radius: 50%;
 }

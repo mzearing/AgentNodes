@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, DragEvent } from 'react';
 import { Position, Handle } from '@xyflow/react';
 import styles from './NodeTargets.module.css';
+import { InputHandle } from '../ScriptingNode';
 
 interface NodeTargetsProps {
-  inputs: string[];
+  inputs: InputHandle[];
   variadic?: boolean;
-  onInputsChange?: (inputs: string[]) => void;
+  onInputsChange?: (inputs: InputHandle[]) => void;
 }
 
 const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onInputsChange }) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleRename = (index: number, newName: string) => {
     if (onInputsChange) {
       const newInputs = [...inputs];
-      newInputs[index] = newName;
+      newInputs[index] = { ...newInputs[index], name: newName };
       onInputsChange(newInputs);
     }
     setEditingIndex(null);
@@ -24,7 +27,11 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
 
   const handleAdd = () => {
     if (onInputsChange) {
-      const newInputs = [...inputs, `Input ${inputs.length + 1}`];
+      const newInput: InputHandle = {
+        id: `input-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        name: `Input ${inputs.length + 1}`
+      };
+      const newInputs = [...inputs, newInput];
       onInputsChange(newInputs);
     }
   };
@@ -38,13 +45,105 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
 
   const startEditing = (index: number) => {
     setEditingIndex(index);
-    setEditingValue(inputs[index]);
+    setEditingValue(inputs[index].name);
+  };
+
+  const handleDragStart = (e: DragEvent, index: number) => {
+    // Check if mouse is near the handle area (left side, within 30px)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    
+    if (mouseX < 30) {
+      // Mouse is near the handle, prevent dragging
+      e.preventDefault();
+      return;
+    }
+    
+    e.stopPropagation();
+    // Cast to native event to access stopImmediatePropagation
+    (e.nativeEvent as Event).stopImmediatePropagation?.();
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.dataTransfer.setData('application/node-input-reorder', 'true');
+    // Clear any data that might trigger node dragging
+    e.dataTransfer.clearData('application/reactflow');
+  };
+
+  const handleDragOver = (e: DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only allow drop if this is an input reorder operation
+    if (e.dataTransfer.types.includes('application/node-input-reorder')) {
+      e.dataTransfer.dropEffect = 'move';
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only handle drop if this is an input reorder operation
+    if (!e.dataTransfer.types.includes('application/node-input-reorder')) {
+      return;
+    }
+    
+    const dragIndex = draggedIndex;
+    
+    if (dragIndex !== null && dragIndex !== dropIndex && onInputsChange) {
+      const newInputs = [...inputs];
+      const draggedItem = newInputs[dragIndex];
+      
+      // Remove the dragged item
+      newInputs.splice(dragIndex, 1);
+      newInputs.splice(dropIndex, 0, draggedItem);
+      
+      onInputsChange(newInputs);
+    }
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   return (
-    <div className={styles.nodeTargets}>
+    <div className={`${styles.nodeTargets} nodrag`}>
       {inputs.map((input, index) => (
-        <div key={`${input}-${index}`} className={styles.inputBox}>
+        <div 
+          key={input.id} 
+          className={`${styles.inputBox} ${draggedIndex === index ? styles.dragging : ''} ${dragOverIndex === index ? styles.dragOver : ''} nodrag`}
+          draggable={variadic}
+          onDragStart={(e) => variadic && handleDragStart(e, index)}
+          onDragEnd={handleDragEnd}
+          onDragOver={(e) => variadic && handleDragOver(e, index)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => variadic && handleDrop(e, index)}
+          onMouseDown={(e) => variadic && e.stopPropagation()}
+          onMouseUp={(e) => {
+            if (variadic) {
+              e.stopPropagation();
+              // Force cleanup of any pending edge connections
+              const event = new MouseEvent('mouseup', {
+                bubbles: true,
+                cancelable: true,
+                clientX: e.clientX,
+                clientY: e.clientY
+              });
+              document.dispatchEvent(event);
+            }
+          }}
+        >
           {editingIndex === index ? (
             <input
               type="text"
@@ -63,12 +162,22 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
               className={styles.inputEdit}
             />
           ) : (
-            <span 
-              className={styles.inputLabel}
-              onDoubleClick={() => variadic && startEditing(index)}
-            >
-              {input}
-            </span>
+            <>
+              <span 
+                className={styles.inputLabel}
+              >
+                {input.name}
+              </span>
+              {variadic && (
+                <button
+                  className={styles.editButton}
+                  onClick={() => startEditing(index)}
+                  title="Edit input name"
+                >
+                  ✎
+                </button>
+              )}
+            </>
           )}
           {variadic && (
             <button
@@ -80,7 +189,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
             </button>
           )}
           <Handle 
-            id={`${input}-${index}`} 
+            id={input.id} 
             type="target"
             position={Position.Left}
             className={styles.inputHandle}
@@ -92,9 +201,9 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
           <button
             className={styles.addButton}
             onClick={handleAdd}
-            title="Add input"
+            title="Add new socket"
           >
-            + Add Input
+            <span className={styles.addIcon}>+</span>
           </button>
         </div>
       )}
