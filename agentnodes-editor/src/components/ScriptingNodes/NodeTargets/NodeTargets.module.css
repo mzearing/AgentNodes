@@ -15,6 +15,14 @@
     flex: 1;
     padding: 8px 12px;
     background-color: var(--color-surface, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    border-left: 3px solid transparent;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.inputBox:hover {
+    border-left-color: var(--color-primary, #3b82f6);
+    background-color: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
 }
 
 .inputLabel {
@@ -22,6 +30,9 @@
     font-weight: 500;
     margin-right: 8px;
     flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .inputHandle {
@@ -29,29 +40,62 @@
     left: -8px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
+    width: 12px !important;
+    height: 12px !important;
+    border: 2px solid var(--color-surface, #1f2937) !important;
+    background: var(--color-text-secondary, #6b7280) !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease !important;
+}
+
+.inputHandle:hover {
+    border-color: var(--color-primary, #3b82f6) !important;
+    background: var(--color-primary, #3b82f6) !important;
+    transform: translateY(-50%) scale(1.2) !important;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4) !important;
+}
+
+.inputHandle.react-flow__handle-connecting {
+    border-color: var(--color-primary, #3b82f6) !important;
+    background: var(--color-primary, #3b82f6) !important;
+    transform: translateY(-50%) scale(1.3) !important;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.6) !important;
 }
 
 .inputEdit {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    background: var(--color-surface-elevated, rgba(255, 255, 255, 0.1));
+    border: 2px solid var(--color-primary, #3b82f6);
     color: var(--color-text);
     font-size: 12px;
-    padding: 2px 4px;
-    border-radius: 3px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
     flex: 1;
     margin-right: 8px;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    transition: all 0.2s ease;
+}
+
+.inputEdit:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    border-color: var(--color-primary, #3b82f6);
 }
 
 .removeButton {
     background: transparent;
-    border: none;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
     color: var(--color-text-secondary);
     cursor: pointer;
     font-size: 14px;
-    padding: 2px 4px;
-    margin-left: 4px;
-    border-radius: 2px;
+    padding: 2px 6px;
+    margin-left: 8px;
+    border-radius: 3px;
     transition: all 0.2s ease;
+    min-width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .removeButton:hover {
@@ -59,31 +103,105 @@
     color: white;
 }
 
+.editButton {
+    background: transparent;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 6px;
+    margin-left: 6px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+    min-width: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+}
+
+.editButton:hover {
+    background: var(--color-primary, #3b82f6);
+    color: white;
+    opacity: 1;
+    border-color: var(--color-primary, #3b82f6);
+}
+
 .addInputBox {
     display: flex;
     align-items: center;
-    padding: 4px 12px;
-    background-color: var(--color-surface-secondary, rgba(255, 255, 255, 0.02));
+    padding: 0;
+    background-color: var(--color-surface, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    border-top: none;
 }
 
 .addButton {
-    padding: var(--spacing-md) var(--spacing-lg);
-    border: 1px solid var(--color-border-secondary);
-    background-color: var(--color-surface);
+    padding: 8px;
+    border: 1px var(--color-border, rgba(255, 255, 255, 0.2));
+    background-color: transparent;
     color: var(--color-text-secondary);
-    border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 14px;
-    font-weight: 500;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    min-width: 60px;
+    min-height: 32px;
+}
+
+.addIcon {
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1;
 }
 
 .addButton:hover {
-    background-color: var(--color-surface-hover);
-    border-color: var(--color-border-hover);
+    background-color: var(--color-surface-hover, rgba(255, 255, 255, 0.05));
+    border-color: var(--color-primary, #3b82f6);
+    color: var(--color-primary, #3b82f6);
+}
+
+.addButton:hover .addIcon {
+    transform: scale(1.1);
 }
 
 .addButton:focus {
     outline: 2px solid var(--color-primary);
     outline-offset: -2px;
 }
+
+.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    cursor: grabbing !important;
+}
+
+.dragOver {
+    border-left-color: var(--color-primary, #3b82f6) !important;
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+}
+
+.inputBox[draggable="true"] {
+    cursor: grab;
+}
+
+.inputBox[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+/* Ensure React Flow edge cleanup works properly */
+.inputBox {
+    pointer-events: auto;
+}
+
+.inputBox.react-flow__node-drag-handle {
+    pointer-events: none;
+}
+
+
+

@@ -5,37 +5,58 @@ import {
   Edge,
   addEdge,
   Connection,
-  useNodesState,
   useEdgesState,
   Background,
   Controls,
   BackgroundVariant,
   ReactFlowProvider,
   ReactFlowInstance,
+  applyNodeChanges,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
 import { nodeTypes, ScriptingNodeData } from '../ScriptingNodes/ScriptingNode';
 
 interface CanvasProps {
+  nodes: Node[];
+  onNodesChange: (nodes: Node[]) => void;
   onNodeAdd?: (node: Node) => void;
 }
 
-const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 // temporary global node naming
 let nodeId = 1;
 const getNodeId = () => `node_${nodeId++}`;
 
-const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
+const CanvasComponent: React.FC<CanvasProps> = ({ nodes: propNodes, onNodesChange: propOnNodesChange, onNodeAdd }) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+
+  // Use the nodes from props directly and create a wrapped onChange
+  const wrappedOnNodesChange = React.useCallback((changes: any) => {
+    // Apply the changes to get the new nodes
+    const newNodes = applyNodeChanges(changes, propNodes);
+    propOnNodesChange(newNodes);
+  }, [propOnNodesChange, propNodes]);
   
   const onConnect = useCallback(
-    (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Edge | Connection) => {
+      // Prevent self-connections
+      if (params.source === params.target) {
+        return;
+      }
+      
+      setEdges((eds) => {
+        // Remove any existing connection to the same input handle
+        const filteredEdges = eds.filter(edge => 
+          !(edge.target === params.target && edge.targetHandle === params.targetHandle)
+        );
+        // Add the new connection
+        return addEdge(params, filteredEdges);
+      });
+    },
     [setEdges]
   );
 
@@ -54,21 +75,33 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
 
       if (!nodeData) return;
 
-      const { label, inputs, outputs, variadicInputs, variadicOutputs } = JSON.parse(nodeData);
+      const { nodeId, label, inputs, outputs, variadicInputs, variadicOutputs, solo } = JSON.parse(nodeData);
+      
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
       
+      // Convert string arrays to handle objects with unique IDs
+      const inputHandles = inputs.map((name: string, index: number) => ({
+        id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
+        name
+      }));
+      
+      const outputHandles = outputs.map((name: string, index: number) => ({
+        id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
+        name
+      }));
 
       const scriptingNodeData: ScriptingNodeData = {
+        nodeId,
         label,
-        inputs,
-        outputs,
+        inputs: inputHandles,
+        outputs: outputHandles,
         variadicInputs,
-        variadicOutputs
+        variadicOutputs,
+        solo
       };
-
 
       const newNode: Node = {
         id: getNodeId(),
@@ -76,20 +109,35 @@ const CanvasComponent: React.FC<CanvasProps> = ({ onNodeAdd }) => {
         position,
         data: scriptingNodeData,
       };
-
-      setNodes((nds) => nds.concat(newNode));
+      
+      // Check if this is a solo node and if one already exists
+      if (solo) {
+        const existingSoloNode = propNodes.find(node => {
+          const nodeData = node.data as ScriptingNodeData;
+          return nodeData.solo && nodeData.nodeId === nodeId;
+        });
+        
+        if (existingSoloNode) {
+          console.warn(`Solo node "${label}" already exists on the canvas`);
+          return;
+        }
+      }
+      
+      // Add the new node
+      const newNodes = propNodes.concat(newNode);
+      propOnNodesChange(newNodes);
       onNodeAdd?.(newNode);
     },
-    [reactFlowInstance, setNodes, onNodeAdd]
+    [reactFlowInstance, propNodes, propOnNodesChange, onNodeAdd]
   );
 
   return (
     <div className={styles.canvas}>
       <div className={styles.reactFlowWrapper} ref={reactFlowWrapper}>
         <ReactFlow
-          nodes={nodes}
+          nodes={propNodes}
           edges={edges}
-          onNodesChange={onNodesChange}
+          onNodesChange={wrappedOnNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onInit={setReactFlowInstance}
