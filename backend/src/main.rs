@@ -1,8 +1,7 @@
 mod language;
 
-use serde_json::{from_str, Error};
-
-fn main() -> Result<(), Error> {
+#[tokio::main]
+async fn main() -> Result<(), ()> {
   println!("Hello, world!");
   Ok(())
 }

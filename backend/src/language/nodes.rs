@@ -1,4 +1,4 @@
-use crate::language::eval::{EvalError, EvaluateIt};
+use crate::language::eval::{EvalError, EvaluateIt, Evaluator};
 
 use super::typing::{DataType, DataValue};
 use serde::{Deserialize, Serialize};
@@ -30,50 +30,66 @@ pub enum NodeType {
 pub struct Instance {
   pub node_type: NodeType,
   default_overrides: std::collections::HashMap<String, DataValue>,
-  outputs: Vec<uuid::Uuid>,
+  pub outputs: Vec<Vec<uuid::Uuid>>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Complex {
-  inputs: Vec<DataType>,
-  outputs: Vec<DataType>,
-  start_node: uuid::Uuid,
+  pub inputs: Vec<DataType>,
+  pub outputs: Vec<DataType>,
+  pub start_node: uuid::Uuid,
   defaults: std::collections::HashMap<String, DataValue>,
   pub instances: std::collections::HashMap<uuid::Uuid, Instance>,
 }
 
+impl Complex {
+  pub fn get_child(&self, id: &uuid::Uuid) -> Option<&Instance> {
+    self.instances.get(id)
+  }
+}
+
 impl EvaluateIt for NodeType {
-  fn evaluate(&self, inputs: Vec<DataValue>) -> Result<DataValue, EvalError> {
+  fn evaluate(
+    &self,
+    eval: &Evaluator,
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError> {
     match self {
       NodeType::Atomic(x) => Self::eval_atomic(x.clone(), inputs),
-      NodeType::Complex(x) => todo!(),
+      NodeType::Complex(x) => eval
+        .get_complex(&x)
+        .map(|x| x.instances[&x.start_node].node_type.evaluate(eval, inputs))
+        .ok_or(EvalError::ComplexNotFound(x.clone()))?,
     }
   }
 }
 
 impl NodeType {
-  fn eval_atomic(atomic_type: AtomicType, inputs: Vec<DataValue>) -> Result<DataValue, EvalError> {
+  fn eval_atomic(
+    atomic_type: AtomicType,
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError> {
     match atomic_type {
       AtomicType::Print => {
         inputs.iter().for_each(|x| println!("{}", x));
-        Ok(DataValue::None)
+        Ok(vec![])
       }
       AtomicType::BinOp(atomic_bin_op) => Self::eval_bin_op(atomic_bin_op, inputs),
-      AtomicType::Value(data_value) => Ok(data_value),
+      AtomicType::Value(data_value) => Ok(vec![data_value]),
     }
   }
 
   fn eval_bin_op(
     atomic_bin_op: AtomicBinOp,
     inputs: Vec<DataValue>,
-  ) -> Result<DataValue, EvalError> {
+  ) -> Result<Vec<DataValue>, EvalError> {
     assert!(inputs.len() == 2);
     match atomic_bin_op {
-      AtomicBinOp::Add => Ok((inputs[0].clone() + inputs[1].clone())?),
-      AtomicBinOp::Sub => Ok((inputs[0].clone() - inputs[1].clone())?),
-      AtomicBinOp::Mul => Ok((inputs[0].clone() * inputs[1].clone())?),
-      AtomicBinOp::Div => Ok((inputs[0].clone() / inputs[1].clone())?),
-      AtomicBinOp::Mod => Ok((inputs[0].clone() % inputs[1].clone())?),
+      AtomicBinOp::Add => Ok(vec![(inputs[0].clone() + inputs[1].clone())?]),
+      AtomicBinOp::Sub => Ok(vec![(inputs[0].clone() - inputs[1].clone())?]),
+      AtomicBinOp::Mul => Ok(vec![(inputs[0].clone() * inputs[1].clone())?]),
+      AtomicBinOp::Div => Ok(vec![(inputs[0].clone() / inputs[1].clone())?]),
+      AtomicBinOp::Mod => Ok(vec![(inputs[0].clone() % inputs[1].clone())?]),
       AtomicBinOp::Pow => todo!(),
     }
   }
