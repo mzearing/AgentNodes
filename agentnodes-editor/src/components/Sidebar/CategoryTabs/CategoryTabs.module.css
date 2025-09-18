@@ -1,0 +1,35 @@
+.categories {
+  display: flex;
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-xs);
+}
+
+.categoryButton {
+  flex: 1;
+  padding: var(--spacing-xl) var(--spacing-xl);
+  border: 1px solid var(--color-border-secondary);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.categoryButton:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.categoryButton.active {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border-color: var(--color-primary);
+}
+
+.categoryButton:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}

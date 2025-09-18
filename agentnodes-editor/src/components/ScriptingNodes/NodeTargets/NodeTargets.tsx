@@ -49,7 +49,6 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
   };
 
   const handleDragStart = (e: DragEvent, index: number) => {
-    // Check if mouse is near the handle area (left side, within 30px)
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     

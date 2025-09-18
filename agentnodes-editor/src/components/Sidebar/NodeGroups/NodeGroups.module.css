@@ -1,0 +1,360 @@
+.nodeList {
+  padding: 0 var(--spacing-lg);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-lg) var(--spacing-md);
+  margin: var(--spacing-xs) 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background-color: var(--color-surface);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+}
+
+.node:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.node:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.node[draggable="true"]:hover {
+  cursor: grab;
+}
+
+.node[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.nodeName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  background-color: var(--color-surface) !important;
+  border-color: transparent !important;
+}
+
+.node.disabled:hover {
+  background-color: var(--color-surface) !important;
+  border-color: transparent !important;
+}
+
+.node.disabled .nodeName {
+  color: var(--color-text-disabled);
+}
+
+.nodeContent {
+  flex: 1;
+  min-width: 0;
+  margin-right: var(--spacing-sm);
+  overflow: hidden;
+}
+
+.nodeActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  gap: 4px;
+  flex-shrink: 0;
+  width: auto;
+  min-width: 28px;
+}
+
+.node:hover .nodeActions {
+  opacity: 1;
+}
+
+.nodeEditButton {
+  background: transparent;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+}
+
+.nodeEditButton:hover {
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  opacity: 1;
+  border-color: var(--color-primary, #3b82f6);
+  transform: scale(1.05);
+}
+
+.nodeDeleteButton {
+  background: transparent;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nodeDeleteButton:hover {
+  background: var(--color-danger);
+  color: white;
+  border-color: var(--color-danger);
+  transform: scale(1.05);
+}
+
+.nodeNameInput {
+  background: var(--color-surface-elevated, rgba(255, 255, 255, 0.1));
+  border: 2px solid var(--color-primary, #3b82f6);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  transition: all 0.2s ease;
+  width: 100%;
+  min-width: 0;
+}
+
+.nodeNameInput:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  border-color: var(--color-primary, #3b82f6);
+}
+
+/* Group Styles */
+.group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.groupHeader {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-lg) 0;
+  margin: 0 0 var(--spacing-md) 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  user-select: none;
+}
+
+.groupHeader:hover .groupName {
+  color: var(--color-text);
+}
+
+.groupHeader:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-sm);
+}
+
+.groupHeader:focus {
+  outline: none;
+}
+
+.groupIndicator {
+  width: 100%;
+  height: 2px;
+  background-color: var(--group-color, var(--color-primary));
+  margin-bottom: var(--spacing-md);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.groupIndicator::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 2px;
+  height: var(--spacing-lg);
+  background-color: var(--group-color, var(--color-primary));
+}
+
+.groupName {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: var(--spacing-md);
+}
+
+.expandIcon {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg);
+}
+
+.expandIcon.expanded {
+  transform: rotate(0deg);
+}
+
+.groupNodes {
+  padding-left: var(--spacing-xl);
+  border-left: 2px solid var(--group-color, var(--color-border-secondary));
+  margin-left: var(--spacing-xl);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.groupNodes .node {
+  margin: var(--spacing-xs) 0;
+  border-left: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.groupNodes .node:hover {
+  border-left-color: var(--group-color, var(--color-primary));
+}
+
+.groupNameInput {
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  outline: none;
+  flex: 1;
+  margin-right: var(--spacing-xs);
+}
+
+.addNodeBox {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background-color: transparent;
+  margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+}
+
+.addNodeButton {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 2px dashed var(--color-border-secondary);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  gap: var(--spacing-xs);
+}
+
+.addNodeIcon {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.addNodeButton:hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.addNodeButton:hover .addNodeIcon {
+  transform: scale(1.1);
+}
+
+.addNodeButton:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.addGroupButton {
+  width: 100%;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  margin-top: var(--spacing-lg);
+  border: 2px dashed var(--color-border-secondary);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.addGroupButton:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Group drag and drop styles */
+.group[draggable="true"] {
+  cursor: grab;
+}
+
+.group[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.groupDragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  cursor: grabbing !important;
+}
+
+.groupDragOver {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+  background-color: rgba(59, 130, 246, 0.05);
+}
