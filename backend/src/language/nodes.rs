@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::language::eval::{EvalError, EvaluateIt, Evaluator};
 
 use super::typing::{DataType, DataValue};
@@ -31,6 +33,7 @@ pub struct Instance {
   pub node_type: NodeType,
   default_overrides: std::collections::HashMap<String, DataValue>,
   pub outputs: Vec<Vec<uuid::Uuid>>,
+  pub inputs: Vec<DataType>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -49,23 +52,20 @@ impl Complex {
 }
 
 impl EvaluateIt for NodeType {
-  fn evaluate(
+  async fn evaluate(
     &self,
-    eval: &Evaluator,
+    eval: Arc<Evaluator>,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError> {
     match self {
-      NodeType::Atomic(x) => Self::eval_atomic(x.clone(), inputs),
-      NodeType::Complex(x) => eval
-        .get_complex(&x)
-        .map(|x| x.instances[&x.start_node].node_type.evaluate(eval, inputs))
-        .ok_or(EvalError::ComplexNotFound(x.clone()))?,
+      NodeType::Atomic(atomic_type) => Self::eval_atomic(atomic_type.clone(), inputs).await,
+      NodeType::Complex(path) => eval.parse_complex(path, inputs).await,
     }
   }
 }
 
 impl NodeType {
-  fn eval_atomic(
+  async fn eval_atomic(
     atomic_type: AtomicType,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError> {

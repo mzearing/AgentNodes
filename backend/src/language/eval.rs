@@ -1,9 +1,14 @@
-use std::{collections, fs::File, process::Output};
-use tokio::sync::broadcast::{
-  channel,
-  error::{RecvError, SendError},
-  Receiver, Sender,
+use std::{collections::HashMap, fs::File, sync::Arc};
+use tokio::{
+  sync::broadcast::{
+    channel,
+    error::{RecvError, SendError},
+    Receiver, Sender,
+  },
+  task::{JoinHandle, JoinSet},
 };
+
+use tokio::sync::RwLock;
 
 use super::nodes::Complex;
 use crate::language::{
@@ -20,7 +25,9 @@ pub enum EvalError {
   IoError(std::io::Error),
   ComplexNotFound(String),
   ChannelRecvErr(RecvError),
-  ChannelSendErr(SendError<DataValue>),
+  ChannelSendSingleErr(SendError<DataValue>),
+  ChannelSendVecErr(SendError<Vec<DataValue>>),
+  IncorrectInputCount,
 }
 impl From<ArithmaticError> for EvalError {
   fn from(value: ArithmaticError) -> Self {
@@ -39,20 +46,33 @@ impl From<RecvError> for EvalError {
 }
 impl From<SendError<DataValue>> for EvalError {
   fn from(value: SendError<DataValue>) -> Self {
-    Self::ChannelSendErr(value)
+    Self::ChannelSendSingleErr(value)
+  }
+}
+impl From<SendError<Vec<DataValue>>> for EvalError {
+  fn from(value: SendError<Vec<DataValue>>) -> Self {
+    Self::ChannelSendVecErr(value)
   }
 }
 
 pub trait EvaluateIt {
-  async fn evaluate(&self, inputs: Vec<DataValue>) -> Result<Vec<DataValue>, EvalError>;
+  async fn evaluate(
+    &self,
+    eval: Arc<Evaluator>,
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError>;
 }
 
 pub struct Evaluator {
-  complex_registry: std::collections::HashMap<String, Complex>,
-  nodes: std::collections::HashMap<uuid::Uuid, ExecutionNode>,
+  complex_registry: HashMap<String, Arc<Evaluator>>,
+  parent: Option<Arc<Evaluator>>,
+  nodes: RwLock<HashMap<uuid::Uuid, JoinHandle<Result<(), EvalError>>>>,
+  outputs: RwLock<Sender<Vec<DataValue>>>,
+  inputs: (Sender<Vec<DataValue>>, RwLock<Receiver<Vec<DataValue>>>),
+  start_node: uuid::Uuid,
 }
 
-struct ExecutionNode {
+pub struct ExecutionNode {
   pub id: uuid::Uuid,
   pub instance: Instance,
   pub inputs: Vec<Receiver<DataValue>>,
@@ -60,17 +80,22 @@ struct ExecutionNode {
 }
 
 impl ExecutionNode {
-  pub async fn run(&mut self) -> Result<(), EvalError> {
+  pub async fn run(mut self, eval: Arc<Evaluator>) -> Result<(), EvalError> {
     loop {
       let mut input_vec = Vec::new();
       for x in &mut self.inputs {
         input_vec.push(x.recv().await.map_err(|x| EvalError::from(x))?);
       }
-      self
-        .outputs
-        .iter_mut()
-        .zip(self.instance.node_type.evaluate(input_vec).await?.iter())
-        .map(|(o, x)| o.send(x.clone()).map_err(EvalError::from)?);
+      for (o, x) in self.outputs.iter_mut().zip(
+        self
+          .instance
+          .node_type
+          .evaluate(eval.clone(), input_vec)
+          .await?
+          .iter(),
+      ) {
+        o.send(x.clone()).map_err(EvalError::from)?;
+      }
     }
   }
   pub fn new(instance: Instance, inputs: &Vec<Sender<DataValue>>) -> Self {
@@ -87,40 +112,95 @@ impl ExecutionNode {
       outputs,
     }
   }
+
+  pub fn new_incomplete(instance: Instance) -> Self {
+    let mut outputs = Vec::new();
+    for _ in &instance.outputs {
+      let (x, _) = channel(CHANNEL_CAPACITY);
+      outputs.push(x)
+    }
+    Self {
+      id: uuid::Uuid::new_v4(),
+      instance,
+      inputs: Vec::new(),
+      outputs,
+    }
+  }
 }
 
 impl Evaluator {
-  pub fn new(path: String) -> Result<Self, EvalError> {
-    let mut complex_nodes = std::collections::HashMap::<String, Complex>::new();
-    let mut path_vec = Vec::new();
-    path_vec.push(path.clone());
-    while !path_vec.is_empty() {
-      let path = path_vec.pop().unwrap();
-      let file = File::open(path.clone()).map_err(|x| EvalError::from(x))?;
-      let complex = serde_json::from_reader::<File, Complex>(file)
-        .map_err(|_| EvalError::InvalidComplexNode(path.to_owned()))?;
-      for (_, x) in &complex.instances {
-        if let NodeType::Complex(p) = &x.node_type {
-          if !complex_nodes.contains_key(p) {
-            path_vec.push(p.clone());
-          }
+  pub async fn new(path: String, parent: Option<Arc<Self>>) -> Result<Arc<Self>, EvalError> {
+    let mut complex_nodes = std::collections::HashMap::<String, Arc<Self>>::new();
+
+    let file = File::open(path).map_err(EvalError::from)?;
+    let me = serde_json::from_reader::<File, Complex>(file)
+      .map_err(|_| EvalError::InvalidComplexNode(path))?;
+    let (s, r) = channel(CHANNEL_CAPACITY);
+
+    let mut nstack = Vec::new();
+    let mut exec_nodes = HashMap::new();
+
+    for (id, instance) in me.instances {
+      let inputs = Vec::new();
+      inputs.resize_with(instance.inputs.len(), || None);
+      exec_nodes.insert(id, (ExecutionNode::new_incomplete(instance), inputs));
+    }
+
+    for (id, instance) in me.instances {
+      for i in 0..instance.outputs.len() {
+        for j in 0..instance.outputs[i].len() {
+          let conn_id = instance.outputs[i][j];
+          let (current, _) = &exec_nodes[&conn_id];
+          let (other, inputs) = &mut exec_nodes[&conn_id];
+          inputs[j] = Some(current.outputs[j].subscribe());
         }
       }
-      complex_nodes.insert(path.clone(), complex);
     }
-    let top_node = &mut complex_nodes[&path];
+
+    for (_, (node, inputs)) in &mut exec_nodes {
+      let mut actual_inputs = Vec::new();
+      for i in inputs {
+        actual_inputs.push(i.ok_or_else(|| EvalError::IncorrectInputCount)?);
+      }
+      node.inputs = actual_inputs;
+    }
+
+    let ret = Arc::new(Self {
+      complex_registry: complex_nodes,
+      nodes: RwLock::new(HashMap::new()),
+      parent,
+      outputs: RwLock::new(channel(CHANNEL_CAPACITY).0),
+      inputs: (s, RwLock::new(r)),
+    });
+
+    ret.clone().parse_complex(path, &Vec::new()).await?;
+    Ok(ret)
   }
 
-  pub fn spawn(&mut self, node: ExecutionNode) {
+  pub async fn spawn(self: Arc<Self>, node: ExecutionNode) {
     let id = node.id.clone();
-    self.nodes.insert(id.clone(), node);
-    tokio::spawn(self.nodes[&id].run());
+    let mut guard = self.nodes.write().await;
+
+    guard.insert(id.clone(), tokio::spawn(node.run(self.clone())));
   }
 
-  pub fn parse_complex(&mut self, path: String, inputs: &Vec<Sender<DataValue>>) {
-    let complex = self.complex_registry[&path].clone();
-    for (_, instance) in complex.instances {
-      self.spawn(ExecutionNode::new(instance, inputs));
-    }
+  pub async fn send_outputs(&self, outputs: Vec<DataValue>) -> Result<(), EvalError> {
+    self
+      .outputs
+      .read()
+      .await
+      .send(outputs)
+      .map_err(EvalError::from)?;
+    Ok(())
+  }
+  pub async fn get_outputs(&self) -> Result<Vec<DataValue>, EvalError> {
+    self
+      .outputs
+      .read()
+      .await
+      .subscribe()
+      .recv()
+      .await
+      .map_err(EvalError::from)
   }
 }
