@@ -6,13 +6,15 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Debug)]
-pub enum ArithmaticError {
+pub enum ArithmaticError
+{
   InvalidCombo(DataValue, DataValue),
   DivByZero,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum DataType {
+pub enum DataType
+{
   String,
   Integer,
   Float,
@@ -22,21 +24,27 @@ pub enum DataType {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum DataValue {
+pub enum DataValue
+{
   String(String),
   Integer(i64),
   Float(f64),
   Boolean(bool),
   None,
 }
-impl Display for DataType {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for DataType
+{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+  {
     write!(f, "{:?}", self)
   }
 }
-impl Display for DataValue {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
+impl Display for DataValue
+{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+  {
+    match self
+    {
       DataValue::String(x) => write!(f, "{x}"),
       DataValue::Integer(x) => write!(f, "{x}"),
       DataValue::Float(x) => write!(f, "{x}"),
@@ -46,11 +54,14 @@ impl Display for DataValue {
   }
 }
 
-impl Add for DataValue {
+impl Add for DataValue
+{
   type Output = Result<Self, ArithmaticError>;
 
-  fn add(self, rhs: Self) -> Self::Output {
-    match (&self, &rhs) {
+  fn add(self, rhs: Self) -> Self::Output
+  {
+    match (&self, &rhs)
+    {
       (Self::Float(x), Self::Float(y)) => Ok(DataValue::Float(x + y)),
       (Self::Integer(x), Self::Integer(y)) => Ok(DataValue::Integer(x + y)),
       (Self::String(x), Self::String(y)) => Ok(DataValue::String(x.clone() + &y)),
@@ -63,11 +74,14 @@ impl Add for DataValue {
   }
 }
 
-impl Sub for DataValue {
+impl Sub for DataValue
+{
   type Output = Result<Self, ArithmaticError>;
 
-  fn sub(self, rhs: Self) -> Self::Output {
-    match (&self, &rhs) {
+  fn sub(self, rhs: Self) -> Self::Output
+  {
+    match (&self, &rhs)
+    {
       (Self::Float(x), Self::Float(y)) => Ok(DataValue::Float(x - y)),
       (Self::Integer(x), Self::Integer(y)) => Ok(DataValue::Integer(x - y)),
       (Self::Float(x), Self::Integer(y)) => Ok(DataValue::Float(x - *y as f64)),
@@ -77,11 +91,14 @@ impl Sub for DataValue {
   }
 }
 
-impl Mul for DataValue {
+impl Mul for DataValue
+{
   type Output = Result<Self, ArithmaticError>;
 
-  fn mul(self, rhs: Self) -> Self::Output {
-    match (&self, &rhs) {
+  fn mul(self, rhs: Self) -> Self::Output
+  {
+    match (&self, &rhs)
+    {
       (Self::Float(x), Self::Float(y)) => Ok(DataValue::Float(x * y)),
       (Self::Integer(x), Self::Integer(y)) => Ok(DataValue::Integer(x * y)),
       (Self::Float(x), Self::Integer(y)) => Ok(DataValue::Float(x * *y as f64)),
@@ -91,36 +108,55 @@ impl Mul for DataValue {
   }
 }
 
-impl Div for DataValue {
+impl Div for DataValue
+{
   type Output = Result<Self, ArithmaticError>;
 
-  fn div(self, rhs: Self) -> Self::Output {
-    match (&self, &rhs) {
-      (Self::Float(x), Self::Float(y)) => {
-        if *y == 0.0 {
+  fn div(self, rhs: Self) -> Self::Output
+  {
+    match (&self, &rhs)
+    {
+      (Self::Float(x), Self::Float(y)) =>
+      {
+        if *y == 0.0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Float(x / y))
         }
       }
-      (Self::Integer(x), Self::Integer(y)) => {
-        if *y == 0 {
+      (Self::Integer(x), Self::Integer(y)) =>
+      {
+        if *y == 0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Integer(x / y))
         }
       }
-      (Self::Float(x), Self::Integer(y)) => {
-        if *y == 0 {
+      (Self::Float(x), Self::Integer(y)) =>
+      {
+        if *y == 0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Float(x / *y as f64))
         }
       }
-      (Self::Integer(x), Self::Float(y)) => {
-        if *y == 0.0 {
+      (Self::Integer(x), Self::Float(y)) =>
+      {
+        if *y == 0.0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Float(*x as f64 / y))
         }
       }
@@ -129,36 +165,55 @@ impl Div for DataValue {
   }
 }
 
-impl Rem for DataValue {
+impl Rem for DataValue
+{
   type Output = Result<Self, ArithmaticError>;
 
-  fn rem(self, rhs: Self) -> Self::Output {
-    match (&self, &rhs) {
-      (Self::Float(x), Self::Float(y)) => {
-        if *y == 0.0 {
+  fn rem(self, rhs: Self) -> Self::Output
+  {
+    match (&self, &rhs)
+    {
+      (Self::Float(x), Self::Float(y)) =>
+      {
+        if *y == 0.0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Float(x % y))
         }
       }
-      (Self::Integer(x), Self::Integer(y)) => {
-        if *y == 0 {
+      (Self::Integer(x), Self::Integer(y)) =>
+      {
+        if *y == 0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Integer(x % y))
         }
       }
-      (Self::Float(x), Self::Integer(y)) => {
-        if *y == 0 {
+      (Self::Float(x), Self::Integer(y)) =>
+      {
+        if *y == 0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Float(x % *y as f64))
         }
       }
-      (Self::Integer(x), Self::Float(y)) => {
-        if *y == 0.0 {
+      (Self::Integer(x), Self::Float(y)) =>
+      {
+        if *y == 0.0
+        {
           Err(ArithmaticError::DivByZero)
-        } else {
+        }
+        else
+        {
           Ok(DataValue::Float(*x as f64 % y))
         }
       }
