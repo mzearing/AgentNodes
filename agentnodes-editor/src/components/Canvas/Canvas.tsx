@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef, DragEvent } from 'react';
+import React, { useCallback } from 'react';
 import {
   ReactFlow,
   Node,
@@ -10,12 +10,12 @@ import {
   Controls,
   BackgroundVariant,
   ReactFlowProvider,
-  ReactFlowInstance,
   applyNodeChanges,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
-import { nodeTypes, ScriptingNodeData } from '../ScriptingNodes/ScriptingNode';
+import { nodeTypes } from '../ScriptingNodes/ScriptingNode';
+import { useCanvasDrop } from '../../hooks';
 
 interface CanvasProps {
   nodes: Node[];
@@ -25,17 +25,12 @@ interface CanvasProps {
 
 const initialEdges: Edge[] = [];
 
-// temporary global node naming
-let nodeId = 1;
-const getNodeId = () => `node_${nodeId++}`;
-
 const CanvasComponent: React.FC<CanvasProps> = ({ nodes: propNodes, onNodesChange: propOnNodesChange, onNodeAdd }) => {
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const canvasDrop = useCanvasDrop(propNodes, propOnNodesChange, onNodeAdd);
 
   // Use the nodes from props directly and create a wrapped onChange
-  const wrappedOnNodesChange = React.useCallback((changes: any) => {
+  const wrappedOnNodesChange = React.useCallback((changes: Parameters<typeof applyNodeChanges>[0]) => {
     // Apply the changes to get the new nodes
     const newNodes = applyNodeChanges(changes, propNodes);
     propOnNodesChange(newNodes);
@@ -60,89 +55,19 @@ const CanvasComponent: React.FC<CanvasProps> = ({ nodes: propNodes, onNodesChang
     [setEdges]
   );
 
-  const onDragOver = useCallback((event: DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const onDrop = useCallback(
-    (event: DragEvent) => {
-      event.preventDefault();
-
-      if (!reactFlowWrapper.current || !reactFlowInstance) return;
-
-      const nodeData = event.dataTransfer.getData('application/reactflow');
-
-      if (!nodeData) return;
-
-      const { nodeId, label, inputs, outputs, variadicInputs, variadicOutputs, solo } = JSON.parse(nodeData);
-      
-      const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-      
-      // Convert string arrays to handle objects with unique IDs
-      const inputHandles = inputs.map((name: string, index: number) => ({
-        id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
-        name
-      }));
-      
-      const outputHandles = outputs.map((name: string, index: number) => ({
-        id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
-        name
-      }));
-
-      const scriptingNodeData: ScriptingNodeData = {
-        nodeId,
-        label,
-        inputs: inputHandles,
-        outputs: outputHandles,
-        variadicInputs,
-        variadicOutputs,
-        solo
-      };
-
-      const newNode: Node = {
-        id: getNodeId(),
-        type: 'scripting-node',
-        position,
-        data: scriptingNodeData,
-      };
-      
-      // Check if this is a solo node and if one already exists
-      if (solo) {
-        const existingSoloNode = propNodes.find(node => {
-          const nodeData = node.data as ScriptingNodeData;
-          return nodeData.solo && nodeData.nodeId === nodeId;
-        });
-        
-        if (existingSoloNode) {
-          console.warn(`Solo node "${label}" already exists on the canvas`);
-          return;
-        }
-      }
-      
-      // Add the new node
-      const newNodes = propNodes.concat(newNode);
-      propOnNodesChange(newNodes);
-      onNodeAdd?.(newNode);
-    },
-    [reactFlowInstance, propNodes, propOnNodesChange, onNodeAdd]
-  );
 
   return (
     <div className={styles.canvas}>
-      <div className={styles.reactFlowWrapper} ref={reactFlowWrapper}>
+      <div className={styles.reactFlowWrapper} ref={canvasDrop.reactFlowWrapper}>
         <ReactFlow
           nodes={propNodes}
           edges={edges}
           onNodesChange={wrappedOnNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onInit={setReactFlowInstance}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
+          onInit={canvasDrop.setReactFlowInstance}
+          onDrop={canvasDrop.onDrop}
+          onDragOver={canvasDrop.onDragOver}
           nodeTypes={nodeTypes}
           className={styles.reactFlow}
           proOptions={{hideAttribution: true}}

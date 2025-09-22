@@ -1,0 +1,57 @@
+.contextMenu {
+  position: fixed;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.menuItem {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: block;
+}
+
+.menuItem:hover:not(:disabled) {
+  background-color: var(--color-surface-hover);
+}
+
+.menuItem:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.menuItem--danger {
+  color: var(--color-danger);
+}
+
+.menuItem--danger:hover:not(:disabled) {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+}
+
+.menuItem--primary {
+  color: var(--color-primary);
+}
+
+.menuItem--primary:hover:not(:disabled) {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--color-primary);
+}
+
+.separator {
+  height: 1px;
+  background-color: var(--color-border-secondary);
+  margin: var(--spacing-sm) 0;
+}

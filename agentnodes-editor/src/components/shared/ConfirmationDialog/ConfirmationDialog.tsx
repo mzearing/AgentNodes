@@ -1,0 +1,53 @@
+import React from 'react';
+import styles from './ConfirmationDialog.module.css';
+
+export type ConfirmationDialogVariant = 'default' | 'danger' | 'warning' | 'primary';
+
+interface ConfirmationDialogProps {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: ConfirmationDialogVariant;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
+  isOpen,
+  title,
+  message,
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
+  variant = 'default',
+  onConfirm,
+  onCancel
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.overlay} onClick={onCancel}>
+      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+        <h3 className={styles.title}>{title}</h3>
+        <p className={styles.message}>{message}</p>
+        <div className={styles.buttons}>
+          <button 
+            className={styles.cancelButton}
+            onClick={onCancel}
+          >
+            {cancelText}
+          </button>
+          <button 
+            className={`${styles.confirmButton} ${styles[`confirmButton--${variant}`]}`}
+            onClick={onConfirm}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ConfirmationDialog;
