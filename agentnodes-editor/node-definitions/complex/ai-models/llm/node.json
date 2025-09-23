@@ -1,0 +1,11 @@
+{
+  "id": "llm",
+  "name": "Language Model",
+  "inputs": [
+    "Prompt",
+    "Context"
+  ],
+  "outputs": [
+    "Response"
+  ]
+}

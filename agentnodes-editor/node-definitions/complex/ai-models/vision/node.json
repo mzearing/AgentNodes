@@ -1,0 +1,11 @@
+{
+  "id": "vision",
+  "name": "Vision Model",
+  "inputs": [
+    "Image",
+    "Query"
+  ],
+  "outputs": [
+    "Analysis"
+  ]
+}

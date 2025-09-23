@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import styles from './Sidebar.module.css';
 import { SidebarNode, NodeGroup, Category } from './types';
@@ -14,57 +14,8 @@ import {
   useConfirmDialog, 
   useDragAndDrop 
 } from '../../hooks';
+import { nodeFileSystem } from '../../services/nodeFileSystem';
 
-const complexGroups: NodeGroup[] = [
-  {
-    id: 'automation',
-    name: 'Automation',
-    color: '#63b3ed',
-    nodes: [
-      { id: 'script', name: 'Script', inputs:['A','B','C','D','E','F','G'], outputs:['A','B']},
-      { id: 'workflow', name: 'Workflow', inputs:['Input','Config'], outputs:['Result','Status']},
-    ]
-  },
-  {
-    id: 'ai-models',
-    name: 'AI Models',
-    color: '#68d391',
-    nodes: [
-      { id: 'llm', name: 'Language Model', inputs:['Prompt','Context'], outputs:['Response']},
-      { id: 'vision', name: 'Vision Model', inputs:['Image','Query'], outputs:['Analysis']},
-    ]
-  }
-];
-
-const atomicGroups: NodeGroup[] = [
-  {
-    id: 'control',
-    name: 'Control Flow',
-    color: '#f6ad55',
-    nodes: [
-      { id: 'start', name: 'Start', inputs:[], outputs:['Output'], variadicInputs: false, variadicOutputs: true, solo: true},
-      { id: 'finish', name: 'Finish', inputs:['Input'], outputs:[], variadicInputs: true, variadicOutputs: false, solo: true},
-    ]
-  },
-  {
-    id: 'processing',
-    name: 'Data Processing',
-    color: '#fc8181',
-    nodes: [
-      { id: 'script2', name: 'Other Script', inputs:['A','B'], outputs:['A','B','C']},
-      { id: 'transform', name: 'Transform', inputs:['Data'], outputs:['Output']},
-    ]
-  },
-  {
-    id: 'utilities',
-    name: 'Utilities',
-    color: '#a78bfa',
-    nodes: [
-      { id: 'logger', name: 'Logger', inputs:['Message','Level'], outputs:['Log']},
-      { id: 'delay', name: 'Delay', inputs:['Input','Duration'], outputs:['Output']},
-    ]
-  }
-];
 
 interface SidebarProps {
   nodes: Node[];
@@ -72,8 +23,49 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ nodes }) => {
   const [activeCategory, setActiveCategory] = useState<Category>('Complex');
+  const [complexGroups, setComplexGroups] = useState<NodeGroup[]>([]);
+  const [atomicGroups, setAtomicGroups] = useState<NodeGroup[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const groupManagement = useGroupManagement(complexGroups);
+  useEffect(() => {
+    const loadNodeGroups = async () => {
+      try {
+        const { complex, atomic } = await nodeFileSystem.loadNodeGroups();
+        setComplexGroups(complex);
+        setAtomicGroups(atomic);
+      } catch (error) {
+        console.error('Error loading node groups:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadNodeGroups();
+  }, []);
+  
+  const handleComplexGroupsChange = useCallback(async (groups: NodeGroup[]) => {
+    setComplexGroups(groups);
+    // Persist changes to file system
+    for (const group of groups) {
+      await nodeFileSystem.saveNodeGroup(group, 'Complex');
+    }
+  }, []);
+
+  const handleAtomicGroupsChange = useCallback(async (groups: NodeGroup[]) => {
+    setAtomicGroups(groups);
+    // Persist changes to file system
+    for (const group of groups) {
+      await nodeFileSystem.saveNodeGroup(group, 'Atomic');
+    }
+  }, []);
+
+  const groupManagement = useGroupManagement(
+    activeCategory === 'Complex' ? complexGroups : atomicGroups,
+    {
+      onGroupsChange: activeCategory === 'Complex' ? handleComplexGroupsChange : handleAtomicGroupsChange,
+      category: activeCategory
+    }
+  );
   const nodeManagement = useNodeManagement();
   const contextMenuState = useContextMenu();
   const confirmDialogState = useConfirmDialog();
@@ -226,6 +218,18 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes }) => {
   const confirmDeleteNode = (groupId: string, nodeId: string) => {
     confirmDialogState.showConfirmDialog('node', groupId, nodeId);
   };
+
+  if (isLoading) {
+    return (
+      <div className={styles.sidebar}>
+        <div className={styles.sidebarContent}>
+          <div style={{ padding: '20px', textAlign: 'center' }}>
+            Loading nodes...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.sidebar}>

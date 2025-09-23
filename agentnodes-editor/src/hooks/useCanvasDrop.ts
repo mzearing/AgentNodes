@@ -70,7 +70,7 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
       }
 
       const newNodes = nodes.concat(newNode);
-      onNodesChange(newNodes);
+      onNodesChange(newNodes); 
       onNodeAdd?.(newNode);
     },
     [reactFlowInstance, nodes, onNodesChange, onNodeAdd]

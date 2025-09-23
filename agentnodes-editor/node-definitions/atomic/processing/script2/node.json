@@ -1,0 +1,6 @@
+{
+  "id": "script2",
+  "name": "Other Script",
+  "inputs": ["A", "B"],
+  "outputs": ["A", "B", "C"]
+}

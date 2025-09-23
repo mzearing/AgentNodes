@@ -1,0 +1,9 @@
+{
+  "id": "start",
+  "name": "Start",
+  "inputs": [],
+  "outputs": ["Output"],
+  "variadicInputs": false,
+  "variadicOutputs": true,
+  "solo": true
+}

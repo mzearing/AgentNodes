@@ -50,7 +50,7 @@ rules.push({
 export const rendererConfig: Configuration = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   devtool: process.env.NODE_ENV === 'production' ? 'source-map' : 'inline-source-map',
-  target: 'electron-renderer',
+  target: 'web',
   module: {
     rules,
   },
@@ -76,8 +76,5 @@ export const rendererConfig: Configuration = {
       "fs": false,
       "os": require.resolve("os-browserify/browser"),
     },
-  },
-  externals: {
-    'electron': 'commonjs electron',
   },
 };

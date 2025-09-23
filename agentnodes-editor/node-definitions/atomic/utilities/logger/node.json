@@ -1,0 +1,6 @@
+{
+  "id": "logger",
+  "name": "Logger",
+  "inputs": ["Message", "Level"],
+  "outputs": ["Log"]
+}
