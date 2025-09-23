@@ -42,16 +42,33 @@ const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | nul
       const groupData = await fsAsync.readFile(groupJsonPath, 'utf-8');
       const group = JSON.parse(groupData);
       
-      const files = await fsAsync.readdir(groupPath);
-      const nodeFiles = files.filter((file : string) => file.endsWith('.json') && file !== 'group.json');
+      const items = await fsAsync.readdir(groupPath);
+      const nodeDirs = [];
+      
+      for (const item of items) {
+        if (item === 'group.json') continue;
+        
+        const itemPath = path.join(groupPath, item);
+        const stats = await fsAsync.stat(itemPath);
+        
+        if (stats.isDirectory) {
+          nodeDirs.push(item);
+        }
+      }
       
       group.nodes = [];
       
-      for (const nodeFile of nodeFiles) {
-        const nodePath = path.join(groupPath, nodeFile);
-        const nodeData = await fsAsync.readFile(nodePath, 'utf-8');
-        const node = JSON.parse(nodeData);
-        group.nodes.push(node);
+      for (const nodeDir of nodeDirs) {
+        const nodeDirPath = path.join(groupPath, nodeDir);
+        const nodeJsonPath = path.join(nodeDirPath, 'node.json');
+        
+        try {
+          const nodeData = await fsAsync.readFile(nodeJsonPath, 'utf-8');
+          const node = JSON.parse(nodeData);
+          group.nodes.push(node);
+        } catch (error) {
+          console.warn(`Failed to read node at ${nodeJsonPath}:`, error);
+        }
       }
       
       return group;
@@ -156,9 +173,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
         
         if (nodes && Array.isArray(nodes)) {
           for (const node of nodes) {
-            const nodeFileName = `${node.id}.json`;
-            const nodePath = path.join(groupPath, nodeFileName);
-            await fsAsync.writeFile(nodePath, JSON.stringify(node, null, 2), 'utf-8');
+            const nodeDirPath = path.join(groupPath, node.id);
+            await fsAsync.mkdir(nodeDirPath, { recursive: true });
+            
+            const nodeJsonPath = path.join(nodeDirPath, 'node.json');
+            await fsAsync.writeFile(nodeJsonPath, JSON.stringify(node, null, 2), 'utf-8');
           }
         }
       } catch (error) {
