@@ -1,0 +1,12 @@
+{
+  "id": "workflow",
+  "name": "Workflow",
+  "inputs": [
+    "Input",
+    "Config"
+  ],
+  "outputs": [
+    "Result",
+    "Status"
+  ]
+}

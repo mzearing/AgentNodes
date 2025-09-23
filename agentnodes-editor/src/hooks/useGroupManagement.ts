@@ -1,11 +1,26 @@
-import { useState, useCallback } from 'react';
-import { NodeGroup, SidebarNode } from '../components/Sidebar/types';
+import { useState, useCallback, useEffect } from 'react';
+import { NodeGroup, SidebarNode, Category } from '../components/Sidebar/types';
 
-export const useGroupManagement = (initialGroups: NodeGroup[]) => {
+interface GroupManagementOptions {
+  onGroupsChange?: (groups: NodeGroup[]) => void;
+  category?: Category;
+}
+
+export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupManagementOptions = {}) => {
   const [groups, setGroups] = useState<NodeGroup[]>(initialGroups);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
+  const { onGroupsChange } = options;
+
+  useEffect(() => {
+    setGroups(initialGroups);
+  }, [initialGroups]);
+
+  const updateGroups = useCallback((newGroups: NodeGroup[]) => {
+    setGroups(newGroups);
+    onGroupsChange?.(newGroups);
+  }, [onGroupsChange]);
 
   const toggleGroup = useCallback((groupId: string) => {
     const newExpandedGroups = new Set(expandedGroups);
@@ -24,17 +39,16 @@ export const useGroupManagement = (initialGroups: NodeGroup[]) => {
 
   const submitGroupName = useCallback(() => {
     if (editingGroup && editingGroupName.trim()) {
-      setGroups(prev => 
-        prev.map(group => 
-          group.id === editingGroup 
-            ? { ...group, name: editingGroupName.trim() }
-            : group
-        )
+      const newGroups = groups.map(group => 
+        group.id === editingGroup 
+          ? { ...group, name: editingGroupName.trim() }
+          : group
       );
+      updateGroups(newGroups);
     }
     setEditingGroup(null);
     setEditingGroupName('');
-  }, [editingGroup, editingGroupName]);
+  }, [editingGroup, editingGroupName, groups, updateGroups]);
 
   const cancelGroupEditing = useCallback(() => {
     setEditingGroup(null);
@@ -48,13 +62,15 @@ export const useGroupManagement = (initialGroups: NodeGroup[]) => {
       color: '#9ca3af',
       nodes: []
     };
-    setGroups(prev => [...prev, newGroup]);
+    const newGroups = [...groups, newGroup];
+    updateGroups(newGroups);
     startGroupEditing(newGroup.id, newGroup.name);
-  }, [startGroupEditing]);
+  }, [groups, updateGroups, startGroupEditing]);
 
   const deleteGroup = useCallback((groupId: string) => {
-    setGroups(prev => prev.filter(group => group.id !== groupId));
-  }, []);
+    const newGroups = groups.filter(group => group.id !== groupId);
+    updateGroups(newGroups);
+  }, [groups, updateGroups]);
 
   const reorderGroups = useCallback((dragIndex: number, dropIndex: number) => {
     if (dragIndex !== dropIndex) {
@@ -64,9 +80,9 @@ export const useGroupManagement = (initialGroups: NodeGroup[]) => {
       newGroups.splice(dragIndex, 1);
       newGroups.splice(dropIndex, 0, draggedItem);
       
-      setGroups(newGroups);
+      updateGroups(newGroups);
     }
-  }, [groups]);
+  }, [groups, updateGroups]);
 
   const addNode = useCallback((groupId: string) => {
     const newNode: SidebarNode = {
@@ -76,43 +92,40 @@ export const useGroupManagement = (initialGroups: NodeGroup[]) => {
       outputs: ['Output']
     };
     
-    setGroups(prev =>
-      prev.map(group =>
-        group.id === groupId
-          ? { ...group, nodes: [...group.nodes, newNode] }
-          : group
-      )
+    const newGroups = groups.map(group =>
+      group.id === groupId
+        ? { ...group, nodes: [...group.nodes, newNode] }
+        : group
     );
+    updateGroups(newGroups);
     
     return newNode;
-  }, []);
+  }, [groups, updateGroups]);
 
   const updateNodeName = useCallback((groupId: string, nodeId: string, newName: string) => {
-    setGroups(prev => 
-      prev.map(group => 
-        group.id === groupId
-          ? {
-              ...group,
-              nodes: group.nodes.map(node =>
-                node.id === nodeId
-                  ? { ...node, name: newName.trim() }
-                  : node
-              )
-            }
-          : group
-      )
+    const newGroups = groups.map(group => 
+      group.id === groupId
+        ? {
+            ...group,
+            nodes: group.nodes.map(node =>
+              node.id === nodeId
+                ? { ...node, name: newName.trim() }
+                : node
+            )
+          }
+        : group
     );
-  }, []);
+    updateGroups(newGroups);
+  }, [groups, updateGroups]);
 
   const deleteNode = useCallback((groupId: string, nodeId: string) => {
-    setGroups(prev =>
-      prev.map(group =>
-        group.id === groupId
-          ? { ...group, nodes: group.nodes.filter(node => node.id !== nodeId) }
-          : group
-      )
+    const newGroups = groups.map(group =>
+      group.id === groupId
+        ? { ...group, nodes: group.nodes.filter(node => node.id !== nodeId) }
+        : group
     );
-  }, []);
+    updateGroups(newGroups);
+  }, [groups, updateGroups]);
 
   return {
     groups,

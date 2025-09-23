@@ -1,0 +1,9 @@
+{
+  "id": "finish",
+  "name": "Finish",
+  "inputs": ["Input"],
+  "outputs": [],
+  "variadicInputs": true,
+  "variadicOutputs": false,
+  "solo": true
+}
