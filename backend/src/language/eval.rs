@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fs::File, sync::Arc};
+use std::{
+  collections::{HashMap, VecDeque},
+  fs::File,
+  sync::Arc,
+};
 use tokio::sync::broadcast::{
   channel,
   error::{RecvError, SendError},
@@ -7,11 +11,12 @@ use tokio::sync::broadcast::{
 
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+use uuid::Uuid;
 
 use super::nodes::Complex;
 use crate::language::{
   nodes::Instance,
-  typing::{ArithmaticError, DataValue},
+  typing::{ArithmaticError, DataType, DataValue},
 };
 
 const CHANNEL_CAPACITY: usize = 16;
@@ -26,6 +31,11 @@ pub enum EvalError
   ChannelRecvErr(RecvError),
   ChannelSendSingleErr(SendError<DataValue>),
   ChannelSendVecErr(SendError<Vec<DataValue>>),
+  IncorrectTyping
+  {
+    got: Vec<DataType>,
+    expected: Vec<DataType>,
+  },
   IncorrectInputCount,
 }
 impl From<ArithmaticError> for EvalError
@@ -117,30 +127,28 @@ impl ExecutionNode
 {
   pub async fn run(mut self, eval: Arc<Evaluator>) -> Result<(), EvalError>
   {
-    loop
+    let mut input_vec = Vec::new();
+    for x in &mut self.inputs
     {
-      let mut input_vec = Vec::new();
-      for x in &mut self.inputs
+      let mut r = x.recv().await;
+      while let Err(RecvError::Lagged(_)) = r
       {
-        let mut r = x.recv().await;
-        while let Err(RecvError::Lagged(_)) = r
-        {
-          r = x.recv().await;
-        }
-        input_vec.push(r.map_err(|x| EvalError::from(x))?);
+        r = x.recv().await;
       }
-      for (o, x) in self.outputs.iter_mut().zip(
-        self
-          .instance
-          .node_type
-          .evaluate(eval.clone(), input_vec)
-          .await?
-          .iter(),
-      )
-      {
-        o.send(x.clone()).map_err(EvalError::from)?;
-      }
+      input_vec.push(r.map_err(|x| EvalError::from(x))?);
     }
+    for (o, x) in self.outputs.iter_mut().zip(
+      self
+        .instance
+        .node_type
+        .evaluate(eval.clone(), input_vec)
+        .await?
+        .iter(),
+    )
+    {
+      o.send(x.clone()).map_err(EvalError::from)?;
+    }
+    Ok(())
   }
   pub fn new(instance: Instance, inputs: &Vec<Sender<DataValue>>) -> Self
   {
@@ -154,22 +162,6 @@ impl ExecutionNode
       outputs,
     }
   }
-
-  pub fn new_incomplete(instance: Instance) -> Self
-  {
-    let mut outputs = Vec::new();
-    for _ in &instance.outputs
-    {
-      let (x, _) = channel(CHANNEL_CAPACITY);
-      outputs.push(x)
-    }
-    Self {
-      id: uuid::Uuid::new_v4(),
-      instance,
-      inputs: Vec::new(),
-      outputs,
-    }
-  }
 }
 
 impl Evaluator
@@ -180,58 +172,57 @@ impl Evaluator
     let me = serde_json::from_reader::<File, Complex>(file)
       .map_err(|_| EvalError::InvalidComplexNode(path))?;
 
-    let mut nstack = Vec::new();
+    let mut queue = VecDeque::new();
     let mut processed = HashMap::new();
-    nstack.append(
-      &mut me.instances[&me.start_node]
-        .outputs
-        .iter()
-        .flatten()
-        .collect::<Vec<&uuid::Uuid>>(),
-    );
-    processed.insert(
-      me.start_node,
-      ExecutionNode::new(me.instances[&me.start_node].clone(), &Vec::new()),
-    );
+    let mut keys = me.instances.keys().cloned().collect::<Vec<Uuid>>();
+    keys.sort_by(|a, b| {
+      me.instances[a]
+        .inputs
+        .len()
+        .cmp(&me.instances[b].inputs.len())
+    });
 
-    while !nstack.is_empty()
+    queue.append(&mut keys.into());
+
+    while !queue.is_empty()
     {
-      let current = nstack.pop().unwrap();
-      let node = &me.instances[current];
-      let mut inputs = Vec::new();
-      inputs.resize_with(node.inputs.len(), || None);
-      let mut cont = false;
-
-      for (i, (_, input)) in node.inputs.iter().enumerate()
+      let current = queue.pop_front().unwrap();
+      let node = &me.instances[&current];
+      let possible_sockets: Vec<(&DataType, Option<&ExecutionNode>, &usize)> = node
+        .inputs
+        .iter()
+        .map(|(dtype, id, socket)| (dtype, processed.get(id), socket))
+        .collect();
+      if !possible_sockets.iter().all(|(_, x, _)| x.is_some())
       {
-        if let Some(x) = processed.get(input)
-        {
-          inputs[i] = Some(x.outputs[i].clone());
-        }
-        else
-        {
-          nstack.push(current);
-          cont = true;
-          break;
-        }
-      }
-
-      if cont
-      {
+        queue.push_back(current);
         continue;
       }
 
-      processed.insert(
-        *current,
-        ExecutionNode::new(
-          node.clone(),
-          &inputs.iter().map(|x| x.clone().unwrap()).collect(),
-        ),
-      );
-      nstack.append(&mut node.outputs.iter().flatten().collect::<Vec<&uuid::Uuid>>());
+      let sockets: Vec<(&DataType, &ExecutionNode, &usize)> = possible_sockets
+        .into_iter()
+        .map(|(dtype, node, index)| (dtype, node.unwrap(), index))
+        .collect();
+
+      let type_pairs: Vec<(DataType, DataType)> = sockets
+        .iter()
+        .map(|(e, node, index)| (node.instance.outputs[**index].clone(), (*e).clone()))
+        .collect();
+
+      if !type_pairs.iter().all(|(g, e)| g == e)
+      {
+        let (got, expected) = type_pairs.into_iter().unzip();
+        return Err(EvalError::IncorrectTyping { got, expected });
+      }
+
+      let inputs: Vec<Sender<DataValue>> = sockets
+        .iter()
+        .map(|(_, node, index)| node.outputs[**index].clone())
+        .collect();
+
+      processed.insert(current, ExecutionNode::new(node.clone(), &inputs));
     }
 
-    // todo!();
     let (s, r) = channel(CHANNEL_CAPACITY);
     let ret = Arc::new(Self {
       complex_registry: HashMap::new(),

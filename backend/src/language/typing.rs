@@ -12,7 +12,7 @@ pub enum ArithmaticError
   DivByZero,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub enum DataType
 {
   String,
@@ -218,6 +218,34 @@ impl Rem for DataValue
         }
       }
       _ => Err(ArithmaticError::InvalidCombo(self, rhs)),
+    }
+  }
+}
+
+impl DataValue
+{
+  pub fn pow(&self, power: &Self) -> Result<Self, ArithmaticError>
+  {
+    match (self, power)
+    {
+      (&DataValue::Float(b), &DataValue::Float(e)) => Ok(DataValue::Float(b.powf(e))),
+      (&DataValue::Integer(b), &DataValue::Integer(e)) =>
+      {
+        if e < 0
+        {
+          Ok(DataValue::Float((b as f64).powi(e as i32)))
+        }
+        else
+        {
+          Ok(DataValue::Integer(b.pow(e as u32)))
+        }
+      }
+      (&DataValue::Float(b), &DataValue::Integer(e)) =>
+      {
+        Ok(DataValue::Float((b as f64).powi(e as i32)))
+      }
+      (&DataValue::Integer(b), &DataValue::Float(e)) => Ok(DataValue::Float((b as f64).powf(e))),
+      _ => Err(ArithmaticError::InvalidCombo(self.clone(), power.clone())),
     }
   }
 }

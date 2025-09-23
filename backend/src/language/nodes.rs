@@ -36,8 +36,8 @@ pub struct Instance
 {
   pub node_type: NodeType,
   default_overrides: std::collections::HashMap<String, DataValue>,
-  pub outputs: Vec<Vec<uuid::Uuid>>,
-  pub inputs: Vec<(DataType, uuid::Uuid)>,
+  pub outputs: Vec<DataType>,
+  pub inputs: Vec<(DataType, uuid::Uuid, usize)>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -120,7 +120,7 @@ impl NodeType
       AtomicBinOp::Mul => Ok(vec![(inputs[0].clone() * inputs[1].clone())?]),
       AtomicBinOp::Div => Ok(vec![(inputs[0].clone() / inputs[1].clone())?]),
       AtomicBinOp::Mod => Ok(vec![(inputs[0].clone() % inputs[1].clone())?]),
-      AtomicBinOp::Pow => todo!(),
+      AtomicBinOp::Pow => Ok(vec![inputs[0].pow(&inputs[1])?]),
     }
   }
 }

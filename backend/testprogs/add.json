@@ -1,0 +1,55 @@
+{
+  "inputs" : [],
+  "outputs" : [],
+  "defaults" : {},
+  "start_node" : "497dcba3-ecbf-4587-a2dd-5eb0665e6880",
+  "instances" : 
+  {
+    "497dcba3-ecbf-4587-a2dd-5eb0665e6880" :
+    {
+      "node_type":
+      {
+        "Atomic": {
+          "Value" : 1
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : ["Integer"],
+      "inputs" : []
+    },
+    "50e14f43-dd4e-412f-864d-78943ea28d91" :
+    {
+      "node_type":
+      {
+        "Atomic": {
+          "Value" : 2
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : ["Integer"],
+      "inputs" : []
+    },
+    "7edb3b2e-869c-485b-af70-76a934e0fcfd" :
+    {
+      "node_type":
+      {
+        "Atomic": {
+          "BinOp" : "Add"
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : ["Integer"],
+      "inputs" : [["Integer", "497dcba3-ecbf-4587-a2dd-5eb0665e6880", 0], ["Integer", "50e14f43-dd4e-412f-864d-78943ea28d91", 0]]
+    },
+    "67e32b59-3348-4dc3-9645-75c60b6f50cc" :
+    {
+      "node_type" :
+      {
+        "Atomic" : "Print"
+      },
+      "default_overrides" : {},
+      "outputs" : [],
+      "inputs" : [["Integer", "7edb3b2e-869c-485b-af70-76a934e0fcfd", 0]]
+    }
+  }
+}
