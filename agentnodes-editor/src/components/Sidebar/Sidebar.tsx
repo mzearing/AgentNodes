@@ -135,8 +135,9 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes }) => {
     contextMenuState.hideContextMenu();
   };
 
-  const deleteGroup = (groupId: string) => {
+  const deleteGroup = async (groupId: string) => {
     groupManagement.deleteGroup(groupId);
+    await nodeFileSystem.deleteNodeGroup(groupId, activeCategory);
     contextMenuState.hideContextMenu();
     confirmDialogState.hideConfirmDialog();
   };
@@ -210,8 +211,9 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes }) => {
     nodeManagement.startNodeEditing(groupId, newNode.id, newNode.name);
   };
 
-  const deleteNode = (groupId: string, nodeId: string) => {
+  const deleteNode = async (groupId: string, nodeId: string) => {
     groupManagement.deleteNode(groupId, nodeId);
+    await nodeFileSystem.deleteNode(groupId, nodeId, activeCategory);
     confirmDialogState.hideConfirmDialog();
   };
 
