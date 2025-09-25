@@ -9,6 +9,7 @@ declare global {
         writeNodeGroup: (groupPath: string, group: NodeGroup) => Promise<void>;
         deleteNodeGroup: (groupPath: string) => Promise<void>;
         createNodesDirectory: (nodesPath: string) => Promise<void>;
+        deleteNode: (groupPath: string, nodeId: string) => Promise<void>;
       };
     };
   }
@@ -77,6 +78,23 @@ export class NodeFileSystemService {
     }
     
     console.log('Deleting node group:', groupId);
+    return false;
+  }
+
+  async deleteNode(groupId: string, nodeId: string, category: Category): Promise<boolean> {
+    try {
+      if (window.electronAPI?.nodeFileSystem) {
+        const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+        const groupPath = `${this.nodesPath}/${categoryPath}/${groupId}`;
+        
+        await window.electronAPI.nodeFileSystem.deleteNode(groupPath, nodeId);
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to delete node from file system:', error);
+    }
+    
+    console.log('Deleting node:', nodeId, 'from group:', groupId);
     return false;
   }
 

@@ -6,3 +6,8 @@ export { useConfirmDialog } from './useConfirmDialog';
 export { useDragAndDrop } from './useDragAndDrop';
 export { useNodeHandles } from './useNodeHandles';
 export { useCanvasDrop } from './useCanvasDrop';
+export { useSidebarData } from './useSidebarData';
+export { useSidebarDragHandlers } from './useSidebarDragHandlers';
+export { useSidebarHandlers } from './useSidebarHandlers';
+export { useSidebarHooks } from './useSidebarHooks';
+export { useSidebarNodeHandlers } from './useSidebarNodeHandlers';

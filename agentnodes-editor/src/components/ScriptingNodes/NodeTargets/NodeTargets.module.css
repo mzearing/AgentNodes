@@ -1,9 +1,9 @@
 .nodeTargets{ 
-    background-color: var(--color-surface);
     grid-area: nodeTargets;
     color: var(--color-text);
     display: flex;
     flex-direction: column;
+    border-radius: var(--radius-lg);
     position: relative;
     height: 100%;
 }
@@ -17,6 +17,7 @@
     background-color: var(--color-surface, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
     border-left: 3px solid transparent;
+    border-radius: var(--radius-lg);
     transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 

@@ -200,6 +200,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       } catch (error) {
         throw new Error(`Failed to create nodes directory: ${error}`);
       }
+    },
+
+    deleteNode: async (groupPath: string, nodeId: string): Promise<void> => {
+      try {
+        const nodePath = path.join(groupPath, nodeId);
+        await fsAsync.rm(nodePath, { recursive: true, force: true });
+      } catch (error) {
+        throw new Error(`Failed to delete node: ${error}`);
+      }
     }
   }
 });
