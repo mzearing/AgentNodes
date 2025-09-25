@@ -37,6 +37,7 @@ pub enum EvalError
     expected: Vec<DataType>,
   },
   IncorrectInputCount,
+  RegexError(regex::Error),
 }
 impl From<ArithmaticError> for EvalError
 {
@@ -73,6 +74,13 @@ impl From<SendError<Vec<DataValue>>> for EvalError
     Self::ChannelSendVecErr(value)
   }
 }
+impl From<regex::Error> for EvalError
+{
+  fn from(value: regex::Error) -> Self
+  {
+    Self::RegexError(value)
+  }
+}
 
 pub trait EvaluateIt
 {
@@ -85,10 +93,11 @@ pub trait EvaluateIt
 
 pub struct Evaluator
 {
-  complex_registry: HashMap<String, Arc<Evaluator>>,
+  complex_registry: RwLock<HashMap<String, Arc<Evaluator>>>,
   parent: Option<Arc<Evaluator>>,
   outputs: RwLock<Sender<Vec<DataValue>>>,
   inputs: (Sender<Vec<DataValue>>, RwLock<Receiver<Vec<DataValue>>>),
+  pub my_path: String,
 }
 
 pub async fn log_task(mut tasks: Vec<JoinHandle<Result<(), EvalError>>>)
@@ -128,6 +137,7 @@ impl ExecutionNode
   pub async fn run(mut self, eval: Arc<Evaluator>) -> Result<(), EvalError>
   {
     let mut input_vec = Vec::new();
+
     for x in &mut self.inputs
     {
       let mut r = x.recv().await;
@@ -170,7 +180,7 @@ impl Evaluator
   {
     let file = File::open(&path).map_err(EvalError::from)?;
     let me = serde_json::from_reader::<File, Complex>(file)
-      .map_err(|_| EvalError::InvalidComplexNode(path))?;
+      .map_err(|_| EvalError::InvalidComplexNode(path.clone()))?;
 
     let mut queue = VecDeque::new();
     let mut processed = HashMap::new();
@@ -225,10 +235,14 @@ impl Evaluator
 
     let (s, r) = channel(CHANNEL_CAPACITY);
     let ret = Arc::new(Self {
-      complex_registry: HashMap::new(),
+      complex_registry: RwLock::new(HashMap::new()),
       parent,
       outputs: RwLock::new(channel(CHANNEL_CAPACITY).0),
       inputs: (s, RwLock::new(r)),
+      my_path: std::path::Path::new(&path)
+        .parent()
+        .map(|x| x.to_str().unwrap().to_string())
+        .unwrap_or_default(),
     });
 
     let mut tasks = Vec::new();
@@ -263,5 +277,49 @@ impl Evaluator
       .recv()
       .await
       .map_err(EvalError::from)
+  }
+
+  pub fn send_inputs(&self, inputs: Vec<DataValue>) -> Result<(), EvalError>
+  {
+    self.inputs.0.send(inputs).map_err(EvalError::from)?;
+    Ok(())
+  }
+  pub async fn get_inputs(&self) -> Result<Vec<DataValue>, EvalError>
+  {
+    let mut guard = self.inputs.1.write().await;
+    let mut ret = guard.recv().await;
+    while let Err(RecvError::Lagged(_)) = ret
+    {
+      ret = guard.recv().await;
+    }
+    ret.map_err(EvalError::from)
+  }
+  pub async fn add_evaluator(&self, path: String, eval: Arc<Evaluator>)
+  {
+    let relative_path = format!("{}{}{}", eval.my_path, std::path::MAIN_SEPARATOR, path);
+    self
+      .complex_registry
+      .write()
+      .await
+      .insert(relative_path, eval.clone());
+    if let Some(p) = &self.parent
+    {
+      Box::pin(p.add_evaluator(path, eval.clone())).await;
+    }
+  }
+  pub async fn get_evaluator(&self, path: String) -> Option<Arc<Evaluator>>
+  {
+    let relative_path = format!("{}{}{}", self.my_path, std::path::MAIN_SEPARATOR, path);
+    let ret = self
+      .complex_registry
+      .read()
+      .await
+      .get(&relative_path)
+      .cloned();
+    match (&ret, &self.parent)
+    {
+      (None, Some(p)) => Box::pin(p.get_evaluator(relative_path)).await,
+      _ => ret,
+    }
   }
 }

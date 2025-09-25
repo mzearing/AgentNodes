@@ -1,0 +1,70 @@
+{
+  "inputs" : [],
+  "outputs" : ["String"],
+  "defaults" : {},
+  "instances" : 
+  {
+    "497dcba3-ecbf-4587-a2dd-5eb0665e6880" : 
+    {
+      "node_type":
+      {
+        "Atomic" : {
+          "Value" : "GET (\\S*?) HTTP\\/\\d\\.\\d\r\n"
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : ["String"],
+      "inputs" : []
+    },
+    "50e14f43-dd4e-412f-864d-78943ea28d91" :
+    {
+      "node_type":
+      {
+        "Atomic" : {
+          "Value" : "$1"
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : ["String"],
+      "inputs" : []
+    },
+    "7edb3b2e-869c-485b-af70-76a934e0fcfd" : 
+    {
+      "node_type":
+      {
+        "Atomic" : {
+          "Value" : "GET hello_world HTTP/1.1\r\n"
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : ["String"],
+      "inputs" : []
+    },
+    "67e32b59-3348-4dc3-9645-75c60b6f50cc" :
+    {
+      "node_type":{
+        "Atomic" : "Replace"
+      },
+      "default_overrides" : {},
+      "outputs" : ["String"],
+      "inputs" : [
+        ["String", "497dcba3-ecbf-4587-a2dd-5eb0665e6880", 0], 
+        ["String", "50e14f43-dd4e-412f-864d-78943ea28d91", 0],
+        ["String", "7edb3b2e-869c-485b-af70-76a934e0fcfd", 0]
+      ]
+    },
+    "4c8f6d82-e4c6-4478-92eb-d9342500f006" :
+    {
+      "node_type" : 
+      {
+        "Atomic" :
+        {
+          "Control" : "End"
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : [],
+      "inputs" : [["String", "67e32b59-3348-4dc3-9645-75c60b6f50cc", 0]]
+    }
+  }
+}

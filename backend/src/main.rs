@@ -1,5 +1,4 @@
 mod language;
-use std::{fs::File, io::Write};
 
 use language::eval::Evaluator;
 
@@ -7,8 +6,8 @@ use language::eval::Evaluator;
 async fn main() -> Result<(), ()>
 {
   // console_subscriber::init();
-  let eval = Evaluator::new("testprogs/add.json".to_string(), None).unwrap();
+  let eval = Evaluator::new("testprogs/regex_test.json".to_string(), None).unwrap();
 
-  eval.get_outputs().await.unwrap();
+  println!("{:?}", eval.get_outputs().await.unwrap());
   Ok(())
 }

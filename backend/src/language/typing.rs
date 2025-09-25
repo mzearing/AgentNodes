@@ -248,4 +248,15 @@ impl DataValue
       _ => Err(ArithmaticError::InvalidCombo(self.clone(), power.clone())),
     }
   }
+  pub fn get_type(&self) -> DataType
+  {
+    match self
+    {
+      DataValue::String(_) => DataType::String,
+      DataValue::Integer(_) => DataType::Integer,
+      DataValue::Float(_) => DataType::Float,
+      DataValue::Boolean(_) => DataType::Boolean,
+      DataValue::None => DataType::None,
+    }
+  }
 }
