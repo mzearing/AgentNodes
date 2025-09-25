@@ -3,27 +3,34 @@ import styles from './ConfirmationDialog.module.css';
 
 export type ConfirmationDialogVariant = 'default' | 'danger' | 'warning' | 'primary';
 
-interface ConfirmationDialogProps {
-  isOpen: boolean;
+interface ConfirmationDialogConfig {
   title: string;
   message: string;
   confirmText?: string;
   cancelText?: string;
   variant?: ConfirmationDialogVariant;
+}
+
+interface ConfirmationDialogProps {
+  isOpen: boolean;
+  config: ConfirmationDialogConfig;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   isOpen,
-  title,
-  message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'default',
+  config,
   onConfirm,
   onCancel
 }) => {
+  const {
+    title,
+    message,
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    variant = 'default'
+  } = config;
   if (!isOpen) return null;
 
   return (

@@ -10,16 +10,14 @@ export interface ContextMenuAction {
 }
 
 interface ContextMenuProps {
-  x: number;
-  y: number;
+  position: { x: number; y: number };
   actions: ContextMenuAction[];
   isOpen: boolean;
   onClose?: () => void;
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({ 
-  x, 
-  y, 
+  position, 
   actions, 
   isOpen,
   onClose 
@@ -29,7 +27,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   return (
     <div
       className={styles.contextMenu}
-      style={{ left: x, top: y }}
+      style={{ left: position.x, top: position.y }}
       onClick={(e) => e.stopPropagation()}
     >
       {actions.map((action, index) => (
