@@ -15,6 +15,7 @@ pub enum ArithmaticError
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub enum DataType
 {
+  Array,
   String,
   Integer,
   Float,
@@ -30,6 +31,7 @@ pub enum DataValue
   Integer(i64),
   Float(f64),
   Boolean(bool),
+  Array(Vec<DataValue>),
   None,
 }
 impl Display for DataType
@@ -49,6 +51,15 @@ impl Display for DataValue
       DataValue::Integer(x) => write!(f, "{x}"),
       DataValue::Float(x) => write!(f, "{x}"),
       DataValue::Boolean(x) => write!(f, "{x}"),
+      DataValue::Array(x) =>
+      {
+        write!(f, "[")?;
+        for v in x
+        {
+          write!(f, "{v}");
+        }
+        write!(f, "]")
+      }
       DataValue::None => Ok(()),
     }
   }
@@ -256,6 +267,7 @@ impl DataValue
       DataValue::Integer(_) => DataType::Integer,
       DataValue::Float(_) => DataType::Float,
       DataValue::Boolean(_) => DataType::Boolean,
+      DataValue::Array(_) => DataType::Array,
       DataValue::None => DataType::None,
     }
   }

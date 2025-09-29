@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_nodes.schema.json",
+  "$defs" : {
+    "instance":
+    {
+      "type" : "object",
+      "properties" :
+      {
+        "node_type" : {"type" : "object", "description" : "the type of node (complex or atomic)"},
+        "default_overrides" : {"type" : "object"},
+        "outputs" :{
+          "type" : "array",
+          "description" : "The output types of the instance"
+        },
+        "inputs" : {
+          "type" : "array",
+          "description" : "2d array of (DataType, UUID, Input socket)"
+        }
+      }
+    }
+  },
+  "title": "Complex Node",
+  "description": "A complex node definition for the agent nodes lang",
+  "type": "object",
+  "properties": {
+    "inputs": {
+      "description" : "Input types for the complex node",
+      "type" : "array"
+    },
+    "outputs": {
+      "description" : "Output types for the complex node",
+      "type": "array"
+    },
+    "defaults": {
+      "description" : "unused",
+      "type" : "object"
+    },
+    "instances" : 
+    {
+      "type": "object",      
+      "description" : "All the nodes the complex node contains",
+      "additionalProperties" : {"$ref" : "#/$defs/instance"}
+    }
+
+  },
+  "required": ["inputs", "outputs", "defaults", "instances"]
+}

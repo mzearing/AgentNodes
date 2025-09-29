@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::language::eval::{EvalError, EvaluateIt, Evaluator};
+use crate::language::eval::{EvalError, EvaluateIt, Evaluator, ExecutionNode};
 
 use super::typing::{DataType, DataValue};
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ pub enum AtomicType
   BinOp(AtomicBinOp),
   Value(DataValue),
   Control(ControlFlow),
+  Variable(DataType),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
@@ -63,6 +64,7 @@ impl EvaluateIt for NodeType
   async fn evaluate(
     &self,
     eval: Arc<Evaluator>,
+    node: &mut ExecutionNode,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
@@ -70,7 +72,7 @@ impl EvaluateIt for NodeType
     {
       NodeType::Atomic(atomic_type) =>
       {
-        Self::eval_atomic(atomic_type.clone(), eval.clone(), inputs).await
+        Self::eval_atomic(atomic_type.clone(), eval.clone(), node, inputs).await
       }
       NodeType::Complex(path) =>
       {
@@ -99,6 +101,7 @@ impl NodeType
   async fn eval_atomic(
     atomic_type: AtomicType,
     eval: Arc<Evaluator>,
+    node: &mut ExecutionNode,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
@@ -143,6 +146,7 @@ impl NodeType
           })
         }
       }
+      AtomicType::Variable(_t) => Self::eval_variable(node, inputs).await,
     }
   }
 
@@ -177,6 +181,32 @@ impl NodeType
         eval.send_outputs(inputs).await?;
         Ok(vec![])
       }
+    }
+  }
+
+  async fn eval_variable(
+    node: &mut ExecutionNode,
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError>
+  {
+    if inputs.len() != 0
+    {
+      let mut guard = node.state.write().await;
+      if inputs.len() == 1
+      {
+        (*guard) = Some(inputs[0].clone());
+      }
+      else
+      {
+        (*guard) = Some(DataValue::Array(inputs));
+      }
+    }
+
+    match &*node.state.read().await
+    {
+      Some(DataValue::Array(x)) => Ok(x.clone()),
+      Some(x) => Ok(vec![x.clone()]),
+      None => Ok(vec![]),
     }
   }
 }

@@ -87,6 +87,7 @@ pub trait EvaluateIt
   async fn evaluate(
     &self,
     eval: Arc<Evaluator>,
+    node: &mut ExecutionNode,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>;
 }
@@ -130,6 +131,7 @@ pub struct ExecutionNode
   pub instance: Instance,
   pub inputs: Vec<Receiver<DataValue>>,
   pub outputs: Vec<Sender<DataValue>>,
+  pub state: RwLock<Option<DataValue>>,
 }
 
 impl ExecutionNode
@@ -147,14 +149,13 @@ impl ExecutionNode
       }
       input_vec.push(r.map_err(|x| EvalError::from(x))?);
     }
-    for (o, x) in self.outputs.iter_mut().zip(
-      self
-        .instance
-        .node_type
-        .evaluate(eval.clone(), input_vec)
-        .await?
-        .iter(),
-    )
+    let res = self
+      .instance
+      .node_type
+      .clone()
+      .evaluate(eval.clone(), &mut self, input_vec)
+      .await?;
+    for (o, x) in self.outputs.iter().zip(res.iter())
     {
       o.send(x.clone()).map_err(EvalError::from)?;
     }
@@ -170,6 +171,7 @@ impl ExecutionNode
       instance,
       inputs: inputs.iter().map(|x| x.subscribe()).collect(),
       outputs,
+      state: RwLock::new(None),
     }
   }
 }
