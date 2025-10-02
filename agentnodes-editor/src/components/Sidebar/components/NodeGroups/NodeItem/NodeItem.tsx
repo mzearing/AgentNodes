@@ -11,7 +11,7 @@ interface NodeItemEditingState {
 
 interface NodeItemHandlers {
   onNodeClick: (node: SidebarNode) => void;
-  onDragStart: (event: React.DragEvent, node: SidebarNode) => void;
+  onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;
   onNodeNameKeyDown: (e: React.KeyboardEvent) => void;
@@ -64,7 +64,7 @@ const NodeItem: React.FC<NodeItemProps> = ({
       role="button"
       tabIndex={isDisabled ? -1 : 0}
       draggable={!isDisabled && !editingState.isEditing}
-      onDragStart={(event) => !editingState.isEditing && handlers.onDragStart(event, node)}
+      onDragStart={(event) => !editingState.isEditing && handlers.onDragStart(event, node, groupId)}
       onKeyDown={(e) => {
         if (!isDisabled && !editingState.isEditing && (e.key === 'Enter' || e.key === ' ')) {
           handlers.onNodeClick(node);

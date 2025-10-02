@@ -11,7 +11,7 @@ interface NodeEditingConfig {
 
 interface NodeHandlers {
   onNodeClick: (node: SidebarNode) => void;
-  onDragStart: (event: React.DragEvent, node: SidebarNode) => void;
+  onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;
   onNodeNameKeyDown: (e: React.KeyboardEvent) => void;

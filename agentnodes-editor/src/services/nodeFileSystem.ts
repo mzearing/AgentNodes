@@ -3,6 +3,8 @@ import { NodeGroup, Category } from '../components/Sidebar/types';
 declare global {
   interface Window {
     electronAPI: {
+      readFile: (filePath: string) => Promise<string>;
+      getStats: (filePath: string) => Promise<{ size: number; mtime: Date }>;
       nodeFileSystem: {
         readNodeGroups: (nodesPath: string) => Promise<{ complex: NodeGroup[]; atomic: NodeGroup[] }>;
         readNodeGroup: (groupPath: string) => Promise<NodeGroup | null>;
@@ -17,6 +19,7 @@ declare global {
 
 export class NodeFileSystemService {
   private nodesPath: string;
+  private nodeFileTimestamps: Map<string, number> = new Map();
 
   constructor(nodesPath = './node-definitions') {
     this.nodesPath = nodesPath;
@@ -98,7 +101,55 @@ export class NodeFileSystemService {
     return false;
   }
 
-  
+  async checkNodeFileChanged(nodeId: string, groupId: string, category: Category): Promise<boolean> {
+    try {
+      if (window.electronAPI?.getStats) {
+        const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+        const nodeFilePath = `${this.nodesPath}/${categoryPath}/${groupId}/${nodeId}/node.json`;
+        
+        const stats = await window.electronAPI.getStats(nodeFilePath);
+        const lastModified = new Date(stats.mtime).getTime();
+        
+        const nodeKey = `${category}/${groupId}/${nodeId}`;
+        const cachedTimestamp = this.nodeFileTimestamps.get(nodeKey);
+        
+        if (!cachedTimestamp || lastModified !== cachedTimestamp) {
+          this.nodeFileTimestamps.set(nodeKey, lastModified);
+          return true;
+        }
+        
+        return false;
+      }
+    } catch (error) {
+      console.warn('Failed to check node file timestamp:', error);
+    }
+    
+    return false;
+  }
+
+  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; variadicInputs?: boolean; variadicOutputs?: boolean; solo?: boolean } | null> {
+    try {
+      if (window.electronAPI?.readFile) {
+        const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+        const nodeFilePath = `${this.nodesPath}/${categoryPath}/${groupId}/${nodeId}/node.json`;
+        
+        const nodeData = await window.electronAPI.readFile(nodeFilePath);
+        const node = JSON.parse(nodeData);
+        
+        return {
+          inputs: node.inputs || [],
+          outputs: node.outputs || [],
+          variadicInputs: node.variadicInputs,
+          variadicOutputs: node.variadicOutputs,
+          solo: node.solo
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to get fresh node data:', error);
+    }
+    
+    return null;
+  }
 }
 
 export const nodeFileSystem = new NodeFileSystemService();

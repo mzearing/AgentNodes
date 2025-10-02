@@ -47,13 +47,7 @@ const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | nul
       
       for (const item of items) {
         if (item === 'group.json') continue;
-        
-        const itemPath = path.join(groupPath, item);
-        const stats = await fsAsync.stat(itemPath);
-        
-        if (stats.isDirectory) {
-          nodeDirs.push(item);
-        }
+        nodeDirs.push(item);
       }
       
       group.nodes = [];
@@ -112,12 +106,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return await fsAsync.access(filePath);
   },
 
-  getStats: async (filePath: string): Promise<{ isFile: boolean; isDirectory: boolean; size: number; mtime: Date }> => {
+  getStats: async (filePath: string): Promise<{ size: number; mtime: Date }> => {
     try {
       const stats = await fsAsync.stat(filePath);
       return {
-        isFile: stats.isFile(),
-        isDirectory: stats.isDirectory(),
         size: stats.size,
         mtime: stats.mtime
       };
@@ -139,13 +131,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
             
             for (const groupDir of groupDirs) {
               const groupPath = path.join(categoryPath, groupDir);
-              const stats = await fsAsync.stat(groupPath);
-              
-              if (stats.isDirectory) {
-                const group = await readNodeGroupInternal(groupPath);
-                if (group) {
-                  result[category].push(group);
-                }
+              const group = await readNodeGroupInternal(groupPath);
+              if (group) {
+                result[category].push(group);
               }
             }
           } catch (error) {

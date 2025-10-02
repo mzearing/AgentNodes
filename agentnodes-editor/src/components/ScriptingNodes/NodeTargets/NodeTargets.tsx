@@ -52,7 +52,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     
-    if (mouseX < 30) {
+    if (mouseX < 32) {
       // Mouse is near the handle, prevent dragging
       e.preventDefault();
       return;

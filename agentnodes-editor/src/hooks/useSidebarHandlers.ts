@@ -20,9 +20,11 @@ export const useSidebarHandlers = ({
     console.log('Node clicked:', node);
   }, []);
 
-  const onDragStart = useCallback((event: React.DragEvent, node: SidebarNode) => {
+  const onDragStart = useCallback((event: React.DragEvent, node: SidebarNode, groupId: string) => {
     const dragData = {
       nodeId: node.id,
+      groupId: groupId,
+      category: activeCategory,
       label: node.name,
       inputs: node.inputs,
       outputs: node.outputs,
@@ -33,7 +35,7 @@ export const useSidebarHandlers = ({
     
     event.dataTransfer.setData('application/reactflow', JSON.stringify(dragData));
     event.dataTransfer.effectAllowed = 'move';
-  }, []);
+  }, [activeCategory]);
 
   const handleGroupDoubleClick = useCallback((groupId: string, groupName: string) => {
     if (activeCategory === 'Complex') {

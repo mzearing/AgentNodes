@@ -54,7 +54,7 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
     const mouseX = e.clientX - rect.left;
     const boxWidth = rect.width;
     
-    if (mouseX > boxWidth - 30) {
+    if (mouseX > boxWidth - 32) {
       // Mouse is near the handle, prevent dragging
       e.preventDefault();
       return;
@@ -74,7 +74,6 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
   const handleDragOver = (e: DragEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only allow drop if this is an output reorder operation
     if (e.dataTransfer.types.includes('application/node-output-reorder')) {
       e.dataTransfer.dropEffect = 'move';
       setDragOverIndex(index);
@@ -91,7 +90,6 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
     e.preventDefault();
     e.stopPropagation();
     
-    // Only handle drop if this is an output reorder operation
     if (!e.dataTransfer.types.includes('application/node-output-reorder')) {
       return;
     }
@@ -101,13 +99,8 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
     if (dragIndex !== null && dragIndex !== dropIndex && onOutputsChange) {
       const newOutputs = [...outputs];
       const draggedItem = newOutputs[dragIndex];
-      
-      // Remove the dragged item
       newOutputs.splice(dragIndex, 1);
-      
-      // Insert it at the new position
       newOutputs.splice(dropIndex, 0, draggedItem);
-      
       onOutputsChange(newOutputs);
     }
     
