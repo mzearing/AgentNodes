@@ -19,9 +19,9 @@ export const useSidebarNodeHandlers = ({
     nodeManagement.startNodeEditing(groupId, nodeId, nodeName);
   }, [nodeManagement]);
 
-  const handleNodeNameSubmit = useCallback(() => {
+  const handleNodeNameSubmit = useCallback(async () => {
     if (nodeManagement.editingNode && nodeManagement.editingNodeName.trim()) {
-      groupManagement.updateNodeName(
+      await groupManagement.updateNodeName(
         nodeManagement.editingNode.groupId,
         nodeManagement.editingNode.nodeId,
         nodeManagement.editingNodeName
@@ -42,13 +42,13 @@ export const useSidebarNodeHandlers = ({
     }
   }, [handleNodeNameSubmit, handleNodeNameCancel]);
 
-  const addNewNode = useCallback((groupId: string) => {
-    const newNode = groupManagement.addNode(groupId);
+  const addNewNode = useCallback(async (groupId: string) => {
+    const newNode = await groupManagement.addNode(groupId);
     nodeManagement.startNodeEditing(groupId, newNode.id, newNode.name);
   }, [groupManagement, nodeManagement]);
 
   const deleteNode = useCallback(async (groupId: string, nodeId: string) => {
-    groupManagement.deleteNode(groupId, nodeId);
+    await groupManagement.deleteNode(groupId, nodeId);
     await nodeFileSystem.deleteNode(groupId, nodeId, activeCategory);
     confirmDialogState.hideConfirmDialog();
   }, [groupManagement, activeCategory, confirmDialogState]);

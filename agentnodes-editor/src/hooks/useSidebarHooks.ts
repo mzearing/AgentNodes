@@ -10,12 +10,15 @@ import { useSidebarHandlers } from './useSidebarHandlers';
 import { useSidebarNodeHandlers } from './useSidebarNodeHandlers';
 import { useSidebarDragHandlers } from './useSidebarDragHandlers';
 import { Category, NodeGroup } from '../components/Sidebar/types';
+import { ProjectState } from '../types/project';
 
 interface UseSidebarHooksProps {
   activeCategory: Category;
   getCurrentGroups: () => NodeGroup[];
   handleComplexGroupsChange: (groups: NodeGroup[]) => Promise<void>;
   handleAtomicGroupsChange: (groups: NodeGroup[]) => Promise<void>;
+  refreshGroups: () => Promise<void>;
+  onLoadProject: (projectState: ProjectState) => void;
 }
 
 export const useSidebarHooks = ({
@@ -23,12 +26,15 @@ export const useSidebarHooks = ({
   getCurrentGroups,
   handleComplexGroupsChange,
   handleAtomicGroupsChange,
+  refreshGroups,
+  onLoadProject,
 }: UseSidebarHooksProps) => {
   const groupManagement = useGroupManagement(
     getCurrentGroups(),
     {
       onGroupsChange: activeCategory === 'Complex' ? handleComplexGroupsChange : handleAtomicGroupsChange,
-      category: activeCategory
+      category: activeCategory,
+      refreshGroups
     }
   );
   const nodeManagement = useNodeManagement();
@@ -42,6 +48,7 @@ export const useSidebarHooks = ({
     nodeManagement,
     contextMenuState,
     confirmDialogState,
+    onLoadProject,
   });
 
   const nodeHandlers = useSidebarNodeHandlers({
@@ -55,6 +62,7 @@ export const useSidebarHooks = ({
     activeCategory,
     dragAndDrop,
     groupManagement,
+    refreshGroups,
   });
 
   useClickOutside(() => {

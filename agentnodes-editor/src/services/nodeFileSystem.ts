@@ -4,6 +4,8 @@ declare global {
   interface Window {
     electronAPI: {
       readFile: (filePath: string) => Promise<string>;
+      writeFile: (filePath: string, content: string) => Promise<void>;
+      mkdir: (dirPath: string) => Promise<void>;
       getStats: (filePath: string) => Promise<{ size: number; mtime: Date }>;
       nodeFileSystem: {
         readNodeGroups: (nodesPath: string) => Promise<{ complex: NodeGroup[]; atomic: NodeGroup[] }>;
@@ -12,6 +14,8 @@ declare global {
         deleteNodeGroup: (groupPath: string) => Promise<void>;
         createNodesDirectory: (nodesPath: string) => Promise<void>;
         deleteNode: (groupPath: string, nodeId: string) => Promise<void>;
+        readNode:   (groupPath: string, nodeId: string) => Promise<JSON>;
+        writeNode:  (groupPath: string, nodeId: string, nodeData: JSON) => Promise<void>;
       };
     };
   }
@@ -98,6 +102,68 @@ export class NodeFileSystemService {
     }
     
     console.log('Deleting node:', nodeId, 'from group:', groupId);
+    return false;
+  }
+  async readNode(groupId: string, nodeId: string, category: Category): Promise<JSON | null> {
+    try {
+      if (window.electronAPI?.nodeFileSystem) {
+        const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+        const groupPath = `${this.nodesPath}/${categoryPath}/${groupId}`;
+        
+        const nodeData = await window.electronAPI.nodeFileSystem.readNode(groupPath, nodeId);
+        return nodeData;
+      }
+    } catch (error) {
+      console.error('Failed to read node from file system:', error);
+    }
+    
+    console.log('Reading node:', nodeId, 'from group:', groupId);
+    return null;
+  }
+
+  async writeNode(groupId: string, nodeId: string, nodeData: JSON, category: Category): Promise<boolean> {
+    try {
+      if (window.electronAPI?.nodeFileSystem) {
+        const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+        const groupPath = `${this.nodesPath}/${categoryPath}/${groupId}`;
+        
+        await window.electronAPI.nodeFileSystem.writeNode(groupPath, nodeId, nodeData);
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to write node to file system:', error);
+    }
+    
+    console.log('Writing node:', nodeId, 'to group:', groupId);
+    return false;
+  }
+
+  async moveNodeBetweenGroups(nodeId: string, sourceGroupId: string, targetGroupId: string, category: Category): Promise<boolean> {
+    try {
+      if (window.electronAPI?.nodeFileSystem && window.electronAPI?.readFile && window.electronAPI?.writeFile && window.electronAPI?.mkdir) {
+        const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+        const sourceNodePath = `${this.nodesPath}/${categoryPath}/${sourceGroupId}/${nodeId}`;
+        const targetNodePath = `${this.nodesPath}/${categoryPath}/${targetGroupId}/${nodeId}`;
+        
+        // Read the node data from source location
+        const nodeData = await window.electronAPI.readFile(`${sourceNodePath}/node.json`);
+        
+        // Create target node directory
+        await window.electronAPI.mkdir(targetNodePath);
+        
+        // Write node to new location
+        await window.electronAPI.writeFile(`${targetNodePath}/node.json`, nodeData);
+        
+        // Delete from old location
+        await window.electronAPI.nodeFileSystem.deleteNode(`${this.nodesPath}/${categoryPath}/${sourceGroupId}`, nodeId);
+        
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to move node between groups in file system:', error);
+    }
+    
+    console.log('Moving node:', nodeId, 'from group:', sourceGroupId, 'to group:', targetGroupId);
     return false;
   }
 

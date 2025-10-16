@@ -1,4 +1,4 @@
-import React, { useState, DragEvent } from 'react';
+import React, { useState, DragEvent, memo } from 'react';
 import { Position, Handle } from '@xyflow/react';
 import styles from './NodeSources.module.css';
 import { OutputHandle } from '../ScriptingNode';
@@ -9,7 +9,7 @@ interface NodeSourcesProps {
   onOutputsChange?: (outputs: OutputHandle[]) => void;
 }
 
-const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, onOutputsChange }) => {
+const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = false, onOutputsChange }) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -205,6 +205,6 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
       )}
     </div>
   );
-};
+});
 
 export default NodeSources;

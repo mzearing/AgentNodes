@@ -7,13 +7,80 @@
     display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
     gap: var(--spacing-xl);
 
     padding: var(--spacing-xl) var(--spacing-xl);
   }
 
+.projectSection {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.projectName {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+    padding: var(--spacing-md) var(--spacing-lg);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.projectName:hover {
+    background-color: var(--color-surface-hover);
+}
+
+.projectNameInput {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    outline: none;
+    min-width: 200px;
+}
+
+.projectNameInput:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-alpha);
+}
+
+.buttonSection {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.actionButton {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: 1px solid var(--color-border-secondary);
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.actionButton:hover {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+}
+
+.actionButton:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+
 .runButton {
-    padding: var(--spacing-xl) var(--spacing-xl);
+    padding: var(--spacing-md) var(--spacing-lg);
     border: 1px solid var(--color-border-secondary);
     background-color: var(--color-surface);
     color: var(--color-text-secondary);
@@ -23,6 +90,7 @@
     font-size: 14px;
     font-weight: 500;
 }
+
 .runButton:hover {
     background-color: var(--color-surface-hover);
     border-color: var(--color-border-hover);

@@ -23,7 +23,7 @@ interface NodeGroupItemProps {
   onGroupNameSubmit: () => void;
   onGroupNameKeyDown: (e: React.KeyboardEvent) => void;
   onGroupNameChange: (value: string) => void;
-  onNodeClick: (node: SidebarNode) => void;
+  onNodeClick: (node: SidebarNode, groupId: string) => void;
   onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;

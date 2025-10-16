@@ -8,21 +8,21 @@ export const useSidebarData = () => {
   const [atomicGroups, setAtomicGroups] = useState<NodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  useEffect(() => {
-    const loadNodeGroups = async () => {
-      try {
-        const { complex, atomic } = await nodeFileSystem.loadNodeGroups();
-        setComplexGroups(complex);
-        setAtomicGroups(atomic);
-      } catch (error) {
-        console.error('Error loading node groups:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadNodeGroups();
+  const loadNodeGroups = useCallback(async () => {
+    try {
+      const { complex, atomic } = await nodeFileSystem.loadNodeGroups();
+      setComplexGroups(complex);
+      setAtomicGroups(atomic);
+    } catch (error) {
+      console.error('Error loading node groups:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+  
+  useEffect(() => {
+    loadNodeGroups();
+  }, [loadNodeGroups]);
   
   const handleComplexGroupsChange = useCallback(async (groups: NodeGroup[]) => {
     setComplexGroups(groups);
@@ -53,6 +53,7 @@ export const useSidebarData = () => {
     handleComplexGroupsChange,
     handleAtomicGroupsChange,
     getCurrentGroups,
+    refreshGroups: loadNodeGroups,
   };
 };
 

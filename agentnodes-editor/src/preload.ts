@@ -93,6 +93,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  mkdir: async (dirPath: string): Promise<void> => {
+    try {
+      await fsAsync.mkdir(dirPath, { recursive: true });
+    } catch (error) {
+      throw new Error(`Failed to create directory: ${error}`);
+    }
+  },
+
   readDir: async (dirPath: string): Promise<string[]> => {
     try {
       const files = await fsAsync.readdir(dirPath);
@@ -196,6 +204,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
         await fsAsync.rm(nodePath, { recursive: true, force: true });
       } catch (error) {
         throw new Error(`Failed to delete node: ${error}`);
+      }
+    },
+
+    readNode: async (groupPath: string, nodeId: string): Promise<JSON> => {
+      try {
+        const nodePath = path.join(groupPath, nodeId);
+        const nodeJsonPath = path.join(nodePath, 'node.json');
+        const nodeData = await fsAsync.readFile(nodeJsonPath, 'utf-8');
+        return JSON.parse(nodeData);
+      } catch (error) {
+        throw new Error(`Failed to read node: ${error}`);
+      }
+    },
+
+    writeNode: async (groupPath: string, nodeId: string, nodeData: JSON): Promise<void> => {
+      try {
+        const nodePath = path.join(groupPath, nodeId);
+        await fsAsync.mkdir(nodePath, { recursive: true });
+        
+        const nodeJsonPath = path.join(nodePath, 'node.json');
+        await fsAsync.writeFile(nodeJsonPath, JSON.stringify(nodeData, null, 2), 'utf-8');
+      } catch (error) {
+        throw new Error(`Failed to write node: ${error}`);
       }
     }
   }

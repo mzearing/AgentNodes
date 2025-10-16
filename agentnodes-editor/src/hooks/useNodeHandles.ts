@@ -7,19 +7,24 @@ export const useNodeHandles = (nodeId: string) => {
   const updateNodeInternals = useUpdateNodeInternals();
 
   const updateInputs = useCallback((newInputs: InputHandle[], currentInputs: InputHandle[]) => {
-    setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                inputs: newInputs,
-              },
-            }
-          : node
-      )
-    );
+    setNodes((nodes) => {
+      const targetNode = nodes.find(node => node.id === nodeId);
+      if (!targetNode) return nodes;
+      
+      const updatedNode = {
+        ...targetNode,
+        data: {
+          ...targetNode.data,
+          inputs: newInputs,
+        },
+      };
+      
+      // Only create new array if node actually changed
+      const nodeIndex = nodes.indexOf(targetNode);
+      const newNodes = [...nodes];
+      newNodes[nodeIndex] = updatedNode;
+      return newNodes;
+    });
 
     if (newInputs.length < currentInputs.length) {
       const validInputIds = new Set(newInputs.map(input => input.id));
@@ -37,19 +42,24 @@ export const useNodeHandles = (nodeId: string) => {
   }, [setNodes, setEdges, updateNodeInternals, nodeId]);
 
   const updateOutputs = useCallback((newOutputs: OutputHandle[], currentOutputs: OutputHandle[]) => {
-    setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                outputs: newOutputs,
-              },
-            }
-          : node
-      )
-    );
+    setNodes((nodes) => {
+      const targetNode = nodes.find(node => node.id === nodeId);
+      if (!targetNode) return nodes;
+      
+      const updatedNode = {
+        ...targetNode,
+        data: {
+          ...targetNode.data,
+          outputs: newOutputs,
+        },
+      };
+      
+      // Only create new array if node actually changed
+      const nodeIndex = nodes.indexOf(targetNode);
+      const newNodes = [...nodes];
+      newNodes[nodeIndex] = updatedNode;
+      return newNodes;
+    });
 
     if (newOutputs.length < currentOutputs.length) {
       const validOutputIds = new Set(newOutputs.map(output => output.id));

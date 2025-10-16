@@ -1,11 +1,138 @@
 {
-  "id": "llm",
-  "name": "Language Model",
-  "inputs": [
-    "Prompt",
-    "Context"
-  ],
-  "outputs": [
-    "Response"
-  ]
+  "summary": {
+    "path": "complex/ai-models",
+    "id": "llm",
+    "name": "Language Model",
+    "inputs": [
+      "Output"
+    ],
+    "outputs": [
+      "Input"
+    ]
+  },
+  "data": {
+    "nodes": [
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": -198.18643872767421,
+          "y": 414.60371492366596
+        },
+        "data": {
+          "nodeId": "start",
+          "label": "Start",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1760475940974-0-bpf95zmak",
+              "name": "Output"
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": true,
+          "solo": true
+        },
+        "measured": {
+          "width": 140,
+          "height": 119
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_4",
+        "type": "scripting-node",
+        "position": {
+          "x": 413.5,
+          "y": 423
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [
+            {
+              "id": "input-1760475943170-0-5dghtihs6",
+              "name": "Input"
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "solo": true
+        },
+        "measured": {
+          "width": 131,
+          "height": 127
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_5",
+        "type": "scripting-node",
+        "position": {
+          "x": 239.2924106263094,
+          "y": 392.64856310128636
+        },
+        "data": {
+          "nodeId": "script2",
+          "label": "Other Script",
+          "inputs": [
+            {
+              "id": "input-1760475947733-0-g5uwbp49r",
+              "name": "A"
+            },
+            {
+              "id": "input-1760475947733-1-d0p2ww7uk",
+              "name": "B"
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1760475947733-0-ib5hfpfu2",
+              "name": "A"
+            },
+            {
+              "id": "output-1760475947733-1-mj4or19w5",
+              "name": "B"
+            },
+            {
+              "id": "output-1760475947733-2-9kwv8ymuj",
+              "name": "C"
+            }
+          ]
+        },
+        "measured": {
+          "width": 114,
+          "height": 126
+        },
+        "selected": false,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_3",
+        "sourceHandle": "output-1760475940974-0-bpf95zmak",
+        "target": "node_5",
+        "targetHandle": "input-1760475947733-0-g5uwbp49r",
+        "id": "xy-edge__node_3output-1760475940974-0-bpf95zmak-node_5input-1760475947733-0-g5uwbp49r",
+        "selected": false
+      },
+      {
+        "source": "node_5",
+        "sourceHandle": "output-1760475947733-0-ib5hfpfu2",
+        "target": "node_4",
+        "targetHandle": "input-1760475943170-0-5dghtihs6",
+        "id": "xy-edge__node_5output-1760475947733-0-ib5hfpfu2-node_4input-1760475943170-0-5dghtihs6",
+        "selected": false
+      }
+    ],
+    "viewport": {
+      "x": 144.68394540048564,
+      "y": -39.38709686861654,
+      "zoom": 0.6139872444435526
+    }
+  }
 }

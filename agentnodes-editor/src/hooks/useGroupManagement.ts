@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { NodeGroup, SidebarNode, Category } from '../components/Sidebar/types';
+import { nodeFileSystem } from '../services/nodeFileSystem';
 
 interface GroupManagementOptions {
   onGroupsChange?: (groups: NodeGroup[]) => void;
   category?: Category;
+  refreshGroups?: () => Promise<void>;
 }
 
 export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupManagementOptions = {}) => {
@@ -11,7 +13,7 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
-  const { onGroupsChange } = options;
+  const { onGroupsChange, refreshGroups } = options;
 
   useEffect(() => {
     setGroups(initialGroups);
@@ -37,7 +39,7 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
     setEditingGroupName(groupName);
   }, []);
 
-  const submitGroupName = useCallback(() => {
+  const submitGroupName = useCallback(async () => {
     if (editingGroup && editingGroupName.trim()) {
       const newGroups = groups.map(group => 
         group.id === editingGroup 
@@ -45,17 +47,22 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
           : group
       );
       updateGroups(newGroups);
+      
+      // Refresh to ensure UI reflects filesystem state
+      if (refreshGroups) {
+        await refreshGroups();
+      }
     }
     setEditingGroup(null);
     setEditingGroupName('');
-  }, [editingGroup, editingGroupName, groups, updateGroups]);
+  }, [editingGroup, editingGroupName, groups, updateGroups, refreshGroups]);
 
   const cancelGroupEditing = useCallback(() => {
     setEditingGroup(null);
     setEditingGroupName('');
   }, []);
 
-  const createGroup = useCallback(() => {
+  const createGroup = useCallback(async () => {
     const newGroup: NodeGroup = {
       id: `group-${Date.now()}`,
       name: 'New Group',
@@ -65,12 +72,22 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
     const newGroups = [...groups, newGroup];
     updateGroups(newGroups);
     startGroupEditing(newGroup.id, newGroup.name);
-  }, [groups, updateGroups, startGroupEditing]);
+    
+    // Refresh to ensure UI reflects filesystem state
+    if (refreshGroups) {
+      await refreshGroups();
+    }
+  }, [groups, updateGroups, startGroupEditing, refreshGroups]);
 
-  const deleteGroup = useCallback((groupId: string) => {
+  const deleteGroup = useCallback(async (groupId: string) => {
     const newGroups = groups.filter(group => group.id !== groupId);
     updateGroups(newGroups);
-  }, [groups, updateGroups]);
+    
+    // Refresh to ensure UI reflects filesystem state
+    if (refreshGroups) {
+      await refreshGroups();
+    }
+  }, [groups, updateGroups, refreshGroups]);
 
   const reorderGroups = useCallback((dragIndex: number, dropIndex: number) => {
     if (dragIndex !== dropIndex) {
@@ -84,7 +101,7 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
     }
   }, [groups, updateGroups]);
 
-  const addNode = useCallback((groupId: string) => {
+  const addNode = useCallback(async (groupId: string) => {
     const newNode: SidebarNode = {
       id: `node-${Date.now()}`,
       name: 'New Node',
@@ -99,10 +116,15 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
     );
     updateGroups(newGroups);
     
+    // Refresh to ensure UI reflects filesystem state
+    if (refreshGroups) {
+      await refreshGroups();
+    }
+    
     return newNode;
-  }, [groups, updateGroups]);
+  }, [groups, updateGroups, refreshGroups]);
 
-  const updateNodeName = useCallback((groupId: string, nodeId: string, newName: string) => {
+  const updateNodeName = useCallback(async (groupId: string, nodeId: string, newName: string) => {
     const newGroups = groups.map(group => 
       group.id === groupId
         ? {
@@ -116,16 +138,72 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
         : group
     );
     updateGroups(newGroups);
-  }, [groups, updateGroups]);
+    
+    // Refresh to ensure UI reflects filesystem state
+    if (refreshGroups) {
+      await refreshGroups();
+    }
+  }, [groups, updateGroups, refreshGroups]);
 
-  const deleteNode = useCallback((groupId: string, nodeId: string) => {
+  const deleteNode = useCallback(async (groupId: string, nodeId: string) => {
     const newGroups = groups.map(group =>
       group.id === groupId
         ? { ...group, nodes: group.nodes.filter(node => node.id !== nodeId) }
         : group
     );
     updateGroups(newGroups);
-  }, [groups, updateGroups]);
+    
+    // Refresh to ensure UI reflects filesystem state
+    if (refreshGroups) {
+      await refreshGroups();
+    }
+  }, [groups, updateGroups, refreshGroups]);
+
+  const moveNodeBetweenGroups = useCallback(async (sourceGroupId: string, nodeId: string, targetGroupIndex: number) => {
+    if (targetGroupIndex < 0 || targetGroupIndex >= groups.length) {
+      return;
+    }
+
+    const targetGroup = groups[targetGroupIndex];
+    if (!targetGroup || targetGroup.id === sourceGroupId) {
+      return;
+    }
+
+    let nodeToMove: SidebarNode | null = null;
+    
+    const newGroups = groups.map((group, index) => {
+      if (group.id === sourceGroupId) {
+        // Remove node from source group
+        const filteredNodes = group.nodes.filter(node => {
+          if (node.id === nodeId) {
+            nodeToMove = node;
+            return false;
+          }
+          return true;
+        });
+        return { ...group, nodes: filteredNodes };
+      } else if (index === targetGroupIndex && nodeToMove) {
+        // Add node to target group
+        return { ...group, nodes: [...group.nodes, nodeToMove] };
+      }
+      return group;
+    });
+
+    if (nodeToMove) {
+      // Update in-memory state first
+      updateGroups(newGroups);
+      
+      // Sync filesystem if category is available
+      if (options.category) {
+        try {
+          await nodeFileSystem.moveNodeBetweenGroups(nodeId, sourceGroupId, targetGroup.id, options.category);
+        } catch (error) {
+          console.error('Failed to sync node move to filesystem:', error);
+          // Note: We could revert the in-memory state here if desired
+        }
+      }
+    }
+  }, [groups, updateGroups, options.category]);
 
   return {
     groups,
@@ -142,6 +220,7 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
     reorderGroups,
     addNode,
     updateNodeName,
-    deleteNode
+    deleteNode,
+    moveNodeBetweenGroups
   };
 };

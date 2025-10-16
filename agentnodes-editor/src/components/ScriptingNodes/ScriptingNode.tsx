@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { type NodeProps, type NodeTypes } from '@xyflow/react';
 import styles from './ScriptingNode.module.css';
 import NodeHeader from './NodeHeader/NodeHeader';
@@ -27,7 +27,7 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   solo?: boolean;
 }
 
-const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
+const ScriptingNode: React.FC<NodeProps> = memo(({ data, selected, id }) => {
   const scriptNodeData = data as unknown as ScriptingNodeData;
   const nodeHandles = useNodeHandles(id);
 
@@ -58,7 +58,7 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
       />
     </div>
   );
-};
+});
 
 export const nodeTypes: NodeTypes = {
   'scripting-node': ScriptingNode,
