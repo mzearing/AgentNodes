@@ -10,8 +10,8 @@ interface NodeEditingConfig {
 }
 
 interface NodeHandlers {
-  onNodeClick: (node: SidebarNode) => void;
-  onDragStart: (event: React.DragEvent, node: SidebarNode) => void;
+  onNodeClick: (node: SidebarNode, groupId: string) => void;
+  onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;
   onNodeNameKeyDown: (e: React.KeyboardEvent) => void;
@@ -53,7 +53,7 @@ const GroupNodesList: React.FC<GroupNodesListProps> = ({
               editingNodeName: editingConfig.editingNodeName
             }}
             handlers={{
-              onNodeClick: handlers.onNodeClick,
+              onNodeClick: (node: SidebarNode, _nodeGroupId: string) => handlers.onNodeClick(node, groupId),
               onDragStart: handlers.onDragStart,
               onStartNodeEditing: handlers.onStartNodeEditing,
               onNodeNameSubmit: handlers.onNodeNameSubmit,

@@ -105,8 +105,6 @@ ipcMain.handle('fs:stat', async (event, filePath: string) => {
     const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(getAppDirectory(), filePath);
     const stats = await fs.stat(resolvedPath);
     return {
-      isFile: stats.isFile(),
-      isDirectory: stats.isDirectory(),
       size: stats.size,
       mtime: stats.mtime
     };

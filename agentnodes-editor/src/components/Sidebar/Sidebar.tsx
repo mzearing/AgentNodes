@@ -6,13 +6,14 @@ import SidebarContextMenu from './components/SidebarContextMenu/SidebarContextMe
 import SidebarConfirmDialog from './components/SidebarConfirmDialog/SidebarConfirmDialog';
 import { useSidebarData } from '../../hooks/useSidebarData';
 import { useSidebarHooks } from '../../hooks/useSidebarHooks';
-
+import { ProjectState } from '../../types/project';
 
 interface SidebarProps {
   nodes: Node[];
+  onLoadProject: (projectState: ProjectState) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ nodes }) => {
+const Sidebar: React.FC<SidebarProps> = ({ nodes, onLoadProject }) => {
   const sidebarData = useSidebarData();
   const { 
     activeCategory, 
@@ -20,7 +21,8 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes }) => {
     isLoading, 
     getCurrentGroups, 
     handleComplexGroupsChange, 
-    handleAtomicGroupsChange 
+    handleAtomicGroupsChange,
+    refreshGroups
   } = sidebarData;
 
   const {
@@ -37,6 +39,8 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes }) => {
     getCurrentGroups,
     handleComplexGroupsChange,
     handleAtomicGroupsChange,
+    refreshGroups,
+    onLoadProject,
   });
 
 

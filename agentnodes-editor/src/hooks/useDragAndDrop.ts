@@ -23,23 +23,43 @@ export const useDragAndDrop = () => {
     setDragOverGroupIndex(null);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number, onReorder: (dragIndex: number, dropIndex: number) => void) => {
+  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number, onReorder: (dragIndex: number, dropIndex: number) => void, onNodeMove?: (nodeData: any, targetGroupIndex: number) => void) => {
     e.preventDefault();
     
-    if (!e.dataTransfer.types.includes('application/sidebar-group-reorder')) {
+    console.log("starting move node: ", onNodeMove)
+    
+    // Handle node movement between groups
+    if (e.dataTransfer.types.includes('application/reactflow') && onNodeMove) {
+      const nodeData = e.dataTransfer.getData('application/reactflow');
+      if (nodeData) {
+        try {
+          const parsedNodeData = JSON.parse(nodeData);
+          onNodeMove(parsedNodeData, dropIndex);
+        } catch (error) {
+          console.error('Failed to parse node data:', error);
+        }
+        // Clear drag state after node movement
+        setDraggedGroupIndex(null);
+        setDragOverGroupIndex(null);
+        return;
+      }
+    }
+    // Handle group reordering
+    if (e.dataTransfer.types.includes('application/sidebar-group-reorder')) {
+      const dragIndex = draggedGroupIndex;
+      
+      if (dragIndex !== null && dragIndex !== dropIndex) {
+        onReorder(dragIndex, dropIndex);
+      }
+      
+      setDraggedGroupIndex(null);
+      setDragOverGroupIndex(null);
       return;
+    
     }
-    
-    const dragIndex = draggedGroupIndex;
-    
-    if (dragIndex !== null && dragIndex !== dropIndex) {
-      onReorder(dragIndex, dropIndex);
-    }
-    
-    setDraggedGroupIndex(null);
-    setDragOverGroupIndex(null);
   }, [draggedGroupIndex]);
-
+  
+  
   const handleDragEnd = useCallback(() => {
     setDraggedGroupIndex(null);
     setDragOverGroupIndex(null);

@@ -47,13 +47,7 @@ const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | nul
       
       for (const item of items) {
         if (item === 'group.json') continue;
-        
-        const itemPath = path.join(groupPath, item);
-        const stats = await fsAsync.stat(itemPath);
-        
-        if (stats.isDirectory) {
-          nodeDirs.push(item);
-        }
+        nodeDirs.push(item);
       }
       
       group.nodes = [];
@@ -99,6 +93,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  mkdir: async (dirPath: string): Promise<void> => {
+    try {
+      await fsAsync.mkdir(dirPath, { recursive: true });
+    } catch (error) {
+      throw new Error(`Failed to create directory: ${error}`);
+    }
+  },
+
   readDir: async (dirPath: string): Promise<string[]> => {
     try {
       const files = await fsAsync.readdir(dirPath);
@@ -112,12 +114,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return await fsAsync.access(filePath);
   },
 
-  getStats: async (filePath: string): Promise<{ isFile: boolean; isDirectory: boolean; size: number; mtime: Date }> => {
+  getStats: async (filePath: string): Promise<{ size: number; mtime: Date }> => {
     try {
       const stats = await fsAsync.stat(filePath);
       return {
-        isFile: stats.isFile(),
-        isDirectory: stats.isDirectory(),
         size: stats.size,
         mtime: stats.mtime
       };
@@ -139,13 +139,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
             
             for (const groupDir of groupDirs) {
               const groupPath = path.join(categoryPath, groupDir);
-              const stats = await fsAsync.stat(groupPath);
-              
-              if (stats.isDirectory) {
-                const group = await readNodeGroupInternal(groupPath);
-                if (group) {
-                  result[category].push(group);
-                }
+              const group = await readNodeGroupInternal(groupPath);
+              if (group) {
+                result[category].push(group);
               }
             }
           } catch (error) {
@@ -208,6 +204,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
         await fsAsync.rm(nodePath, { recursive: true, force: true });
       } catch (error) {
         throw new Error(`Failed to delete node: ${error}`);
+      }
+    },
+
+    readNode: async (groupPath: string, nodeId: string): Promise<JSON> => {
+      try {
+        const nodePath = path.join(groupPath, nodeId);
+        const nodeJsonPath = path.join(nodePath, 'node.json');
+        const nodeData = await fsAsync.readFile(nodeJsonPath, 'utf-8');
+        return JSON.parse(nodeData);
+      } catch (error) {
+        throw new Error(`Failed to read node: ${error}`);
+      }
+    },
+
+    writeNode: async (groupPath: string, nodeId: string, nodeData: JSON): Promise<void> => {
+      try {
+        const nodePath = path.join(groupPath, nodeId);
+        await fsAsync.mkdir(nodePath, { recursive: true });
+        
+        const nodeJsonPath = path.join(nodePath, 'node.json');
+        await fsAsync.writeFile(nodeJsonPath, JSON.stringify(nodeData, null, 2), 'utf-8');
+      } catch (error) {
+        throw new Error(`Failed to write node: ${error}`);
       }
     }
   }

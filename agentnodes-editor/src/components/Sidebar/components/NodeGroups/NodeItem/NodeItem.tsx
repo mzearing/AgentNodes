@@ -10,8 +10,8 @@ interface NodeItemEditingState {
 }
 
 interface NodeItemHandlers {
-  onNodeClick: (node: SidebarNode) => void;
-  onDragStart: (event: React.DragEvent, node: SidebarNode) => void;
+  onNodeClick: (node: SidebarNode, groupId: string) => void;
+  onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;
   onNodeNameKeyDown: (e: React.KeyboardEvent) => void;
@@ -60,16 +60,8 @@ const NodeItem: React.FC<NodeItemProps> = ({
     <div
       key={node.id}
       className={`${styles.node} ${isDisabled ? styles.disabled : ''}`}
-      onClick={() => !isDisabled && !editingState.isEditing && handlers.onNodeClick(node)}
-      role="button"
-      tabIndex={isDisabled ? -1 : 0}
       draggable={!isDisabled && !editingState.isEditing}
-      onDragStart={(event) => !editingState.isEditing && handlers.onDragStart(event, node)}
-      onKeyDown={(e) => {
-        if (!isDisabled && !editingState.isEditing && (e.key === 'Enter' || e.key === ' ')) {
-          handlers.onNodeClick(node);
-        }
-      }}
+      onDragStart={(event) => !editingState.isEditing && handlers.onDragStart(event, node, groupId)}
     >
       <div className={styles.nodeContent}>
         {editingState.isEditing ? (
@@ -103,9 +95,9 @@ const NodeItem: React.FC<NodeItemProps> = ({
             className={styles.nodeEditButton}
             onClick={(e) => {
               e.stopPropagation();
-              handlers.onStartNodeEditing(groupId, node.id, node.name);
+              handlers.onNodeClick(node, groupId);
             }}
-            title="Edit node"
+            title="Load node"
           >
             ✎
           </button>

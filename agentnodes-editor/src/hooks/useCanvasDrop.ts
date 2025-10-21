@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { Node, ReactFlowInstance } from '@xyflow/react';
 import { ScriptingNodeData } from '../components/ScriptingNodes/ScriptingNode';
+import { nodeFileSystem } from '../services/nodeFileSystem';
+import { Category } from '../components/Sidebar/types';
 
 let nodeId = 1;
 const getNodeId = () => `node_${nodeId++}`;
@@ -15,7 +17,7 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
   }, []);
 
   const onDrop = useCallback(
-    (event: React.DragEvent) => {
+    async (event: React.DragEvent) => {
       event.preventDefault();
 
       if (!reactFlowWrapper.current || !reactFlowInstance) return;
@@ -24,18 +26,53 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
 
       if (!nodeData) return;
 
-      const { nodeId, label, inputs, outputs, variadicInputs, variadicOutputs, solo } = JSON.parse(nodeData);
+      const { nodeId, groupId, category, label, inputs, outputs, variadicInputs, variadicOutputs, solo } = JSON.parse(nodeData);
+      
+      let finalInputs = inputs;
+      let finalOutputs = outputs;
+      let finalVariadicInputs = variadicInputs;
+      let finalVariadicOutputs = variadicOutputs;
+      let finalSolo = solo;
+
+      if (groupId && category) {
+        try {
+          const hasChanged = await nodeFileSystem.checkNodeFileChanged(nodeId, groupId, category as Category);
+          
+          if (hasChanged) {
+            console.log(`Node file for "${label}" has been updated, refreshing inputs/outputs...`);
+            const freshNodeData = await nodeFileSystem.getFreshNodeData(nodeId, groupId, category as Category);
+            
+            if (freshNodeData) {
+              finalInputs = freshNodeData.inputs;
+              finalOutputs = freshNodeData.outputs;
+              finalVariadicInputs = freshNodeData.variadicInputs;
+              finalVariadicOutputs = freshNodeData.variadicOutputs;
+              finalSolo = freshNodeData.solo;
+              
+              console.log(`Updated node "${label}" with fresh data:`, {
+                inputs: finalInputs,
+                outputs: finalOutputs,
+                variadicInputs: finalVariadicInputs,
+                variadicOutputs: finalVariadicOutputs,
+                solo: finalSolo
+              });
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to check for file changes for node "${label}":`, error);
+        }
+      }
       
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
-      const inputHandles = inputs.map((name: string, index: number) => ({
+      const inputHandles = finalInputs.map((name: string, index: number) => ({
         id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
         name
       }));
       
-      const outputHandles = outputs.map((name: string, index: number) => ({
+      const outputHandles = finalOutputs.map((name: string, index: number) => ({
         id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
         name
       }));
@@ -45,9 +82,9 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         label,
         inputs: inputHandles,
         outputs: outputHandles,
-        variadicInputs,
-        variadicOutputs,
-        solo
+        variadicInputs: finalVariadicInputs,
+        variadicOutputs: finalVariadicOutputs,
+        solo: finalSolo
       };
 
       const newNode: Node = {
@@ -57,7 +94,7 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         data: scriptingNodeData,
       };
 
-      if (solo) {
+      if (finalSolo) {
         const existingSoloNode = nodes.find(node => {
           const nodeData = node.data as ScriptingNodeData;
           return nodeData.solo && nodeData.nodeId === nodeId;

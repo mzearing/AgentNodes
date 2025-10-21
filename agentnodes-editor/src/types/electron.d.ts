@@ -4,8 +4,6 @@ export interface ElectronAPI {
   readDir: (dirPath: string) => Promise<string[]>;
   exists: (filePath: string) => Promise<boolean>;
   getStats: (filePath: string) => Promise<{
-    isFile: boolean;
-    isDirectory: boolean;
     size: number;
     mtime: Date;
   }>;

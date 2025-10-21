@@ -1,4 +1,4 @@
-import React, { useState, DragEvent } from 'react';
+import React, { useState, DragEvent, memo } from 'react';
 import { Position, Handle } from '@xyflow/react';
 import styles from './NodeTargets.module.css';
 import { InputHandle } from '../ScriptingNode';
@@ -9,7 +9,7 @@ interface NodeTargetsProps {
   onInputsChange?: (inputs: InputHandle[]) => void;
 }
 
-const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onInputsChange }) => {
+const NodeTargets: React.FC<NodeTargetsProps> = memo(({ inputs, variadic = false, onInputsChange }) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -52,7 +52,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     
-    if (mouseX < 30) {
+    if (mouseX < 32) {
       // Mouse is near the handle, prevent dragging
       e.preventDefault();
       return;
@@ -89,7 +89,6 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
     e.preventDefault();
     e.stopPropagation();
     
-    // Only handle drop if this is an input reorder operation
     if (!e.dataTransfer.types.includes('application/node-input-reorder')) {
       return;
     }
@@ -208,6 +207,6 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
       )}
     </div>
   );
-};
+});
 
 export default NodeTargets;
