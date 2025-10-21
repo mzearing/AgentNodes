@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::{
+  collections::HashMap,
   fmt::Display,
   ops::{Add, Div, Mul, Rem, Sub},
 };
-
-use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Debug)]
 pub enum ArithmaticError
@@ -20,6 +21,9 @@ pub enum DataType
   Integer,
   Float,
   Boolean,
+  Byte,
+  Handle,
+  Object,
   None,
 }
 
@@ -31,7 +35,10 @@ pub enum DataValue
   Integer(i64),
   Float(f64),
   Boolean(bool),
+  Byte(u8),
   Array(Vec<DataValue>),
+  Handle(Uuid),
+  Object(HashMap<String, DataValue>),
   None,
 }
 impl Display for DataType
@@ -51,15 +58,10 @@ impl Display for DataValue
       DataValue::Integer(x) => write!(f, "{x}"),
       DataValue::Float(x) => write!(f, "{x}"),
       DataValue::Boolean(x) => write!(f, "{x}"),
-      DataValue::Array(x) =>
-      {
-        write!(f, "[")?;
-        for v in x
-        {
-          write!(f, "{v}");
-        }
-        write!(f, "]")
-      }
+      DataValue::Handle(x) => write!(f, "{x}"),
+      DataValue::Array(x) => write!(f, "{}", serde_json::to_string(x).unwrap()),
+      DataValue::Byte(x) => write!(f, "{x:x}"),
+      DataValue::Object(x) => write!(f, "{}", serde_json::to_string(x).unwrap()),
       DataValue::None => Ok(()),
     }
   }
@@ -267,7 +269,10 @@ impl DataValue
       DataValue::Integer(_) => DataType::Integer,
       DataValue::Float(_) => DataType::Float,
       DataValue::Boolean(_) => DataType::Boolean,
+      DataValue::Byte(_) => DataType::Byte,
       DataValue::Array(_) => DataType::Array,
+      DataValue::Handle(_) => DataType::Handle,
+      DataValue::Object(_) => DataType::Object,
       DataValue::None => DataType::None,
     }
   }

@@ -1,6 +1,6 @@
 {
   "inputs" : [],
-  "outputs" : [],
+  "outputs" : ["None"],
   "defaults": {},
   "instances":
   {
@@ -23,8 +23,20 @@
         "Atomic" : "Print"
       },
       "default_overrides" : {},
-      "outputs" : [],
+      "outputs" : ["None"],
       "inputs" : [["String", "497dcba3-ecbf-4587-a2dd-5eb0665e6880", 0]]
+    },
+    "1000e159-27d1-4382-b5e3-2bc75983354f" :{
+      "node_type" :
+      {
+        "Atomic" : 
+        {
+          "Control" : "End"
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : [],
+      "inputs" : [["None", "50e14f43-dd4e-412f-864d-78943ea28d91", 0]]
     }
   }
 }

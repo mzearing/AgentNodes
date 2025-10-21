@@ -13,6 +13,7 @@ tokio = { version = "*", features = [
   "rt-multi-thread",
   "sync",
   "net",
+  "fs",
 ] }
 console-subscriber = "0.4.1"
 regex = "1.11.3"

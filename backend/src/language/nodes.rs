@@ -1,9 +1,10 @@
-use std::sync::Arc;
-
-use crate::language::eval::{EvalError, EvaluateIt, Evaluator, ExecutionNode};
-
 use super::typing::{DataType, DataValue};
+use crate::language::eval::{
+  EvaluateIt, Evaluator, ExecutionNode, NodeInputs, NodeOutput, NodeState,
+};
+use crate::EvalError;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ControlFlow
@@ -21,6 +22,22 @@ pub enum AtomicType
   Value(DataValue),
   Control(ControlFlow),
   Variable(DataType),
+  Io(AtomicIo),
+}
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum AtomicIo
+{
+  Open(IoType),
+  Read,
+  Write,
+  GetLine,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum IoType
+{
+  File,
+  TcpSocket,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
@@ -65,14 +82,15 @@ impl EvaluateIt for NodeType
     &self,
     eval: Arc<Evaluator>,
     node: &mut ExecutionNode,
-    inputs: Vec<DataValue>,
-  ) -> Result<Vec<DataValue>, EvalError>
+    inputs: NodeInputs,
+  ) -> Result<NodeOutput, EvalError>
   {
+    let actual_inputs: Vec<DataValue> = inputs.iter().cloned().map(|x| x.1).collect();
     match self
     {
       NodeType::Atomic(atomic_type) =>
       {
-        Self::eval_atomic(atomic_type.clone(), eval.clone(), node, inputs).await
+        Self::eval_atomic(atomic_type.clone(), eval.clone(), node, actual_inputs).await
       }
       NodeType::Complex(path) =>
       {
@@ -103,7 +121,7 @@ impl NodeType
     eval: Arc<Evaluator>,
     node: &mut ExecutionNode,
     inputs: Vec<DataValue>,
-  ) -> Result<Vec<DataValue>, EvalError>
+  ) -> Result<NodeOutput, EvalError>
   {
     match atomic_type
     {
@@ -111,19 +129,22 @@ impl NodeType
       {
         inputs.iter().for_each(|x| println!("{}", x));
         tokio::task::yield_now().await;
-        Ok(vec![])
+        Ok((node.inputs_state, vec![DataValue::None]))
       }
       AtomicType::BinOp(atomic_bin_op) =>
       {
         tokio::task::yield_now().await;
-        Self::eval_bin_op(atomic_bin_op, inputs)
+        Ok((node.inputs_state, Self::eval_bin_op(atomic_bin_op, inputs)?))
       }
       AtomicType::Value(data_value) =>
       {
         tokio::task::yield_now().await;
-        Ok(vec![data_value])
+        Ok((NodeState::MoreData, vec![data_value]))
       }
-      AtomicType::Control(control_flow) => Self::eval_control(control_flow, eval, inputs).await,
+      AtomicType::Control(control_flow) =>
+      {
+        Self::eval_control(control_flow, eval, node, inputs).await
+      }
       AtomicType::Replace =>
       {
         if inputs.len() != 3
@@ -136,7 +157,7 @@ impl NodeType
         {
           let regex = regex::Regex::new(&pattern).map_err(EvalError::from)?;
           let ret = regex.replace(input, replace).to_string();
-          Ok(vec![DataValue::String(ret)])
+          Ok((node.inputs_state, vec![DataValue::String(ret)]))
         }
         else
         {
@@ -146,7 +167,14 @@ impl NodeType
           })
         }
       }
-      AtomicType::Variable(_t) => Self::eval_variable(node, inputs).await,
+      AtomicType::Io(io) => Self::eval_io(io, node, eval, inputs).await,
+      AtomicType::Variable(_t) =>
+      {
+        Ok((
+          NodeState::MoreData,
+          vec![Self::eval_variable(node, inputs).await?],
+        ))
+      }
     }
   }
 
@@ -170,16 +198,31 @@ impl NodeType
   async fn eval_control(
     control_flow: ControlFlow,
     eval: Arc<Evaluator>,
+    node: &mut ExecutionNode,
     inputs: Vec<DataValue>,
-  ) -> Result<Vec<DataValue>, EvalError>
+  ) -> Result<NodeOutput, EvalError>
   {
     match control_flow
     {
-      ControlFlow::Start => eval.get_inputs().await,
+      ControlFlow::Start =>
+      {
+        let inputs = eval.get_inputs().await?;
+        node.inputs_state = if inputs.iter().any(|x| x.0 == NodeState::Finished)
+        {
+          NodeState::Finished
+        }
+        else
+        {
+          NodeState::MoreData
+        };
+
+        Ok((node.inputs_state, inputs.into_iter().map(|x| x.1).collect()))
+      }
       ControlFlow::End =>
       {
-        eval.send_outputs(inputs).await?;
-        Ok(vec![])
+        eval.send_outputs((node.inputs_state, inputs)).await?;
+        node.inputs_state = NodeState::Finished;
+        Ok((node.inputs_state, vec![]))
       }
     }
   }
@@ -187,11 +230,11 @@ impl NodeType
   async fn eval_variable(
     node: &mut ExecutionNode,
     inputs: Vec<DataValue>,
-  ) -> Result<Vec<DataValue>, EvalError>
+  ) -> Result<DataValue, EvalError>
   {
     if inputs.len() != 0
     {
-      let mut guard = node.state.write().await;
+      let mut guard = node.stored_val.write().await;
       if inputs.len() == 1
       {
         (*guard) = Some(inputs[0].clone());
@@ -202,12 +245,106 @@ impl NodeType
       }
     }
 
-    match &*node.state.read().await
+    match node.stored_val.read().await.as_ref()
     {
-      Some(DataValue::Array(x)) => Ok(x.clone()),
-      Some(x) => Ok(vec![x.clone()]),
-      None => Ok(vec![]),
+      Some(x) => Ok(x.clone()),
+      None => Ok(DataValue::None),
     }
+  }
+  async fn eval_io(
+    io: AtomicIo,
+    node: &mut ExecutionNode,
+    eval: Arc<Evaluator>,
+    inputs: Vec<DataValue>,
+  ) -> Result<NodeOutput, EvalError>
+  {
+    match io
+    {
+      AtomicIo::Open(io_type) =>
+      {
+        let mut guard = node.stored_val.write().await;
+        match guard.clone()
+        {
+          Some(x) => Ok(vec![x]),
+          None =>
+          {
+            let handle = match io_type
+            {
+              IoType::File =>
+              {
+                let path = format!("{}", inputs[0]);
+                eval
+                  .register_io(Box::pin(tokio::fs::File::open(path).await?))
+                  .await
+              }
+              IoType::TcpSocket =>
+              {
+                eval
+                  .register_io(Box::pin(
+                    tokio::net::TcpStream::connect(format!("{}:{}", inputs[0], inputs[1])).await?,
+                  ))
+                  .await
+              }
+            };
+            (*guard) = Some(DataValue::Handle(handle.clone()));
+            Ok(vec![DataValue::Handle(handle)])
+          }
+        }
+      }
+      AtomicIo::GetLine =>
+      {
+        if let DataValue::Handle(handle) = inputs[0]
+        {
+          let bytes = eval.read_until(&handle, b"\n").await?;
+          let s = String::from_utf8(bytes)?.trim_end_matches('\r').to_string();
+          Ok(vec![DataValue::String(s)])
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: vec![inputs[0].get_type()],
+            expected: vec![DataType::Handle],
+          })
+        }
+      }
+      AtomicIo::Read =>
+      {
+        if let (DataValue::Handle(h), DataValue::Integer(size)) = (&inputs[0], &inputs[1])
+        {
+          let mut buf = Vec::new();
+          buf.resize(*size as usize, 0);
+          let count = eval.read_bytes(h, &mut buf).await?;
+          buf.resize(count, 0);
+          Ok(vec![DataValue::Array(
+            buf.into_iter().map(|x| DataValue::Byte(x)).collect(),
+          )])
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
+            expected: vec![DataType::Handle, DataType::Integer],
+          })
+        }
+      }
+      AtomicIo::Write =>
+      {
+        if let (DataValue::String(s), DataValue::Handle(h)) = (&inputs[1], &inputs[0])
+        {
+          let mut bytes = s.bytes().collect();
+          eval.write_bytes(h, &mut bytes).await?;
+          Ok(vec![DataValue::None])
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
+            expected: vec![DataType::Handle, DataType::String],
+          })
+        }
+      }
+    }
+    .map(|x| (node.inputs_state, x))
   }
 }
 

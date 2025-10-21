@@ -1,86 +1,50 @@
-use std::{
-  collections::{HashMap, VecDeque},
-  fs::File,
-  sync::Arc,
-};
-use tokio::sync::broadcast::{
-  channel,
-  error::{RecvError, SendError},
-  Receiver, Sender,
-};
-
-use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
-use uuid::Uuid;
-
 use super::nodes::Complex;
 use crate::language::{
   nodes::Instance,
-  typing::{ArithmaticError, DataType, DataValue},
+  typing::{DataType, DataValue},
 };
+use crate::EvalError;
+use std::{
+  collections::{HashMap, VecDeque},
+  fs::File,
+  pin::Pin,
+  sync::{atomic::AtomicBool, Arc},
+};
+use tokio::{
+  io::BufReader,
+  sync::broadcast::{channel, error::RecvError, Receiver, Sender},
+};
+use tokio::{
+  io::{AsyncBufReadExt, AsyncWrite},
+  task::JoinHandle,
+};
+use tokio::{
+  io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
+  sync::{Mutex, RwLock},
+};
+use uuid::Uuid;
 
 const CHANNEL_CAPACITY: usize = 16;
 
-#[derive(Debug)]
-pub enum EvalError
+// pub enum IoObject
+// {
+//   TcpSocket(TcpStream),
+//   File(AsyncFile),
+// }
+
+pub trait Asyncio: AsyncRead + AsyncWrite + Send + Sync {}
+impl<T> Asyncio for T where T: AsyncRead + AsyncWrite + Send + Sync {}
+pub type IoObject = Pin<Box<dyn Asyncio>>;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum NodeState
 {
-  MathError(ArithmaticError),
-  InvalidComplexNode(String),
-  IoError(std::io::Error),
-  ComplexNotFound(String),
-  ChannelRecvErr(RecvError),
-  ChannelSendSingleErr(SendError<DataValue>),
-  ChannelSendVecErr(SendError<Vec<DataValue>>),
-  IncorrectTyping
-  {
-    got: Vec<DataType>,
-    expected: Vec<DataType>,
-  },
-  IncorrectInputCount,
-  RegexError(regex::Error),
+  MoreData,
+  Finished,
 }
-impl From<ArithmaticError> for EvalError
-{
-  fn from(value: ArithmaticError) -> Self
-  {
-    EvalError::MathError(value)
-  }
-}
-impl From<std::io::Error> for EvalError
-{
-  fn from(value: std::io::Error) -> Self
-  {
-    EvalError::IoError(value)
-  }
-}
-impl From<RecvError> for EvalError
-{
-  fn from(value: RecvError) -> Self
-  {
-    Self::ChannelRecvErr(value)
-  }
-}
-impl From<SendError<DataValue>> for EvalError
-{
-  fn from(value: SendError<DataValue>) -> Self
-  {
-    Self::ChannelSendSingleErr(value)
-  }
-}
-impl From<SendError<Vec<DataValue>>> for EvalError
-{
-  fn from(value: SendError<Vec<DataValue>>) -> Self
-  {
-    Self::ChannelSendVecErr(value)
-  }
-}
-impl From<regex::Error> for EvalError
-{
-  fn from(value: regex::Error) -> Self
-  {
-    Self::RegexError(value)
-  }
-}
+
+pub type NodeOutput = (NodeState, Vec<DataValue>);
+pub type NodeInputs = Vec<(NodeState, DataValue)>;
 
 pub trait EvaluateIt
 {
@@ -88,39 +52,54 @@ pub trait EvaluateIt
     &self,
     eval: Arc<Evaluator>,
     node: &mut ExecutionNode,
-    inputs: Vec<DataValue>,
-  ) -> Result<Vec<DataValue>, EvalError>;
+    inputs: NodeInputs,
+  ) -> Result<NodeOutput, EvalError>;
 }
 
 pub struct Evaluator
 {
   complex_registry: RwLock<HashMap<String, Arc<Evaluator>>>,
   parent: Option<Arc<Evaluator>>,
-  outputs: RwLock<Sender<Vec<DataValue>>>,
-  inputs: (Sender<Vec<DataValue>>, RwLock<Receiver<Vec<DataValue>>>),
+  outputs: RwLock<Sender<NodeOutput>>,
+  inputs: (Sender<NodeInputs>, RwLock<Receiver<NodeInputs>>),
+  io_registry: Arc<Mutex<HashMap<uuid::Uuid, IoObject>>>,
+  finished: Arc<AtomicBool>,
+  log_task: Mutex<Option<JoinHandle<()>>>,
   pub my_path: String,
 }
 
-pub async fn log_task(mut tasks: Vec<JoinHandle<Result<(), EvalError>>>)
+pub async fn log_task(
+  mut tasks: Vec<JoinHandle<Result<Uuid, EvalError>>>,
+  finished: Arc<AtomicBool>,
+)
 {
   while !tasks.is_empty()
   {
     let current = tasks.pop().unwrap();
-    let id = current.id();
+    let tid = current.id();
     if current.is_finished()
     {
       let ret = current.await;
       match ret
       {
-        Ok(Err(e)) => println!("Task {id} finished with EvalError {:?}", e),
-        Ok(_) => println!("Task {id} finished successfully"),
-        Err(e) => println!("Task {id} join error {:?}", e),
+        Ok(Err(e)) => println!("Task {tid} finished with EvalError {:?}", e),
+        Ok(Ok(id)) => println!("Task {tid}:{id} finished successfully"),
+        Err(e) => println!("Task {tid} join error {:?}", e),
       }
     }
     else
     {
       tasks.push(current);
       tokio::task::yield_now().await;
+    }
+
+    if finished.load(std::sync::atomic::Ordering::Relaxed)
+    {
+      for t in tasks
+      {
+        t.abort();
+      }
+      break;
     }
   }
 }
@@ -129,39 +108,64 @@ pub struct ExecutionNode
 {
   pub id: uuid::Uuid,
   pub instance: Instance,
-  pub inputs: Vec<Receiver<DataValue>>,
-  pub outputs: Vec<Sender<DataValue>>,
-  pub state: RwLock<Option<DataValue>>,
+  pub inputs: Vec<Receiver<(NodeState, DataValue)>>,
+  pub outputs: Vec<Sender<(NodeState, DataValue)>>,
+  pub inputs_state: NodeState,
+  pub stored_val: RwLock<Option<DataValue>>,
 }
 
 impl ExecutionNode
 {
-  pub async fn run(mut self, eval: Arc<Evaluator>) -> Result<(), EvalError>
+  pub async fn run(mut self, eval: Arc<Evaluator>) -> Result<Uuid, EvalError>
   {
-    let mut input_vec = Vec::new();
+    // If all the subscribers are closed, then we should close up anyways
+    let mut closed = false;
+    while self.inputs_state == NodeState::MoreData && !closed
+    {
+      let mut input_vec = Vec::new();
 
-    for x in &mut self.inputs
-    {
-      let mut r = x.recv().await;
-      while let Err(RecvError::Lagged(_)) = r
+      for x in &mut self.inputs
       {
-        r = x.recv().await;
+        let mut r = x.recv().await;
+        while let Err(RecvError::Lagged(_)) = r
+        {
+          r = x.recv().await;
+        }
+        input_vec.push(r.map_err(|x| EvalError::from(x))?);
       }
-      input_vec.push(r.map_err(|x| EvalError::from(x))?);
+
+      self.inputs_state = if input_vec.iter().any(|x| x.0 == NodeState::Finished)
+      {
+        NodeState::Finished
+      }
+      else
+      {
+        NodeState::MoreData
+      };
+
+      let res = self
+        .instance
+        .node_type
+        .clone()
+        .evaluate(eval.clone(), &mut self, input_vec)
+        .await?;
+      for (o, x) in self.outputs.iter().zip(res.1.iter())
+      {
+        if o.receiver_count() == 0
+        {
+          closed = true;
+          continue;
+        }
+
+        let state = if !closed { res.0 } else { NodeState::Finished };
+
+        o.send((state, x.clone())).map_err(EvalError::from)?;
+      }
     }
-    let res = self
-      .instance
-      .node_type
-      .clone()
-      .evaluate(eval.clone(), &mut self, input_vec)
-      .await?;
-    for (o, x) in self.outputs.iter().zip(res.iter())
-    {
-      o.send(x.clone()).map_err(EvalError::from)?;
-    }
-    Ok(())
+
+    Ok(self.id.clone())
   }
-  pub fn new(instance: Instance, inputs: &Vec<Sender<DataValue>>) -> Self
+  pub fn new(instance: Instance, inputs: &Vec<Sender<(NodeState, DataValue)>>) -> Self
   {
     let mut outputs = Vec::new();
     outputs.resize_with(instance.outputs.len(), || channel(CHANNEL_CAPACITY).0);
@@ -171,9 +175,43 @@ impl ExecutionNode
       instance,
       inputs: inputs.iter().map(|x| x.subscribe()).collect(),
       outputs,
-      state: RwLock::new(None),
+      inputs_state: NodeState::MoreData,
+      stored_val: RwLock::new(None),
     }
   }
+}
+
+async fn read_until_generic<R: AsyncRead + Unpin>(
+  reader: &mut R,
+  pattern: &[u8],
+) -> Result<Vec<u8>, EvalError>
+{
+  let mut buffer = Vec::new();
+  let mut window = VecDeque::with_capacity(pattern.len() + 1);
+
+  loop
+  {
+    let mut byte = [0; 1];
+    let count = reader.read(&mut byte).await?;
+    if count == 0
+    {
+      break;
+    }
+
+    buffer.push(byte[0]);
+    window.push_back(byte[0]);
+
+    if window.len() > pattern.len()
+    {
+      window.pop_front();
+    }
+
+    if window.len() == pattern.len() && window.make_contiguous() == pattern
+    {
+      break;
+    }
+  }
+  Ok(buffer)
 }
 
 impl Evaluator
@@ -182,7 +220,7 @@ impl Evaluator
   {
     let file = File::open(&path).map_err(EvalError::from)?;
     let me = serde_json::from_reader::<File, Complex>(file)
-      .map_err(|_| EvalError::InvalidComplexNode(path.clone()))?;
+      .map_err(|x| EvalError::InvalidComplexNode(path.clone(), x))?;
 
     let mut queue = VecDeque::new();
     let mut processed = HashMap::new();
@@ -227,14 +265,18 @@ impl Evaluator
         return Err(EvalError::IncorrectTyping { got, expected });
       }
 
-      let inputs: Vec<Sender<DataValue>> = sockets
+      let inputs: Vec<Sender<(NodeState, DataValue)>> = sockets
         .iter()
         .map(|(_, node, index)| node.outputs[**index].clone())
         .collect();
 
       processed.insert(current, ExecutionNode::new(node.clone(), &inputs));
     }
-
+    let io_registry = parent
+      .clone()
+      .map_or(Arc::new(Mutex::new(HashMap::new())), |x| {
+        x.io_registry.clone()
+      });
     let (s, r) = channel(CHANNEL_CAPACITY);
     let ret = Arc::new(Self {
       complex_registry: RwLock::new(HashMap::new()),
@@ -245,6 +287,9 @@ impl Evaluator
         .parent()
         .map(|x| x.to_str().unwrap().to_string())
         .unwrap_or_default(),
+      finished: Arc::new(AtomicBool::new(false)),
+      log_task: Mutex::const_new(None),
+      io_registry,
     });
 
     let mut tasks = Vec::new();
@@ -254,12 +299,15 @@ impl Evaluator
       tasks.push(tokio::spawn(x.run(ret.clone())));
     }
 
-    tokio::spawn(log_task(tasks));
+    let c = ret.clone();
+    tokio::task::spawn_blocking(move || {
+      *c.log_task.blocking_lock() = Some(tokio::spawn(log_task(tasks, c.finished.clone())));
+    });
 
     Ok(ret)
   }
 
-  pub async fn send_outputs(&self, outputs: Vec<DataValue>) -> Result<(), EvalError>
+  pub async fn send_outputs(&self, outputs: NodeOutput) -> Result<(), EvalError>
   {
     self
       .outputs
@@ -269,7 +317,7 @@ impl Evaluator
       .map_err(EvalError::from)?;
     Ok(())
   }
-  pub async fn get_outputs(&self) -> Result<Vec<DataValue>, EvalError>
+  pub async fn get_outputs(&self) -> Result<NodeOutput, EvalError>
   {
     self
       .outputs
@@ -281,12 +329,12 @@ impl Evaluator
       .map_err(EvalError::from)
   }
 
-  pub fn send_inputs(&self, inputs: Vec<DataValue>) -> Result<(), EvalError>
+  pub fn send_inputs(&self, inputs: NodeInputs) -> Result<(), EvalError>
   {
     self.inputs.0.send(inputs).map_err(EvalError::from)?;
     Ok(())
   }
-  pub async fn get_inputs(&self) -> Result<Vec<DataValue>, EvalError>
+  pub async fn get_inputs(&self) -> Result<NodeInputs, EvalError>
   {
     let mut guard = self.inputs.1.write().await;
     let mut ret = guard.recv().await;
@@ -322,6 +370,69 @@ impl Evaluator
     {
       (None, Some(p)) => Box::pin(p.get_evaluator(relative_path)).await,
       _ => ret,
+    }
+  }
+  pub async fn read_bytes(&self, id: &Uuid, buf: &mut Vec<u8>) -> Result<usize, EvalError>
+  {
+    let mut guard = self.io_registry.lock().await;
+    let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
+    io.read_buf(buf).await.map_err(EvalError::from)
+  }
+
+  pub async fn write_bytes(&self, id: &Uuid, buf: &mut Vec<u8>) -> Result<(), EvalError>
+  {
+    let mut guard = self.io_registry.lock().await;
+    let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
+
+    io.write_all(buf).await.map_err(EvalError::from)
+  }
+
+  pub async fn read_until(&self, id: &Uuid, pattern: &[u8]) -> Result<Vec<u8>, EvalError>
+  {
+    let mut guard = self.io_registry.lock().await;
+    let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
+    read_until_generic(io, pattern).await
+  }
+
+  pub async fn eof(&self, id: &Uuid) -> Result<bool, EvalError>
+  {
+    let mut guard = self.io_registry.lock().await;
+    let s = guard
+      .get_mut(&id)
+      .ok_or(EvalError::IoNotFound(id.clone()))?;
+    let mut reader = BufReader::new(s);
+    Ok(reader.fill_buf().await?.is_empty())
+  }
+
+  pub async fn register_io(&self, io: IoObject) -> Uuid
+  {
+    let mut guard = self.io_registry.lock().await;
+    let mut ret = Uuid::new_v4();
+    while guard.contains_key(&ret)
+    {
+      ret = Uuid::new_v4()
+    }
+    guard.insert(ret, io);
+    ret
+  }
+
+  pub async fn kill(&self)
+  {
+    if !self.finished.load(std::sync::atomic::Ordering::Relaxed)
+    {
+      let mut guard = self.complex_registry.write().await;
+      for p in guard
+        .iter()
+        .map(|(p, _)| p.clone())
+        .collect::<Vec<String>>()
+      {
+        let x = guard.remove(&p).unwrap();
+        Box::pin(x.kill()).await;
+      }
+      self
+        .finished
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+      let _ = self.log_task.lock().await.take().unwrap().await;
     }
   }
 }
