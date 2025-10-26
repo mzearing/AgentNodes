@@ -1,9 +1,9 @@
 use crate::language::{
-  eval::{NodeInputs, NodeOutput, NodeState},
+  eval::NodeState,
   typing::{ArithmaticError, DataType, DataValue},
 };
 use std::string::FromUtf8Error;
-use tokio::sync::broadcast::error::{RecvError, SendError};
+use tokio::sync::oneshot::error::RecvError;
 use uuid::Uuid;
 
 #[allow(unused)]
@@ -15,9 +15,6 @@ pub enum EvalError
   IoError(std::io::Error),
   ComplexNotFound(String),
   ChannelRecvErr(RecvError),
-  ChannelSendSingleErr(SendError<(NodeState, DataValue)>),
-  ChannelSendVecErr(SendError<NodeOutput>),
-  ChannelSendInputs(SendError<NodeInputs>),
   IoNotFound(Uuid),
   IncorrectTyping
   {
@@ -28,6 +25,7 @@ pub enum EvalError
   RegexError(regex::Error),
   PatternNotFound(Uuid, Vec<u8>),
   InvalidUtf8(FromUtf8Error),
+  PortOutOfBounds(usize),
 }
 impl From<ArithmaticError> for EvalError
 {
@@ -50,20 +48,7 @@ impl From<RecvError> for EvalError
     Self::ChannelRecvErr(value)
   }
 }
-impl From<SendError<(NodeState, DataValue)>> for EvalError
-{
-  fn from(value: SendError<(NodeState, DataValue)>) -> Self
-  {
-    Self::ChannelSendSingleErr(value)
-  }
-}
-impl From<SendError<NodeOutput>> for EvalError
-{
-  fn from(value: SendError<NodeOutput>) -> Self
-  {
-    Self::ChannelSendVecErr(value)
-  }
-}
+
 impl From<regex::Error> for EvalError
 {
   fn from(value: regex::Error) -> Self
@@ -76,13 +61,5 @@ impl From<FromUtf8Error> for EvalError
   fn from(value: FromUtf8Error) -> Self
   {
     Self::InvalidUtf8(value)
-  }
-}
-
-impl From<SendError<NodeInputs>> for EvalError
-{
-  fn from(value: SendError<NodeInputs>) -> Self
-  {
-    Self::ChannelSendInputs(value)
   }
 }

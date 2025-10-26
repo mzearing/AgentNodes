@@ -1,7 +1,5 @@
 use super::typing::{DataType, DataValue};
-use crate::language::eval::{
-  EvaluateIt, Evaluator, ExecutionNode, NodeInputs, NodeOutput, NodeState,
-};
+use crate::language::eval::{EvaluateIt, Evaluator, ExecutionNode, NodeState};
 use crate::EvalError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -82,8 +80,8 @@ impl EvaluateIt for NodeType
     &self,
     eval: Arc<Evaluator>,
     node: &mut ExecutionNode,
-    inputs: NodeInputs,
-  ) -> Result<NodeOutput, EvalError>
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError>
   {
     let actual_inputs: Vec<DataValue> = inputs.iter().cloned().map(|x| x.1).collect();
     match self
