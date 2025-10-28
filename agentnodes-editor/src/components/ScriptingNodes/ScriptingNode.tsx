@@ -25,6 +25,7 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   variadicInputs?: boolean;
   variadicOutputs?: boolean;
   solo?: boolean;
+  metadataPath?: string;
 }
 
 const ScriptingNode: React.FC<NodeProps> = memo(({ data, selected, id }) => {

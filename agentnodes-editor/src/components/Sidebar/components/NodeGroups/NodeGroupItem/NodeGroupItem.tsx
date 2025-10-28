@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Node } from '@xyflow/react';
 import styles from '../NodeGroups.module.css';
-import { SidebarNode, NodeGroup, Category } from '../../../types';
+import { NodeSummary, NodeGroup, Category } from '../../../../../types/project';
 import GroupHeader from '../GroupHeader/GroupHeader';
 import GroupNodesList from '../GroupNodesList/GroupNodesList';
 
@@ -23,8 +23,8 @@ interface NodeGroupItemProps {
   onGroupNameSubmit: () => void;
   onGroupNameKeyDown: (e: React.KeyboardEvent) => void;
   onGroupNameChange: (value: string) => void;
-  onNodeClick: (node: SidebarNode, groupId: string) => void;
-  onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
+  onNodeClick: (node: NodeSummary, groupId: string) => void;
+  onDragStart: (event: React.DragEvent, node: NodeSummary, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;
   onNodeNameKeyDown: (e: React.KeyboardEvent) => void;
@@ -38,7 +38,7 @@ interface NodeGroupItemProps {
   onGroupDrop: (e: React.DragEvent, index: number) => void;
 }
 
-const NodeGroupItem: React.FC<NodeGroupItemProps> = ({
+const NodeGroupItem: React.FC<NodeGroupItemProps> = memo(({
   group,
   index,
   nodes,
@@ -117,6 +117,8 @@ const NodeGroupItem: React.FC<NodeGroupItemProps> = ({
       )}
     </div>
   );
-};
+});
+
+NodeGroupItem.displayName = 'NodeGroupItem';
 
 export default NodeGroupItem;

@@ -1,0 +1,154 @@
+{
+  "summary": {
+    "path": "complex/group-1760638366900/node-1760638508261",
+    "id": "node-1760638508261",
+    "name": "AlphaBeta",
+    "inputs": [
+      "Output",
+      "Output 2",
+      "Output 3"
+    ],
+    "outputs": [],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "solo": false
+  },
+  "dependencies": [
+    {
+      "path": "complex/group-1760638366900/node-1761084829972",
+      "id": "node-1761084829972",
+      "name": "New Node",
+      "inputs": [
+        "Output"
+      ],
+      "outputs": [
+        "Input"
+      ],
+      "variadicOutputs": false,
+      "variadicInputs": false,
+      "solo": false
+    }
+  ],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_1",
+        "type": "scripting-node",
+        "position": {
+          "x": 279.44078947368416,
+          "y": 62.3026315789474
+        },
+        "data": {
+          "nodeId": "start",
+          "label": "Start",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1761670778150-0-3v41ofjzm",
+              "name": "Output"
+            },
+            {
+              "id": "output-1761671658902-zghvlqqgf",
+              "name": "Output 2"
+            },
+            {
+              "id": "output-1761672155071-h1x8sqhqr",
+              "name": "Output 3"
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": true,
+          "solo": true,
+          "metadataPath": "atomic/control-flow"
+        },
+        "measured": {
+          "width": 151,
+          "height": 183
+        },
+        "dragging": false,
+        "selected": false
+      },
+      {
+        "id": "node_7",
+        "type": "scripting-node",
+        "position": {
+          "x": 514.5855263157896,
+          "y": 206.2697368421053
+        },
+        "data": {
+          "nodeId": "node-1761084829972",
+          "label": "New Node",
+          "inputs": [
+            {
+              "id": "input-1761670992989-0-068rzrwa8",
+              "name": "Output"
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1761670992989-0-xbn3wbzav",
+              "name": "Input"
+            }
+          ],
+          "metadataPath": "complex/group-1760638366900",
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "solo": false
+        },
+        "measured": {
+          "width": 138,
+          "height": 86
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_8",
+        "type": "scripting-node",
+        "position": {
+          "x": 741.2403191366575,
+          "y": 1.5073868882733485
+        },
+        "data": {
+          "nodeId": "script2",
+          "label": "Other Script",
+          "inputs": [
+            {
+              "id": "input-1761672160465-0-jnbucqux9",
+              "name": "A"
+            },
+            {
+              "id": "input-1761672160465-1-aoihlk9rc",
+              "name": "B"
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1761672160465-0-h70gdgass",
+              "name": "A"
+            },
+            {
+              "id": "output-1761672160465-1-tkx1zz0gx",
+              "name": "B"
+            },
+            {
+              "id": "output-1761672160465-2-nwv9yhj9h",
+              "name": "C"
+            }
+          ],
+          "metadataPath": "atomic/processing"
+        },
+        "measured": {
+          "width": 114,
+          "height": 126
+        }
+      }
+    ],
+    "edges": [],
+    "viewport": {
+      "x": -201.70706070175845,
+      "y": 137.7824688567,
+      "zoom": 0.8077097875613252
+    }
+  }
+}

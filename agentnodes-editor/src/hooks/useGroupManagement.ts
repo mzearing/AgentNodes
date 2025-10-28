@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { NodeGroup, SidebarNode, Category } from '../components/Sidebar/types';
+import { NodeGroup, NodeSummary, Category } from '../types/project';
 import { nodeFileSystem } from '../services/nodeFileSystem';
 
 interface GroupManagementOptions {
@@ -13,7 +13,7 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
-  const { onGroupsChange, refreshGroups } = options;
+  const { onGroupsChange } = options;
 
   useEffect(() => {
     setGroups(initialGroups);
@@ -47,15 +47,14 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
           : group
       );
       updateGroups(newGroups);
-      
-      // Refresh to ensure UI reflects filesystem state
-      if (refreshGroups) {
-        await refreshGroups();
+      // Refresh sidebar to show updated group name
+      if (options.refreshGroups) {
+        await options.refreshGroups();
       }
     }
     setEditingGroup(null);
     setEditingGroupName('');
-  }, [editingGroup, editingGroupName, groups, updateGroups, refreshGroups]);
+  }, [editingGroup, editingGroupName, groups, updateGroups, options.refreshGroups]);
 
   const cancelGroupEditing = useCallback(() => {
     setEditingGroup(null);
@@ -72,22 +71,12 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
     const newGroups = [...groups, newGroup];
     updateGroups(newGroups);
     startGroupEditing(newGroup.id, newGroup.name);
-    
-    // Refresh to ensure UI reflects filesystem state
-    if (refreshGroups) {
-      await refreshGroups();
-    }
-  }, [groups, updateGroups, startGroupEditing, refreshGroups]);
+  }, [groups, updateGroups, startGroupEditing]);
 
   const deleteGroup = useCallback(async (groupId: string) => {
     const newGroups = groups.filter(group => group.id !== groupId);
     updateGroups(newGroups);
-    
-    // Refresh to ensure UI reflects filesystem state
-    if (refreshGroups) {
-      await refreshGroups();
-    }
-  }, [groups, updateGroups, refreshGroups]);
+  }, [groups, updateGroups]);
 
   const reorderGroups = useCallback((dragIndex: number, dropIndex: number) => {
     if (dragIndex !== dropIndex) {
@@ -102,11 +91,15 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
   }, [groups, updateGroups]);
 
   const addNode = useCallback(async (groupId: string) => {
-    const newNode: SidebarNode = {
+    const newNode: NodeSummary = {
       id: `node-${Date.now()}`,
       name: 'New Node',
       inputs: ['Input'],
-      outputs: ['Output']
+      outputs: ['Output'],
+      variadicOutputs: false,
+      variadicInputs: false,
+      solo: false,
+      path: ''
     };
     
     const newGroups = groups.map(group =>
@@ -116,13 +109,8 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
     );
     updateGroups(newGroups);
     
-    // Refresh to ensure UI reflects filesystem state
-    if (refreshGroups) {
-      await refreshGroups();
-    }
-    
     return newNode;
-  }, [groups, updateGroups, refreshGroups]);
+  }, [groups, updateGroups]);
 
   const updateNodeName = useCallback(async (groupId: string, nodeId: string, newName: string) => {
     const newGroups = groups.map(group => 
@@ -138,12 +126,11 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
         : group
     );
     updateGroups(newGroups);
-    
-    // Refresh to ensure UI reflects filesystem state
-    if (refreshGroups) {
-      await refreshGroups();
+    // Refresh sidebar to show updated node name
+    if (options.refreshGroups) {
+      await options.refreshGroups();
     }
-  }, [groups, updateGroups, refreshGroups]);
+  }, [groups, updateGroups, options.refreshGroups]);
 
   const deleteNode = useCallback(async (groupId: string, nodeId: string) => {
     const newGroups = groups.map(group =>
@@ -152,12 +139,7 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
         : group
     );
     updateGroups(newGroups);
-    
-    // Refresh to ensure UI reflects filesystem state
-    if (refreshGroups) {
-      await refreshGroups();
-    }
-  }, [groups, updateGroups, refreshGroups]);
+  }, [groups, updateGroups]);
 
   const moveNodeBetweenGroups = useCallback(async (sourceGroupId: string, nodeId: string, targetGroupIndex: number) => {
     if (targetGroupIndex < 0 || targetGroupIndex >= groups.length) {
@@ -169,7 +151,7 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
       return;
     }
 
-    let nodeToMove: SidebarNode | null = null;
+    let nodeToMove: NodeSummary | null = null;
     
     const newGroups = groups.map((group, index) => {
       if (group.id === sourceGroupId) {

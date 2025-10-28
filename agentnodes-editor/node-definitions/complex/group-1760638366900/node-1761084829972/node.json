@@ -1,0 +1,92 @@
+{
+  "summary": {
+    "path": "complex/group-1760638366900/node-1761084829972",
+    "id": "node-1761084829972",
+    "name": "New Node",
+    "inputs": [
+      "Output"
+    ],
+    "outputs": [
+      "Input"
+    ],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "solo": false
+  },
+  "dependencies": [],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_1",
+        "type": "scripting-node",
+        "position": {
+          "x": 569.6644736842105,
+          "y": 188.26315789473685
+        },
+        "data": {
+          "nodeId": "start",
+          "label": "Start",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1761670918727-0-jndkzflgd",
+              "name": "Output"
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": true,
+          "solo": true,
+          "metadataPath": "atomic/control-flow"
+        },
+        "measured": {
+          "width": 140,
+          "height": 119
+        },
+        "selected": false
+      },
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 832.3486842105265,
+          "y": 166.0197368421053
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [
+            {
+              "id": "input-1761670919687-0-7ymt4j8qt",
+              "name": "Input"
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "solo": true,
+          "metadataPath": "atomic/control-flow"
+        },
+        "measured": {
+          "width": 131,
+          "height": 127
+        },
+        "selected": false,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_1",
+        "sourceHandle": "output-1761670918727-0-jndkzflgd",
+        "target": "node_2",
+        "targetHandle": "input-1761670919687-0-7ymt4j8qt",
+        "id": "xy-edge__node_1output-1761670918727-0-jndkzflgd-node_2input-1761670919687-0-7ymt4j8qt"
+      }
+    ],
+    "viewport": {
+      "x": -136.81987577639757,
+      "y": 208.26086956521738,
+      "zoom": 0.9440993788819876
+    }
+  }
+}

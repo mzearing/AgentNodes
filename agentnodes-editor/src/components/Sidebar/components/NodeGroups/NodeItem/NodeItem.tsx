@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Node } from '@xyflow/react';
 import styles from '../NodeGroups.module.css';
-import { SidebarNode, Category } from '../../../types';
+import { NodeSummary, Category } from "../../../../../types/project"
 import { ScriptingNodeData } from '../../../../ScriptingNodes/ScriptingNode';
 
 interface NodeItemEditingState {
@@ -10,8 +10,8 @@ interface NodeItemEditingState {
 }
 
 interface NodeItemHandlers {
-  onNodeClick: (node: SidebarNode, groupId: string) => void;
-  onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
+  onNodeClick: (node: NodeSummary, groupId: string) => void;
+  onDragStart: (event: React.DragEvent, node: NodeSummary, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;
   onNodeNameKeyDown: (e: React.KeyboardEvent) => void;
@@ -20,7 +20,7 @@ interface NodeItemHandlers {
 }
 
 interface NodeItemProps {
-  node: SidebarNode;
+  node: NodeSummary;
   groupId: string;
   nodes: Node[];
   activeCategory: Category;
@@ -45,7 +45,7 @@ const NodeItem: React.FC<NodeItemProps> = ({
     }
   }, [editingState.isEditing]);
 
-  const isNodeAlreadyOnCanvas = (sidebarNode: SidebarNode): boolean => {
+  const isNodeAlreadyOnCanvas = (sidebarNode: NodeSummary): boolean => {
     if (!sidebarNode.solo) return false;
     
     return nodes.some(canvasNode => {

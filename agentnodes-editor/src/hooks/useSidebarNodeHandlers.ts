@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Category } from '../components/Sidebar/types';
+import { Category } from  "../types/project"
 import { nodeFileSystem } from '../services/nodeFileSystem';
 
 interface SidebarNodeHandlersProps {

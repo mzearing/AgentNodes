@@ -9,8 +9,7 @@ import {
 import { useSidebarHandlers } from './useSidebarHandlers';
 import { useSidebarNodeHandlers } from './useSidebarNodeHandlers';
 import { useSidebarDragHandlers } from './useSidebarDragHandlers';
-import { Category, NodeGroup } from '../components/Sidebar/types';
-import { ProjectState } from '../types/project';
+import { ProjectState, Category, NodeGroup } from '../types/project';
 
 interface UseSidebarHooksProps {
   activeCategory: Category;
@@ -29,10 +28,13 @@ export const useSidebarHooks = ({
   refreshGroups,
   onLoadProject,
 }: UseSidebarHooksProps) => {
+  const currentGroups = getCurrentGroups();
+  const onGroupsChange = activeCategory === 'Complex' ? handleComplexGroupsChange : handleAtomicGroupsChange;
+  
   const groupManagement = useGroupManagement(
-    getCurrentGroups(),
+    currentGroups,
     {
-      onGroupsChange: activeCategory === 'Complex' ? handleComplexGroupsChange : handleAtomicGroupsChange,
+      onGroupsChange,
       category: activeCategory,
       refreshGroups
     }

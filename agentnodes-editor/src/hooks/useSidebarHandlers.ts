@@ -1,8 +1,7 @@
 import React, { useCallback } from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { SidebarNode, Category } from '../components/Sidebar/types';
+import { Category, ProjectState, NodeMetadata, NodeSummary } from "../types/project";
 import { nodeFileSystem } from '../services/nodeFileSystem';
-import { ProjectState, NodeMetadata } from '../types/project';
 
 interface SidebarHandlersProps {
   activeCategory: Category;
@@ -21,13 +20,23 @@ export const useSidebarHandlers = ({
   confirmDialogState,
   onLoadProject,
 }: SidebarHandlersProps) => {
-  const handleNodeClick = useCallback(async (node: SidebarNode, groupId: string) => {
+  const handleNodeClick = useCallback(async (node: NodeSummary, groupId: string) => {
     console.log('Node clicked:', node);
+    
+    const nodeId = node.id
+    
+    if (!node || !nodeId) {
+      console.error('handleNodeClick called with invalid node:', node);
+      return;
+    }
+    
+    if (!groupId) {
+      console.error('handleNodeClick called with invalid groupId:', groupId);
+      return;
+    }
     
     if (activeCategory === 'Complex') {
       try {
-        const nodeData = await nodeFileSystem.readNode(groupId, node.id, activeCategory);
-        
         // Create default canvas state if no data exists
         const defaultCanvasState = {
           nodes: [] as Node[],
@@ -38,20 +47,56 @@ export const useSidebarHandlers = ({
         let canvasState = defaultCanvasState;
         let nodeName = node.name;
         
-        if (nodeData) {
-          const metadata = nodeData as unknown as NodeMetadata;
-          nodeName = metadata.name || node.name;
-          
-          // Use existing canvas state if it exists and is valid
-          if (metadata.data && metadata.data.nodes && metadata.data.edges) {
-            canvasState = metadata.data;
+        // Use the NodeSummary's path to load the actual node file
+        if (node.path && node.path.trim() !== '') {
+          const nodeFilePath = `node-definitions/${node.path}/node.json`;
+          console.log('Loading node from path:', nodeFilePath);
+          try {
+            // Read the actual node file using the path from NodeSummary
+            const nodeFileData = await window.electronAPI.readFile(nodeFilePath);
+            console.log('Node file content:', nodeFileData);
+            
+            if (nodeFileData && nodeFileData.trim() !== '') {
+              const parsedData = JSON.parse(nodeFileData);
+              console.log('Parsed node data:', parsedData);
+              
+              // Check if this is the new NodeMetadata format or old summary format
+              if (parsedData.summary && parsedData.data) {
+                // New NodeMetadata format
+                const nodeMetadata = parsedData as NodeMetadata;
+                console.log('Found NodeMetadata format');
+                
+                // Update node name from metadata if available
+                nodeName = nodeMetadata.summary?.name || nodeName;
+                
+                // Use the canvas state from the node file
+                if (nodeMetadata.data && Array.isArray(nodeMetadata.data.nodes) && Array.isArray(nodeMetadata.data.edges)) {
+                  console.log('Using canvas state with', nodeMetadata.data.nodes.length, 'nodes and', nodeMetadata.data.edges.length, 'edges');
+                  canvasState = nodeMetadata.data;
+                } else {
+                  console.log('No valid canvas state in NodeMetadata, using default');
+                }
+              } else {
+                // Old summary format - just the node summary data
+                console.log('Found old summary format, using default canvas state');
+                nodeName = parsedData.name || nodeName;
+                // Keep default canvas state since old format doesn't have canvas data
+              }
+            } else {
+              console.log('Node file is empty, using default canvas state');
+            }
+          } catch (fileError) {
+            console.error('Failed to read node file:', fileError);
+            console.log('Using default canvas state due to file read error');
           }
+        } else {
+          console.log('No path in NodeSummary, using default canvas state');
         }
         
         const projectState: ProjectState = {
           hasNodeLoaded: true,
           openedNodeName: nodeName,
-          openedNodeId: node.id,
+          openedNodeId: nodeId,
           openedNodePath: `${activeCategory.toLowerCase()}/${groupId}`,
           canvasStateCache: canvasState
         };
@@ -62,7 +107,7 @@ export const useSidebarHandlers = ({
     }
   }, [activeCategory, onLoadProject]);
 
-  const onDragStart = useCallback((event: React.DragEvent, node: SidebarNode, groupId: string) => {
+  const onDragStart = useCallback((event: React.DragEvent, node: NodeSummary, groupId: string) => {
     const dragData = {
       nodeId: node.id,
       groupId: groupId,
@@ -84,7 +129,7 @@ export const useSidebarHandlers = ({
       try {
         const group = groupManagement.groups.find(g => g.id === groupId);
         if (group && group.nodes.length > 0) {
-          const canvasNode = group.nodes.find(node => 'canvasState' in node);
+          const canvasNode = group.nodes.find((node: any) => 'canvasState' in node);
           if (canvasNode && 'canvasState' in canvasNode) {
             const projectState = (canvasNode as any).canvasState as ProjectState;
             onLoadProject(projectState);

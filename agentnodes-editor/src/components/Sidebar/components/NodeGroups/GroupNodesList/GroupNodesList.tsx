@@ -1,7 +1,7 @@
 import React from 'react';
 import { Node } from '@xyflow/react';
 import styles from '../NodeGroups.module.css';
-import { SidebarNode, Category } from '../../../types';
+import { NodeSummary, Category } from '../../../../../types/project';
 import NodeItem from '../NodeItem/NodeItem';
 
 interface NodeEditingConfig {
@@ -10,8 +10,8 @@ interface NodeEditingConfig {
 }
 
 interface NodeHandlers {
-  onNodeClick: (node: SidebarNode, groupId: string) => void;
-  onDragStart: (event: React.DragEvent, node: SidebarNode, groupId: string) => void;
+  onNodeClick: (node: NodeSummary, groupId: string) => void;
+  onDragStart: (event: React.DragEvent, node: NodeSummary, groupId: string) => void;
   onStartNodeEditing: (groupId: string, nodeId: string, nodeName: string) => void;
   onNodeNameSubmit: () => void;
   onNodeNameKeyDown: (e: React.KeyboardEvent) => void;
@@ -22,7 +22,7 @@ interface NodeHandlers {
 
 interface GroupNodesListProps {
   groupId: string;
-  nodes: SidebarNode[];
+  nodes: NodeSummary[];
   canvasNodes: Node[];
   activeCategory: Category;
   editingConfig: NodeEditingConfig;
@@ -53,7 +53,7 @@ const GroupNodesList: React.FC<GroupNodesListProps> = ({
               editingNodeName: editingConfig.editingNodeName
             }}
             handlers={{
-              onNodeClick: (node: SidebarNode, _nodeGroupId: string) => handlers.onNodeClick(node, groupId),
+              onNodeClick: (node: NodeSummary, _nodeGroupId: string) => handlers.onNodeClick(node, groupId),
               onDragStart: handlers.onDragStart,
               onStartNodeEditing: handlers.onStartNodeEditing,
               onNodeNameSubmit: handlers.onNodeNameSubmit,

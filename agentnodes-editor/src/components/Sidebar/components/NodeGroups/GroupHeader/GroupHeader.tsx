@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import styles from '../NodeGroups.module.css';
-import { NodeGroup } from '../../../types';
+import { NodeGroup } from "../../../../../types/project"
 
 interface GroupHeaderProps {
   group: NodeGroup;

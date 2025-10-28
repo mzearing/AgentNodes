@@ -1,4 +1,5 @@
-import { NodeGroup, Category } from '../components/Sidebar/types';
+import { Category, NodeGroup, NodeSummary } from "../types/project";
+import { canvasRefreshEmitter } from "../hooks/useSidebarData";
 
 declare global {
   interface Window {
@@ -105,6 +106,16 @@ export class NodeFileSystemService {
     return false;
   }
   async readNode(groupId: string, nodeId: string, category: Category): Promise<JSON | null> {
+    if (!nodeId) {
+      console.error('readNode called with undefined nodeId. GroupId:', groupId, 'Category:', category);
+      return null;
+    }
+    
+    if (!groupId) {
+      console.error('readNode called with undefined groupId. NodeId:', nodeId, 'Category:', category);
+      return null;
+    }
+    
     try {
       if (window.electronAPI?.nodeFileSystem) {
         const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
@@ -121,14 +132,52 @@ export class NodeFileSystemService {
     return null;
   }
 
-  async writeNode(groupId: string, nodeId: string, nodeData: JSON, category: Category): Promise<boolean> {
+  async writeNode(groupId: string, nodeId: string, nodeData: JSON, category: Category, skipDependencyUpdate = false): Promise<boolean> {
+    console.log('NodeFileSystem.writeNode called with:', {
+      groupId,
+      nodeId,
+      category,
+      nodesPath: this.nodesPath,
+      skipDependencyUpdate
+    });
+    
     try {
       if (window.electronAPI?.nodeFileSystem) {
         const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
         const groupPath = `${this.nodesPath}/${categoryPath}/${groupId}`;
         
+        // Check if the node already exists to compare for changes
+        let hasChanged = false;
+        if (!skipDependencyUpdate) {
+          try {
+            const existingNodeData = await window.electronAPI.nodeFileSystem.readNode(groupPath, nodeId);
+            if (existingNodeData) {
+              hasChanged = await this.checkNodeInterfaceChanged(existingNodeData, nodeData, category);
+            }
+          } catch (error) {
+            // Node doesn't exist yet, so it's a new node
+            hasChanged = true;
+          }
+        }
+        
+        console.log('Writing to groupPath:', groupPath);
+        console.log('Node data:', JSON.stringify(nodeData, null, 2));
+        
         await window.electronAPI.nodeFileSystem.writeNode(groupPath, nodeId, nodeData);
+        console.log('Write operation completed successfully');
+        
+        // If the node interface changed, update all dependencies
+        if (hasChanged && !skipDependencyUpdate) {
+          console.log('Node interface changed, updating dependencies...');
+          await this.updateAllDependencies(groupId, nodeId, nodeData, category);
+          // Emit canvas refresh event to update live canvas with dependency changes
+          console.log('Emitting canvas refresh event due to dependency changes...');
+          canvasRefreshEmitter.emit();
+        }
+        
         return true;
+      } else {
+        console.error('electronAPI.nodeFileSystem not available');
       }
     } catch (error) {
       console.error('Failed to write node to file system:', error);
@@ -202,19 +251,394 @@ export class NodeFileSystemService {
         const nodeData = await window.electronAPI.readFile(nodeFilePath);
         const node = JSON.parse(nodeData);
         
-        return {
-          inputs: node.inputs || [],
-          outputs: node.outputs || [],
-          variadicInputs: node.variadicInputs,
-          variadicOutputs: node.variadicOutputs,
-          solo: node.solo
-        };
+        // Check if this is a complex node (has summary structure) or atomic node (direct properties)
+        if (node.summary && typeof node.summary === 'object') {
+          // Complex node - get data from summary
+          return {
+            inputs: node.summary.inputs || [],
+            outputs: node.summary.outputs || [],
+            variadicInputs: undefined, // Complex nodes don't have variadic settings
+            variadicOutputs: undefined,
+            solo: undefined // Complex nodes are not solo nodes
+          };
+        } else {
+          // Atomic node - get data directly
+          return {
+            inputs: node.inputs || [],
+            outputs: node.outputs || [],
+            variadicInputs: node.variadicInputs,
+            variadicOutputs: node.variadicOutputs,
+            solo: node.solo
+          };
+        }
       }
     } catch (error) {
       console.warn('Failed to get fresh node data:', error);
     }
     
     return null;
+  }
+
+  async updateNodeSummaryInGroup(groupId: string, nodeId: string, newSummary: NodeSummary, category: Category): Promise<boolean> {
+    try {
+      if (window.electronAPI?.nodeFileSystem) {
+        // Read the current group
+        const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+        const groupPath = `${this.nodesPath}/${categoryPath}/${groupId}`;
+        const group = await window.electronAPI.nodeFileSystem.readNodeGroup(groupPath);
+        
+        if (group) {
+          // Find and update the node summary in the group
+          const nodeIndex = group.nodes.findIndex(node => node.id === nodeId);
+          if (nodeIndex !== -1) {
+            group.nodes[nodeIndex] = newSummary;
+            
+            // Save the updated group
+            await window.electronAPI.nodeFileSystem.writeNodeGroup(groupPath, group);
+            return true;
+          } else {
+            console.warn(`Node ${nodeId} not found in group ${groupId}`);
+          }
+        } else {
+          console.warn(`Group ${groupId} not found`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update node summary in group:', error);
+    }
+    
+    return false;
+  }
+
+  private async checkNodeInterfaceChanged(oldNodeData: JSON, newNodeData: JSON, category: Category): Promise<boolean> {
+    try {
+      const oldNode = oldNodeData as any;
+      const newNode = newNodeData as any;
+      
+      // For complex nodes, check the summary
+      if (category === 'Complex') {
+        const oldSummary = oldNode.summary;
+        const newSummary = newNode.summary;
+        
+        if (!oldSummary || !newSummary) return true;
+        
+        return (
+          oldSummary.name !== newSummary.name ||
+          JSON.stringify(oldSummary.inputs) !== JSON.stringify(newSummary.inputs) ||
+          JSON.stringify(oldSummary.outputs) !== JSON.stringify(newSummary.outputs)
+        );
+      } else {
+        // For atomic nodes, check direct properties
+        return (
+          oldNode.name !== newNode.name ||
+          JSON.stringify(oldNode.inputs) !== JSON.stringify(newNode.inputs) ||
+          JSON.stringify(oldNode.outputs) !== JSON.stringify(newNode.outputs)
+        );
+      }
+    } catch (error) {
+      console.warn('Error checking node interface changes:', error);
+      return true; // Assume changed if we can't check
+    }
+  }
+
+  private async updateAllDependencies(groupId: string, nodeId: string, nodeData: JSON, category: Category): Promise<void> {
+    try {
+      console.log(`Updating all dependencies for ${category}/${groupId}/${nodeId}`);
+      
+      // Get the new node summary
+      const newSummary = await this.extractNodeSummary(nodeData, groupId, nodeId, category);
+      if (!newSummary) {
+        console.warn('Could not extract node summary for dependency updates');
+        return;
+      }
+
+      // Find all nodes that depend on this node
+      const dependentNodes = await this.findAllDependentNodes(groupId, nodeId, category);
+      
+      // Check for self-recursive dependencies and handle them first
+      const selfRecursive = dependentNodes.find(dep => 
+        dep.groupId === groupId && dep.nodeId === nodeId && dep.category === category
+      );
+      
+      if (selfRecursive) {
+        console.log(`Handling self-recursive dependency for ${category}/${groupId}/${nodeId}`);
+        await this.updateSelfRecursiveDependency(groupId, nodeId, newSummary, category);
+        // Remove self-recursive dependency from the list to avoid double processing
+        const index = dependentNodes.indexOf(selfRecursive);
+        dependentNodes.splice(index, 1);
+      }
+      
+      // Update other dependent nodes
+      for (const dependent of dependentNodes) {
+        await this.updateNodeDependency(dependent, newSummary);
+      }
+      
+      // Also update the node in its own group's node list
+      await this.updateNodeSummaryInGroup(groupId, nodeId, newSummary, category);
+      
+    } catch (error) {
+      console.error('Error updating dependencies:', error);
+    }
+  }
+
+  private async extractNodeSummary(nodeData: JSON, groupId: string, nodeId: string, category: Category): Promise<NodeSummary | null> {
+    try {
+      const node = nodeData as any;
+      const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
+      const path = `${categoryPath}/${groupId}/${nodeId}`;
+      
+      if (category === 'Complex' && node.summary) {
+        // Use existing summary for complex nodes
+        return {
+          ...node.summary,
+          path
+        };
+      } else {
+        // Create summary from atomic node properties
+        return {
+          id: nodeId,
+          name: node.name || nodeId,
+          inputs: node.inputs || [],
+          outputs: node.outputs || [],
+          variadicInputs: node.variadicInputs || false,
+          variadicOutputs: node.variadicOutputs || false,
+          solo: node.solo || false,
+          path
+        };
+      }
+    } catch (error) {
+      console.warn('Error extracting node summary:', error);
+      return null;
+    }
+  }
+
+  private async findAllDependentNodes(targetGroupId: string, targetNodeId: string, targetCategory: Category): Promise<Array<{groupId: string, nodeId: string, category: Category}>> {
+    const dependentNodes: Array<{groupId: string, nodeId: string, category: Category}> = [];
+    
+    try {
+      // Load all node groups to find dependencies
+      const nodeGroups = await this.loadNodeGroups();
+      
+      // Check both complex and atomic categories
+      for (const categoryName of ['complex', 'atomic'] as const) {
+        const groups = categoryName === 'complex' ? nodeGroups.complex : nodeGroups.atomic;
+        const category = categoryName === 'complex' ? 'Complex' : 'Atomic';
+        
+        for (const group of groups) {
+          for (const node of group.nodes) {
+            // For complex nodes, check their dependencies
+            if (categoryName === 'complex') {
+              try {
+                const nodeData = await this.readNode(group.id, node.id, 'Complex');
+                if (nodeData && typeof nodeData === 'object' && 'dependencies' in nodeData) {
+                  const metadata = nodeData as any;
+                  if (metadata.dependencies && Array.isArray(metadata.dependencies)) {
+                    // Check if this node depends on our target node
+                    const hasDependency = metadata.dependencies.some((dep: NodeSummary) => {
+                      const depPathParts = dep.path.split('/');
+                      return depPathParts.length >= 3 && 
+                             depPathParts[1] === targetGroupId && 
+                             depPathParts[2] === targetNodeId &&
+                             depPathParts[0] === targetCategory.toLowerCase();
+                    });
+                    
+                    if (hasDependency) {
+                      dependentNodes.push({
+                        groupId: group.id,
+                        nodeId: node.id,
+                        category: 'Complex'
+                      });
+                    }
+                  }
+                }
+              } catch (error) {
+                console.warn(`Error checking dependencies for ${group.id}/${node.id}:`, error);
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`Found ${dependentNodes.length} dependent nodes for ${targetCategory}/${targetGroupId}/${targetNodeId}`);
+      return dependentNodes;
+      
+    } catch (error) {
+      console.error('Error finding dependent nodes:', error);
+      return [];
+    }
+  }
+
+  private async updateSelfRecursiveDependency(groupId: string, nodeId: string, newSummary: NodeSummary, category: Category): Promise<void> {
+    try {
+      console.log(`Updating self-recursive dependency for ${category}/${groupId}/${nodeId}`);
+      
+      // For self-recursive dependencies, we need to be careful to update the node's dependencies
+      // without causing infinite recursion. We'll read the current node data and update any
+      // self-references in its dependencies list.
+      
+      const nodeData = await this.readNode(groupId, nodeId, category);
+      if (!nodeData || typeof nodeData !== 'object') {
+        console.warn(`Could not read self-recursive node ${groupId}/${nodeId}`);
+        return;
+      }
+      
+      const metadata = nodeData as any;
+      if (!metadata.dependencies || !Array.isArray(metadata.dependencies)) {
+        console.log(`No dependencies found in self-recursive node ${groupId}/${nodeId}`);
+        return;
+      }
+      
+      // Update any self-references in the dependencies list
+      let updated = false;
+      for (let i = 0; i < metadata.dependencies.length; i++) {
+        const dep = metadata.dependencies[i];
+        const depPathParts = dep.path.split('/');
+        const newSummaryPathParts = newSummary.path.split('/');
+        
+        // Check if this dependency is a self-reference
+        if (depPathParts.length >= 3 && newSummaryPathParts.length >= 3 &&
+            depPathParts[0] === newSummaryPathParts[0] && // category
+            depPathParts[1] === newSummaryPathParts[1] && // groupId  
+            depPathParts[2] === newSummaryPathParts[2]) { // nodeId
+          
+          // Update the self-reference with new information
+          metadata.dependencies[i] = { ...newSummary };
+          updated = true;
+          console.log(`Updated self-recursive dependency ${dep.path} -> ${newSummary.path}`);
+        }
+      }
+      
+      if (updated) {
+        // Update canvas nodes to reflect the new dependency information
+        await this.updateCanvasNodesFromDependencies(metadata);
+        
+        // Use the regular writeNode method but skip dependency updates to avoid infinite recursion
+        await this.writeNode(groupId, nodeId, metadata as JSON, category, true);
+        console.log(`Successfully updated self-recursive dependencies in ${groupId}/${nodeId}`);
+      }
+      
+    } catch (error) {
+      console.error(`Error updating self-recursive dependency in ${groupId}/${nodeId}:`, error);
+    }
+  }
+
+  private async updateNodeDependency(dependent: {groupId: string, nodeId: string, category: Category}, newSummary: NodeSummary): Promise<void> {
+    try {
+      console.log(`Updating dependency in ${dependent.category}/${dependent.groupId}/${dependent.nodeId}`);
+      
+      // Read the dependent node's data
+      const nodeData = await this.readNode(dependent.groupId, dependent.nodeId, dependent.category);
+      if (!nodeData || typeof nodeData !== 'object') {
+        console.warn(`Could not read dependent node ${dependent.groupId}/${dependent.nodeId}`);
+        return;
+      }
+      
+      const metadata = nodeData as any;
+      if (!metadata.dependencies || !Array.isArray(metadata.dependencies)) {
+        console.warn(`No dependencies found in ${dependent.groupId}/${dependent.nodeId}`);
+        return;
+      }
+      
+      // Update the matching dependency
+      let updated = false;
+      for (let i = 0; i < metadata.dependencies.length; i++) {
+        const dep = metadata.dependencies[i];
+        const depPathParts = dep.path.split('/');
+        const newSummaryPathParts = newSummary.path.split('/');
+        
+        // Check if this dependency matches our updated node
+        if (depPathParts.length >= 3 && newSummaryPathParts.length >= 3 &&
+            depPathParts[0] === newSummaryPathParts[0] && // category
+            depPathParts[1] === newSummaryPathParts[1] && // groupId  
+            depPathParts[2] === newSummaryPathParts[2]) { // nodeId
+          
+          // Update the dependency with new information
+          metadata.dependencies[i] = { ...newSummary };
+          updated = true;
+          console.log(`Updated dependency ${dep.path} -> ${newSummary.path}`);
+        }
+      }
+      
+      if (updated) {
+        // Update canvas nodes to reflect the new dependency information
+        await this.updateCanvasNodesFromDependencies(metadata);
+        
+        // Save the updated node (skip dependency update to prevent infinite recursion)
+        await this.writeNode(dependent.groupId, dependent.nodeId, metadata as JSON, dependent.category, true);
+        console.log(`Successfully updated dependencies in ${dependent.groupId}/${dependent.nodeId}`);
+      }
+      
+    } catch (error) {
+      console.error(`Error updating dependency in ${dependent.groupId}/${dependent.nodeId}:`, error);
+    }
+  }
+
+  private async updateCanvasNodesFromDependencies(metadata: any): Promise<void> {
+    try {
+      if (!metadata.data || !metadata.data.nodes || !metadata.dependencies) {
+        console.log('No canvas data or dependencies to update');
+        return;
+      }
+
+      console.log('Updating canvas nodes from dependencies...');
+      console.log('Available dependencies:', metadata.dependencies.map((d: any) => ({ id: d.id, name: d.name })));
+      console.log('Canvas nodes:', metadata.data.nodes.map((n: any) => ({ id: n.id, nodeId: n.data?.nodeId, label: n.data?.label })));
+      
+      let updatedNodes = 0;
+      
+      // Update each canvas node that corresponds to a dependency
+      for (const canvasNode of metadata.data.nodes) {
+        // Skip start/finish nodes
+        if (canvasNode.data?.nodeId === 'start' || canvasNode.data?.nodeId === 'finish') {
+          continue;
+        }
+
+        // Find the corresponding dependency
+        const matchingDependency = metadata.dependencies.find((dep: NodeSummary) => {
+          return dep.id === canvasNode.data?.nodeId;
+        });
+
+        if (matchingDependency) {
+          console.log(`Updating canvas node ${canvasNode.id} (${canvasNode.data?.nodeId}) with dependency data:`, {
+            oldInputs: canvasNode.data.inputs?.length || 0,
+            newInputs: matchingDependency.inputs.length,
+            oldOutputs: canvasNode.data.outputs?.length || 0,
+            newOutputs: matchingDependency.outputs.length
+          });
+          
+          // Update the canvas node's label and inputs/outputs
+          canvasNode.data.label = matchingDependency.name;
+          
+          // Generate new inputs based on dependency data
+          const newInputs = matchingDependency.inputs.map((inputName: string, index: number) => ({
+            id: canvasNode.data.inputs?.[index]?.id || `input-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
+            name: inputName
+          }));
+          
+          // Generate new outputs based on dependency data
+          const newOutputs = matchingDependency.outputs.map((outputName: string, index: number) => ({
+            id: canvasNode.data.outputs?.[index]?.id || `output-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
+            name: outputName
+          }));
+          
+          // Update the canvas node data
+          canvasNode.data.inputs = newInputs;
+          canvasNode.data.outputs = newOutputs;
+          canvasNode.data.variadicInputs = matchingDependency.variadicInputs;
+          canvasNode.data.variadicOutputs = matchingDependency.variadicOutputs;
+          canvasNode.data.solo = matchingDependency.solo;
+          
+          updatedNodes++;
+          console.log(`Updated canvas node with ${newInputs.length} inputs and ${newOutputs.length} outputs`);
+        } else {
+          console.log(`No matching dependency found for canvas node ${canvasNode.id} (nodeId: ${canvasNode.data?.nodeId})`);
+        }
+      }
+      
+      console.log(`Updated ${updatedNodes} canvas nodes from dependencies`);
+    } catch (error) {
+      console.error('Error updating canvas nodes from dependencies:', error);
+    }
   }
 }
 

@@ -1,20 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import * as path from 'path';
-
-interface NodeGroup {
-  id: string;
-  name: string;
-  color: string;
-  nodes: SidebarNode[];
-}
-
-interface SidebarNode {
-  id: string;
-  name: string;
-  inputs?: string[];
-  outputs?: string[];
-  solo?: boolean;
-}
+import { NodeGroup } from './types/project';
 
 // File system wrapper using IPC
 const fsAsync = {
@@ -34,13 +20,58 @@ const fsAsync = {
     ipcRenderer.invoke('fs:rm', filePath, options)
 };
 
+const readFileWithRetry = async (filePath: string, maxRetries = 3, delay = 10): Promise<string> => {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const data = await fsAsync.readFile(filePath, 'utf-8');
+      
+      // If we got data, return it
+      if (data && data.trim() !== '') {
+        return data;
+      }
+      
+      // If file appears empty, retry unless it's the last attempt
+      if (attempt < maxRetries - 1) {
+        console.warn(`File ${filePath} appears empty on attempt ${attempt + 1}, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // Last attempt and still empty
+      return data;
+    } catch (error) {
+      if (attempt < maxRetries - 1) {
+        console.warn(`Failed to read ${filePath} on attempt ${attempt + 1}:`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error(`Failed to read ${filePath} after ${maxRetries} attempts`);
+};
+
 const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | null> => {
   try {
     const groupJsonPath = path.join(groupPath, 'group.json');
     
     try {
-      const groupData = await fsAsync.readFile(groupJsonPath, 'utf-8');
-      const group = JSON.parse(groupData);
+      const groupData = await readFileWithRetry(groupJsonPath);
+      
+      // Handle empty or invalid JSON gracefully
+      if (!groupData || groupData.trim() === '') {
+        console.warn(`Empty group file at ${groupJsonPath}, skipping`);
+        return null;
+      }
+      
+      let group;
+      try {
+        group = JSON.parse(groupData);
+      } catch (parseError) {
+        console.warn(`Failed to parse JSON at ${groupJsonPath}:`, parseError);
+        console.warn(`File content: ${JSON.stringify(groupData)}`);
+        return null;
+      }
       
       const items = await fsAsync.readdir(groupPath);
       const nodeDirs = [];
@@ -57,9 +88,23 @@ const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | nul
         const nodeJsonPath = path.join(nodeDirPath, 'node.json');
         
         try {
-          const nodeData = await fsAsync.readFile(nodeJsonPath, 'utf-8');
-          const node = JSON.parse(nodeData);
-          group.nodes.push(node);
+          const nodeData = await readFileWithRetry(nodeJsonPath);
+          
+          // Handle empty or invalid JSON gracefully
+          if (!nodeData || nodeData.trim() === '') {
+            console.warn(`Empty node file at ${nodeJsonPath}, skipping`);
+            continue;
+          }
+          
+          try {
+            const nodeMetadata = JSON.parse(nodeData);
+            // Extract summary from NodeMetadata for complex nodes, or use the node directly for atomic nodes
+            const nodeSummary = nodeMetadata.summary || nodeMetadata;
+            group.nodes.push(nodeSummary);
+          } catch (parseError) {
+            console.warn(`Failed to parse node JSON at ${nodeJsonPath}:`, parseError);
+            console.warn(`File content: ${JSON.stringify(nodeData)}`);
+          }
         } catch (error) {
           console.warn(`Failed to read node at ${nodeJsonPath}:`, error);
         }
@@ -173,9 +218,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
             await fsAsync.mkdir(nodeDirPath, { recursive: true });
             
             const nodeJsonPath = path.join(nodeDirPath, 'node.json');
+            
+            // Check if node file already exists and contains NodeMetadata structure
+            try {
+              const existingContent = await fsAsync.readFile(nodeJsonPath, 'utf-8');
+              const existingData = JSON.parse(existingContent);
+              
+              // If the existing file has the NodeMetadata structure (summary, dependencies, data),
+              // don't overwrite it with just the summary
+              if (existingData.summary && existingData.dependencies !== undefined && existingData.data) {
+                console.log(`Preserving existing NodeMetadata for ${node.id}`);
+                continue;
+              }
+            } catch (error) {
+              // File doesn't exist or is invalid, proceed with writing
+            }
+            
+            // Write the node summary (for new nodes or nodes that don't have full metadata)
             await fsAsync.writeFile(nodeJsonPath, JSON.stringify(node, null, 2), 'utf-8');
           }
         }
+        
+        // Small delay to ensure filesystem operations are fully complete
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         throw new Error(`Failed to write node group: ${error}`);
       }
@@ -184,6 +249,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteNodeGroup: async (groupPath: string): Promise<void> => {
       try {
         await fsAsync.rm(groupPath, { recursive: true, force: true });
+        
+        // Small delay to ensure filesystem operations are fully complete
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         throw new Error(`Failed to delete node group: ${error}`);
       }
@@ -202,6 +270,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       try {
         const nodePath = path.join(groupPath, nodeId);
         await fsAsync.rm(nodePath, { recursive: true, force: true });
+        
+        // Small delay to ensure filesystem operations are fully complete
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         throw new Error(`Failed to delete node: ${error}`);
       }
@@ -211,8 +282,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
       try {
         const nodePath = path.join(groupPath, nodeId);
         const nodeJsonPath = path.join(nodePath, 'node.json');
-        const nodeData = await fsAsync.readFile(nodeJsonPath, 'utf-8');
-        return JSON.parse(nodeData);
+        const nodeData = await readFileWithRetry(nodeJsonPath);
+        
+        // Handle empty or invalid JSON gracefully
+        if (!nodeData || nodeData.trim() === '') {
+          throw new Error(`Empty node file at ${nodeJsonPath}`);
+        }
+        
+        try {
+          return JSON.parse(nodeData);
+        } catch (parseError) {
+          throw new Error(`Failed to parse node JSON at ${nodeJsonPath}: ${parseError}. Content: ${JSON.stringify(nodeData)}`);
+        }
       } catch (error) {
         throw new Error(`Failed to read node: ${error}`);
       }
@@ -225,6 +306,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         
         const nodeJsonPath = path.join(nodePath, 'node.json');
         await fsAsync.writeFile(nodeJsonPath, JSON.stringify(nodeData, null, 2), 'utf-8');
+        
+        // Small delay to ensure filesystem operations are fully complete
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         throw new Error(`Failed to write node: ${error}`);
       }

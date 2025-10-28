@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Node } from '@xyflow/react';
 import styles from './Sidebar.module.css';
 import SidebarContent from './components/SidebarContent/SidebarContent';
@@ -11,9 +11,10 @@ import { ProjectState } from '../../types/project';
 interface SidebarProps {
   nodes: Node[];
   onLoadProject: (projectState: ProjectState) => void;
+  onRefreshFunctionReady?: (refreshFunction: () => void) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ nodes, onLoadProject }) => {
+const Sidebar: React.FC<SidebarProps> = ({ nodes, onLoadProject, onRefreshFunctionReady }) => {
   const sidebarData = useSidebarData();
   const { 
     activeCategory, 
@@ -43,8 +44,17 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes, onLoadProject }) => {
     onLoadProject,
   });
 
-
-
+  // Provide the refresh function to the parent component
+  useEffect(() => {
+    if (onRefreshFunctionReady) {
+      console.log('Sidebar: Setting refresh function...');
+      const refreshFunction = async () => {
+        console.log('Sidebar: Refresh function called!');
+        return await refreshGroups();
+      };
+      onRefreshFunctionReady(refreshFunction);
+    }
+  }, [onRefreshFunctionReady, refreshGroups]);
 
   return (
     <div className={styles.sidebar}>

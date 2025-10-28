@@ -1,6 +1,6 @@
 import React from 'react';
 import { Node } from '@xyflow/react';
-import { Category, NodeGroup } from '../../types';
+import { Category, NodeGroup } from '../../../../types/project';
 import CategoryTabs from '../CategoryTabs/CategoryTabs';
 import NodeGroups from '../NodeGroups/NodeGroups';
 

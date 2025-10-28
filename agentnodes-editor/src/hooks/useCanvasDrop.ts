@@ -2,10 +2,24 @@ import { useCallback, useRef, useState } from 'react';
 import { Node, ReactFlowInstance } from '@xyflow/react';
 import { ScriptingNodeData } from '../components/ScriptingNodes/ScriptingNode';
 import { nodeFileSystem } from '../services/nodeFileSystem';
-import { Category } from '../components/Sidebar/types';
+import { Category } from "../types/project";
 
 let nodeId = 1;
 const getNodeId = () => `node_${nodeId++}`;
+
+// Function to sync nodeId counter with existing nodes
+const syncNodeIdCounter = (existingNodes: Node[]) => {
+  let maxId = 0;
+  existingNodes.forEach(node => {
+    if (node.id.startsWith('node_')) {
+      const idNumber = parseInt(node.id.replace('node_', ''), 10);
+      if (!isNaN(idNumber) && idNumber > maxId) {
+        maxId = idNumber;
+      }
+    }
+  });
+  nodeId = maxId + 1;
+};
 
 export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => void, onNodeAdd?: (node: Node) => void) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -84,7 +98,8 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         outputs: outputHandles,
         variadicInputs: finalVariadicInputs,
         variadicOutputs: finalVariadicOutputs,
-        solo: finalSolo
+        solo: finalSolo,
+        metadataPath: groupId && category ? `${category.toLowerCase()}/${groupId}` : undefined
       };
 
       const newNode: Node = {
@@ -118,6 +133,7 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
     reactFlowInstance,
     setReactFlowInstance,
     onDragOver,
-    onDrop
+    onDrop,
+    syncNodeIdCounter
   };
 };
