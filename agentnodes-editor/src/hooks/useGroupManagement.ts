@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { NodeGroup, NodeSummary, Category } from '../types/project';
+import { NodeGroup, NodeSummary, Category, IOType } from '../types/project';
 import { nodeFileSystem } from '../services/nodeFileSystem';
 
 interface GroupManagementOptions {
@@ -95,7 +95,9 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
       id: `node-${Date.now()}`,
       name: 'New Node',
       inputs: ['Input'],
+      inputTypes: [IOType.None],
       outputs: ['Output'],
+      outputTypes: [IOType.None],
       variadicOutputs: false,
       variadicInputs: false,
       solo: false,

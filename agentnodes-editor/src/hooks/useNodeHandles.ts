@@ -38,7 +38,9 @@ export const useNodeHandles = (nodeId: string) => {
         })
       );
     }
-    updateNodeInternals(nodeId);
+    
+    // Force immediate update
+    setTimeout(() => updateNodeInternals(nodeId), 0);
   }, [setNodes, setEdges, updateNodeInternals, nodeId]);
 
   const updateOutputs = useCallback((newOutputs: OutputHandle[], currentOutputs: OutputHandle[]) => {
@@ -74,7 +76,8 @@ export const useNodeHandles = (nodeId: string) => {
       );
     }
 
-    updateNodeInternals(nodeId);
+    // Force immediate update
+    setTimeout(() => updateNodeInternals(nodeId), 0);
   }, [setNodes, setEdges, updateNodeInternals, nodeId]);
 
   return {

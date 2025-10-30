@@ -1,4 +1,4 @@
-import { Category, NodeGroup, NodeSummary } from "../types/project";
+import { Category, NodeGroup, NodeSummary, IOType } from "../types/project";
 import { canvasRefreshEmitter } from "../hooks/useSidebarData";
 
 declare global {
@@ -242,7 +242,7 @@ export class NodeFileSystemService {
     return false;
   }
 
-  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; variadicInputs?: boolean; variadicOutputs?: boolean; solo?: boolean } | null> {
+  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; inputTypes?: IOType[]; outputTypes?: IOType[]; variadicInputs?: boolean; variadicOutputs?: boolean; solo?: boolean } | null> {
     try {
       if (window.electronAPI?.readFile) {
         const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
@@ -257,6 +257,8 @@ export class NodeFileSystemService {
           return {
             inputs: node.summary.inputs || [],
             outputs: node.summary.outputs || [],
+            inputTypes: node.summary.inputTypes || [],
+            outputTypes: node.summary.outputTypes || [],
             variadicInputs: undefined, // Complex nodes don't have variadic settings
             variadicOutputs: undefined,
             solo: undefined // Complex nodes are not solo nodes
@@ -266,6 +268,8 @@ export class NodeFileSystemService {
           return {
             inputs: node.inputs || [],
             outputs: node.outputs || [],
+            inputTypes: node.inputTypes || [],
+            outputTypes: node.outputTypes || [],
             variadicInputs: node.variadicInputs,
             variadicOutputs: node.variadicOutputs,
             solo: node.solo
@@ -325,14 +329,18 @@ export class NodeFileSystemService {
         return (
           oldSummary.name !== newSummary.name ||
           JSON.stringify(oldSummary.inputs) !== JSON.stringify(newSummary.inputs) ||
-          JSON.stringify(oldSummary.outputs) !== JSON.stringify(newSummary.outputs)
+          JSON.stringify(oldSummary.outputs) !== JSON.stringify(newSummary.outputs) ||
+          JSON.stringify(oldSummary.inputTypes || []) !== JSON.stringify(newSummary.inputTypes || []) ||
+          JSON.stringify(oldSummary.outputTypes || []) !== JSON.stringify(newSummary.outputTypes || [])
         );
       } else {
         // For atomic nodes, check direct properties
         return (
           oldNode.name !== newNode.name ||
           JSON.stringify(oldNode.inputs) !== JSON.stringify(newNode.inputs) ||
-          JSON.stringify(oldNode.outputs) !== JSON.stringify(newNode.outputs)
+          JSON.stringify(oldNode.outputs) !== JSON.stringify(newNode.outputs) ||
+          JSON.stringify(oldNode.inputTypes || []) !== JSON.stringify(newNode.inputTypes || []) ||
+          JSON.stringify(oldNode.outputTypes || []) !== JSON.stringify(newNode.outputTypes || [])
         );
       }
     } catch (error) {
@@ -355,22 +363,16 @@ export class NodeFileSystemService {
       // Find all nodes that depend on this node
       const dependentNodes = await this.findAllDependentNodes(groupId, nodeId, category);
       
-      // Check for self-recursive dependencies and handle them first
-      const selfRecursive = dependentNodes.find(dep => 
-        dep.groupId === groupId && dep.nodeId === nodeId && dep.category === category
-      );
-      
-      if (selfRecursive) {
-        console.log(`Handling self-recursive dependency for ${category}/${groupId}/${nodeId}`);
-        await this.updateSelfRecursiveDependency(groupId, nodeId, newSummary, category);
-        // Remove self-recursive dependency from the list to avoid double processing
-        const index = dependentNodes.indexOf(selfRecursive);
-        dependentNodes.splice(index, 1);
-      }
-      
-      // Update other dependent nodes
+      // Update all dependent nodes, including self-recursive ones
       for (const dependent of dependentNodes) {
-        await this.updateNodeDependency(dependent, newSummary);
+        if (dependent.groupId === groupId && dependent.nodeId === nodeId && dependent.category === category) {
+          // Handle self-recursive dependency specially
+          console.log(`Updating self-recursive dependency for ${category}/${groupId}/${nodeId}`);
+          await this.updateSelfRecursiveDependency(groupId, nodeId, newSummary, category, nodeData);
+        } else {
+          // Handle regular dependency
+          await this.updateNodeDependency(dependent, newSummary);
+        }
       }
       
       // Also update the node in its own group's node list
@@ -395,11 +397,20 @@ export class NodeFileSystemService {
         };
       } else {
         // Create summary from atomic node properties
+        console.log(`Extracting summary for atomic node ${nodeId}:`, {
+          inputs: node.inputs,
+          inputTypes: node.inputTypes,
+          outputs: node.outputs,
+          outputTypes: node.outputTypes
+        });
+        
         return {
           id: nodeId,
           name: node.name || nodeId,
           inputs: node.inputs || [],
+          inputTypes: node.inputTypes || (node.inputs || []).map(() => IOType.None),
           outputs: node.outputs || [],
+          outputTypes: node.outputTypes || (node.outputs || []).map(() => IOType.None),
           variadicInputs: node.variadicInputs || false,
           variadicOutputs: node.variadicOutputs || false,
           solo: node.solo || false,
@@ -468,17 +479,21 @@ export class NodeFileSystemService {
     }
   }
 
-  private async updateSelfRecursiveDependency(groupId: string, nodeId: string, newSummary: NodeSummary, category: Category): Promise<void> {
+  private async updateSelfRecursiveDependency(groupId: string, nodeId: string, newSummary: NodeSummary, category: Category, currentNodeData?: JSON): Promise<void> {
     try {
       console.log(`Updating self-recursive dependency for ${category}/${groupId}/${nodeId}`);
       
       // For self-recursive dependencies, we need to be careful to update the node's dependencies
-      // without causing infinite recursion. We'll read the current node data and update any
-      // self-references in its dependencies list.
+      // without causing infinite recursion. Use the current node data being saved instead of
+      // reading from disk to avoid using stale data.
       
-      const nodeData = await this.readNode(groupId, nodeId, category);
+      let nodeData = currentNodeData;
+      if (!nodeData) {
+        nodeData = await this.readNode(groupId, nodeId, category);
+      }
+      
       if (!nodeData || typeof nodeData !== 'object') {
-        console.warn(`Could not read self-recursive node ${groupId}/${nodeId}`);
+        console.warn(`Could not get node data for self-recursive node ${groupId}/${nodeId}`);
         return;
       }
       
@@ -501,10 +516,14 @@ export class NodeFileSystemService {
             depPathParts[1] === newSummaryPathParts[1] && // groupId  
             depPathParts[2] === newSummaryPathParts[2]) { // nodeId
           
-          // Update the self-reference with new information
+          // Update the self-reference with new information from the passed newSummary
+          // This ensures we get the latest type changes and other updates
           metadata.dependencies[i] = { ...newSummary };
           updated = true;
-          console.log(`Updated self-recursive dependency ${dep.path} -> ${newSummary.path}`);
+          console.log(`Updated self-recursive dependency ${dep.path} with new summary data:`, {
+            oldTypes: { inputTypes: dep.inputTypes, outputTypes: dep.outputTypes },
+            newTypes: { inputTypes: newSummary.inputTypes, outputTypes: newSummary.outputTypes }
+          });
         }
       }
       
@@ -603,23 +622,39 @@ export class NodeFileSystemService {
             oldInputs: canvasNode.data.inputs?.length || 0,
             newInputs: matchingDependency.inputs.length,
             oldOutputs: canvasNode.data.outputs?.length || 0,
-            newOutputs: matchingDependency.outputs.length
+            newOutputs: matchingDependency.outputs.length,
+            oldInputTypes: canvasNode.data.inputs?.map((i: any) => i.type) || [],
+            newInputTypes: matchingDependency.inputTypes || [],
+            oldOutputTypes: canvasNode.data.outputs?.map((o: any) => o.type) || [],
+            newOutputTypes: matchingDependency.outputTypes || []
           });
           
           // Update the canvas node's label and inputs/outputs
           canvasNode.data.label = matchingDependency.name;
           
           // Generate new inputs based on dependency data
-          const newInputs = matchingDependency.inputs.map((inputName: string, index: number) => ({
-            id: canvasNode.data.inputs?.[index]?.id || `input-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
-            name: inputName
-          }));
+          // Use dependency types as authoritative source for self-recursive scenarios
+          const newInputs = matchingDependency.inputs.map((inputName: string, index: number) => {
+            const existingInput = canvasNode.data.inputs?.[index];
+            return {
+              id: existingInput?.id || `input-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
+              name: inputName,
+              // Use dependency types as source of truth
+              type: matchingDependency.inputTypes?.[index] || IOType.None
+            };
+          });
           
           // Generate new outputs based on dependency data
-          const newOutputs = matchingDependency.outputs.map((outputName: string, index: number) => ({
-            id: canvasNode.data.outputs?.[index]?.id || `output-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
-            name: outputName
-          }));
+          // Use dependency types as authoritative source for self-recursive scenarios
+          const newOutputs = matchingDependency.outputs.map((outputName: string, index: number) => {
+            const existingOutput = canvasNode.data.outputs?.[index];
+            return {
+              id: existingOutput?.id || `output-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
+              name: outputName,
+              // Use dependency types as source of truth
+              type: matchingDependency.outputTypes?.[index] || IOType.None
+            };
+          });
           
           // Update the canvas node data
           canvasNode.data.inputs = newInputs;

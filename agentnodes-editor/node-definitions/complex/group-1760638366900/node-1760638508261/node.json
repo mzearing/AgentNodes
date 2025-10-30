@@ -2,27 +2,89 @@
   "summary": {
     "path": "complex/group-1760638366900/node-1760638508261",
     "id": "node-1760638508261",
-    "name": "AlphaBeta",
+    "name": "gghgg",
     "inputs": [
-      "Output",
+      "Outputghng",
+      "Output 4",
       "Output 2",
-      "Output 3"
+      "Output 3",
+      "Output 5"
     ],
-    "outputs": [],
+    "inputTypes": [
+      0,
+      2,
+      3,
+      3,
+      4
+    ],
+    "outputs": [
+      "Input",
+      "Input 2",
+      "Input 3"
+    ],
+    "outputTypes": [
+      2,
+      1,
+      0
+    ],
     "variadicOutputs": false,
     "variadicInputs": false,
     "solo": false
   },
   "dependencies": [
     {
-      "path": "complex/group-1760638366900/node-1761084829972",
-      "id": "node-1761084829972",
-      "name": "New Node",
+      "path": "complex/group-1760638366900/node-1760638508261",
+      "id": "node-1760638508261",
+      "name": "gghgg",
       "inputs": [
-        "Output"
+        "Outputghng",
+        "Output 4",
+        "Output 2",
+        "Output 3",
+        "Output 5"
+      ],
+      "inputTypes": [
+        0,
+        2,
+        3,
+        3,
+        4
       ],
       "outputs": [
-        "Input"
+        "Input",
+        "Input 2",
+        "Input 3"
+      ],
+      "outputTypes": [
+        2,
+        1,
+        0
+      ],
+      "variadicOutputs": false,
+      "variadicInputs": false,
+      "solo": false
+    },
+    {
+      "path": "complex/group-1760638366900/node-1761084829972",
+      "id": "node-1761084829972",
+      "name": "New Nodefgf",
+      "inputs": [
+        "Output",
+        "Output 2",
+        "Output 3"
+      ],
+      "inputTypes": [
+        2,
+        0,
+        0
+      ],
+      "outputs": [
+        "Input",
+        "Input 2"
+      ],
+      "outputTypes": [
+        4,
+        0
       ],
       "variadicOutputs": false,
       "variadicInputs": false,
@@ -35,8 +97,8 @@
         "id": "node_1",
         "type": "scripting-node",
         "position": {
-          "x": 279.44078947368416,
-          "y": 62.3026315789474
+          "x": 67.46877738659802,
+          "y": -302.4777748319302
         },
         "data": {
           "nodeId": "start",
@@ -45,15 +107,28 @@
           "outputs": [
             {
               "id": "output-1761670778150-0-3v41ofjzm",
-              "name": "Output"
+              "name": "Outputghng",
+              "type": 0
+            },
+            {
+              "id": "output-1761846161364-qxtdnv2l1",
+              "name": "Output 4",
+              "type": 2
             },
             {
               "id": "output-1761671658902-zghvlqqgf",
-              "name": "Output 2"
+              "name": "Output 2",
+              "type": 3
             },
             {
-              "id": "output-1761672155071-h1x8sqhqr",
-              "name": "Output 3"
+              "id": "output-1761844908264-hkphhhnna",
+              "name": "Output 3",
+              "type": 3
+            },
+            {
+              "id": "output-1761848071114-4isyc531e",
+              "name": "Output 5",
+              "type": 4
             }
           ],
           "variadicInputs": false,
@@ -62,32 +137,64 @@
           "metadataPath": "atomic/control-flow"
         },
         "measured": {
-          "width": 151,
-          "height": 183
+          "width": 201,
+          "height": 247
         },
         "dragging": false,
         "selected": false
       },
       {
-        "id": "node_7",
+        "id": "node_9",
         "type": "scripting-node",
         "position": {
-          "x": 514.5855263157896,
-          "y": 206.2697368421053
+          "x": 426.73177172392343,
+          "y": -264.7099458905709
         },
         "data": {
-          "nodeId": "node-1761084829972",
-          "label": "New Node",
+          "nodeId": "node-1760638508261",
+          "label": "gghgg",
           "inputs": [
             {
-              "id": "input-1761670992989-0-068rzrwa8",
-              "name": "Output"
+              "id": "input-1761847250325-0-i87jidmv5",
+              "name": "Outputghng",
+              "type": 0
+            },
+            {
+              "id": "input-1761847250325-1-2llliqvid",
+              "name": "Output 4",
+              "type": 2
+            },
+            {
+              "id": "input-1761847250325-2-ypymdsyj8",
+              "name": "Output 2",
+              "type": 3
+            },
+            {
+              "id": "input-1761847250325-3-tptomwxps",
+              "name": "Output 3",
+              "type": 3
+            },
+            {
+              "id": "input-1761848073986-4-n74gtapdv",
+              "name": "Output 5",
+              "type": 4
             }
           ],
           "outputs": [
             {
-              "id": "output-1761670992989-0-xbn3wbzav",
-              "name": "Input"
+              "id": "output-1761685452361-0-rjipvaea0",
+              "name": "Input",
+              "type": 2
+            },
+            {
+              "id": "output-1761690529784-1-mypic52pr",
+              "name": "Input 2",
+              "type": 1
+            },
+            {
+              "id": "output-1761844904542-2-0vgmh2sow",
+              "name": "Input 3",
+              "type": 0
             }
           ],
           "metadataPath": "complex/group-1760638366900",
@@ -96,59 +203,140 @@
           "solo": false
         },
         "measured": {
-          "width": 138,
-          "height": 86
+          "width": 242,
+          "height": 244
         },
-        "selected": false,
+        "dragging": false,
+        "selected": false
+      },
+      {
+        "id": "node_10",
+        "type": "scripting-node",
+        "position": {
+          "x": 746.7640037570565,
+          "y": -269.3644387794584
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [
+            {
+              "id": "input-1761685450296-0-3clmz00xo",
+              "name": "Input",
+              "type": 2
+            },
+            {
+              "id": "input-1761690528128-1v9yjkatn",
+              "name": "Input 2",
+              "type": 1
+            },
+            {
+              "id": "input-1761844903213-al57zqhs9",
+              "name": "Input 3",
+              "type": 0
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "solo": true,
+          "metadataPath": "atomic/control-flow"
+        },
+        "measured": {
+          "width": 174,
+          "height": 207
+        },
+        "selected": true,
         "dragging": false
       },
       {
-        "id": "node_8",
+        "id": "node_11",
         "type": "scripting-node",
         "position": {
-          "x": 741.2403191366575,
-          "y": 1.5073868882733485
+          "x": 365.6871710612902,
+          "y": 7.216233889154935
         },
         "data": {
-          "nodeId": "script2",
-          "label": "Other Script",
+          "nodeId": "node-1761084829972",
+          "label": "New Nodefgf",
           "inputs": [
             {
-              "id": "input-1761672160465-0-jnbucqux9",
-              "name": "A"
+              "id": "input-1761850246131-0-m214bn3tj",
+              "name": "Output",
+              "type": 2
             },
             {
-              "id": "input-1761672160465-1-aoihlk9rc",
-              "name": "B"
+              "id": "input-1761850246131-1-ohy675te0",
+              "name": "Output 2",
+              "type": 0
+            },
+            {
+              "id": "input-1761850246131-2-0eg9rg8gv",
+              "name": "Output 3",
+              "type": 0
             }
           ],
           "outputs": [
             {
-              "id": "output-1761672160465-0-h70gdgass",
-              "name": "A"
+              "id": "output-1761850246131-0-oul6o148j",
+              "name": "Input",
+              "type": 4
             },
             {
-              "id": "output-1761672160465-1-tkx1zz0gx",
-              "name": "B"
-            },
-            {
-              "id": "output-1761672160465-2-nwv9yhj9h",
-              "name": "C"
+              "id": "output-1761850246131-1-sf40lsjo1",
+              "name": "Input 2",
+              "type": 0
             }
           ],
-          "metadataPath": "atomic/processing"
+          "metadataPath": "complex/group-1760638366900",
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "solo": false
         },
         "measured": {
-          "width": 114,
-          "height": 126
-        }
+          "width": 224,
+          "height": 168
+        },
+        "dragging": false,
+        "selected": false
       }
     ],
-    "edges": [],
+    "edges": [
+      {
+        "source": "node_9",
+        "sourceHandle": "output-1761690529784-1-mypic52pr",
+        "target": "node_10",
+        "targetHandle": "input-1761690528128-1v9yjkatn",
+        "id": "xy-edge__node_9output-1761690529784-1-mypic52pr-node_10input-1761690528128-1v9yjkatn",
+        "selected": false
+      },
+      {
+        "source": "node_1",
+        "sourceHandle": "output-1761670778150-0-3v41ofjzm",
+        "target": "node_9",
+        "targetHandle": "input-1761847250325-0-i87jidmv5",
+        "id": "xy-edge__node_1output-1761670778150-0-3v41ofjzm-node_9input-1761847250325-0-i87jidmv5",
+        "selected": false
+      },
+      {
+        "source": "node_1",
+        "sourceHandle": "output-1761846161364-qxtdnv2l1",
+        "target": "node_11",
+        "targetHandle": "input-1761850246131-0-m214bn3tj",
+        "id": "xy-edge__node_1output-1761846161364-qxtdnv2l1-node_11input-1761850246131-0-m214bn3tj"
+      },
+      {
+        "source": "node_11",
+        "sourceHandle": "output-1761850246131-0-oul6o148j",
+        "target": "node_10",
+        "targetHandle": "input-1761685450296-0-3clmz00xo",
+        "id": "xy-edge__node_11output-1761850246131-0-oul6o148j-node_10input-1761685450296-0-3clmz00xo"
+      }
+    ],
     "viewport": {
-      "x": -201.70706070175845,
-      "y": 137.7824688567,
-      "zoom": 0.8077097875613252
+      "x": 5.459087397635585,
+      "y": 531.2207860378649,
+      "zoom": 0.9394393344599612
     }
   }
 }

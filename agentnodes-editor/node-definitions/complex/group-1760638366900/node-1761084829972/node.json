@@ -2,18 +2,63 @@
   "summary": {
     "path": "complex/group-1760638366900/node-1761084829972",
     "id": "node-1761084829972",
-    "name": "New Node",
+    "name": "New Nodefgf",
     "inputs": [
-      "Output"
+      "Output",
+      "Output 2",
+      "Output 3"
+    ],
+    "inputTypes": [
+      2,
+      0,
+      0
     ],
     "outputs": [
-      "Input"
+      "Input",
+      "Input 2"
+    ],
+    "outputTypes": [
+      4,
+      0
     ],
     "variadicOutputs": false,
     "variadicInputs": false,
     "solo": false
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "path": "complex/group-1760638366900/node-1760638508261",
+      "id": "node-1760638508261",
+      "name": "gghgg",
+      "inputs": [
+        "Outputghng",
+        "Output 4",
+        "Output 2",
+        "Output 3",
+        "Output 5"
+      ],
+      "inputTypes": [
+        0,
+        2,
+        3,
+        3,
+        4
+      ],
+      "outputs": [
+        "Input",
+        "Input 2",
+        "Input 3"
+      ],
+      "outputTypes": [
+        2,
+        1,
+        0
+      ],
+      "variadicOutputs": false,
+      "variadicInputs": false,
+      "solo": false
+    }
+  ],
   "data": {
     "nodes": [
       {
@@ -30,7 +75,18 @@
           "outputs": [
             {
               "id": "output-1761670918727-0-jndkzflgd",
-              "name": "Output"
+              "name": "Output",
+              "type": 2
+            },
+            {
+              "id": "output-1761690540269-62njgwjga",
+              "name": "Output 2",
+              "type": 0
+            },
+            {
+              "id": "output-1761690540747-qmy8974eq",
+              "name": "Output 3",
+              "type": 0
             }
           ],
           "variadicInputs": false,
@@ -39,8 +95,8 @@
           "metadataPath": "atomic/control-flow"
         },
         "measured": {
-          "width": 140,
-          "height": 119
+          "width": 183,
+          "height": 183
         },
         "selected": false
       },
@@ -57,7 +113,13 @@
           "inputs": [
             {
               "id": "input-1761670919687-0-7ymt4j8qt",
-              "name": "Input"
+              "name": "Input",
+              "type": 4
+            },
+            {
+              "id": "input-1761690541428-0g5lxk26l",
+              "name": "Input 2",
+              "type": 0
             }
           ],
           "outputs": [],
@@ -67,26 +129,82 @@
           "metadataPath": "atomic/control-flow"
         },
         "measured": {
-          "width": 131,
-          "height": 127
+          "width": 174,
+          "height": 167
         },
-        "selected": false,
+        "selected": true,
         "dragging": false
-      }
-    ],
-    "edges": [
+      },
       {
-        "source": "node_1",
-        "sourceHandle": "output-1761670918727-0-jndkzflgd",
-        "target": "node_2",
-        "targetHandle": "input-1761670919687-0-7ymt4j8qt",
-        "id": "xy-edge__node_1output-1761670918727-0-jndkzflgd-node_2input-1761670919687-0-7ymt4j8qt"
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 764.8948323577619,
+          "y": -114.13274077937238
+        },
+        "data": {
+          "nodeId": "node-1760638508261",
+          "label": "gghgg",
+          "inputs": [
+            {
+              "id": "input-1761845181504-0-ujxmg6spr",
+              "name": "Outputghng",
+              "type": 0
+            },
+            {
+              "id": "input-1761845181504-1-gbyk90gxm",
+              "name": "Output 4",
+              "type": 2
+            },
+            {
+              "id": "input-1761845181504-2-rkrefgphb",
+              "name": "Output 2",
+              "type": 3
+            },
+            {
+              "id": "input-1761846155061-3-wmgcj4fh8",
+              "name": "Output 3",
+              "type": 3
+            },
+            {
+              "id": "input-1761848071999-4-ypz4iiwvs",
+              "name": "Output 5",
+              "type": 4
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1761845181504-0-u840ej779",
+              "name": "Input",
+              "type": 2
+            },
+            {
+              "id": "output-1761845181504-1-osdkjfndg",
+              "name": "Input 2",
+              "type": 1
+            },
+            {
+              "id": "output-1761845181504-2-6agb2jj4j",
+              "name": "Input 3",
+              "type": 0
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "solo": false,
+          "metadataPath": "complex/group-1760638366900"
+        },
+        "measured": {
+          "width": 242,
+          "height": 244
+        }
       }
     ],
+    "edges": [],
     "viewport": {
-      "x": -136.81987577639757,
-      "y": 208.26086956521738,
-      "zoom": 0.9440993788819876
+      "x": -94.54091260236441,
+      "y": 524.2207860378649,
+      "zoom": 0.9394393344599612
     }
   }
 }

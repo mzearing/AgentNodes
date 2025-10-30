@@ -5,15 +5,18 @@ import NodeHeader from './NodeHeader/NodeHeader';
 import NodeTargets from './NodeTargets/NodeTargets';
 import NodeSources from './NodeSources/NodeSources';
 import { useNodeHandles } from '../../hooks';
+import { IOType } from '../../types/project';
 
 export interface InputHandle {
   id: string;
   name: string;
+  type: IOType;
 }
 
 export interface OutputHandle {
   id: string;
   name: string;
+  type: IOType;
 }
 
 export interface ScriptingNodeData extends Record<string, unknown> {
@@ -28,7 +31,7 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   metadataPath?: string;
 }
 
-const ScriptingNode: React.FC<NodeProps> = memo(({ data, selected, id }) => {
+const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
   const scriptNodeData = data as unknown as ScriptingNodeData;
   const nodeHandles = useNodeHandles(id);
 
@@ -59,7 +62,7 @@ const ScriptingNode: React.FC<NodeProps> = memo(({ data, selected, id }) => {
       />
     </div>
   );
-});
+};
 
 export const nodeTypes: NodeTypes = {
   'scripting-node': ScriptingNode,

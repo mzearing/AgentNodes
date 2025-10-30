@@ -17,12 +17,22 @@ export interface ProjectState {
   canvasStateCache: ReactFlowJsonObject<Node, Edge>;
 }
 
+export enum IOType {
+  None = 0,
+  Integer,
+  Float,
+  String,
+  Boolean
+}
+
 export interface NodeSummary {
   path: string;
   id: string;
   name: string;
   inputs: string[]
+  inputTypes: IOType[]
   outputs: string[]
+  outputTypes: IOType[]
   variadicOutputs: boolean;
   variadicInputs: boolean;
   solo: boolean;

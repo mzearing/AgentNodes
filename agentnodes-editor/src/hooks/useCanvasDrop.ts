@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Node, ReactFlowInstance } from '@xyflow/react';
 import { ScriptingNodeData } from '../components/ScriptingNodes/ScriptingNode';
 import { nodeFileSystem } from '../services/nodeFileSystem';
-import { Category } from "../types/project";
+import { Category, IOType } from "../types/project";
 
 let nodeId = 1;
 const getNodeId = () => `node_${nodeId++}`;
@@ -83,12 +83,14 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
       });
       const inputHandles = finalInputs.map((name: string, index: number) => ({
         id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
-        name
+        name,
+        type: IOType.None
       }));
       
       const outputHandles = finalOutputs.map((name: string, index: number) => ({
         id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
-        name
+        name,
+        type: IOType.None
       }));
 
       const scriptingNodeData: ScriptingNodeData = {

@@ -1,7 +1,9 @@
-import React, { useState, DragEvent, memo } from 'react';
+import React, { useState, DragEvent, useCallback } from 'react';
 import { Position, Handle } from '@xyflow/react';
 import styles from './NodeSources.module.css';
 import { OutputHandle } from '../ScriptingNode';
+import TypeDropdown, { DropdownOption } from '../TypeDropdown/TypeDropdown';
+import { IOType } from '../../../types/project';
 
 interface NodeSourcesProps {
   outputs: OutputHandle[];
@@ -9,7 +11,8 @@ interface NodeSourcesProps {
   onOutputsChange?: (outputs: OutputHandle[]) => void;
 }
 
-const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = false, onOutputsChange }) => {
+const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, onOutputsChange }) => {
+  const [updateKey, setUpdateKey] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -25,11 +28,30 @@ const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = fals
     setEditingValue('');
   };
 
+  const handleTypeChange = useCallback((index: number, typeName: string) => {
+    if (onOutputsChange) {
+      const typeMap: Record<string, IOType> = {
+        'None': IOType.None,
+        'Integer': IOType.Integer,
+        'Float': IOType.Float,
+        'String': IOType.String,
+        'Boolean': IOType.Boolean,
+      };
+      const newType = typeMap[typeName] || IOType.None;
+      const newOutputs = [...outputs];
+      newOutputs[index] = { ...newOutputs[index], type: newType };
+      onOutputsChange(newOutputs);
+      // Force re-render of TypeDropdowns
+      setUpdateKey(prev => prev + 1);
+    }
+  }, [outputs, onOutputsChange]);
+
   const handleAdd = () => {
     if (onOutputsChange) {
       const newOutput: OutputHandle = {
         id: `output-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-        name: `Output ${outputs.length + 1}`
+        name: `Output ${outputs.length + 1}`,
+        type: IOType.None
       };
       const newOutputs = [...outputs, newOutput];
       onOutputsChange(newOutputs);
@@ -113,6 +135,21 @@ const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = fals
     setDragOverIndex(null);
   };
 
+  const typeOptions: DropdownOption[] = [
+    { value: 'None', label: 'N', color: '#4A5568', bgColor: '#4A5568', textColor: '#FFFFFF' },
+    { value: 'Integer', label: 'I', color: '#BEE3F8', bgColor: '#BEE3F8', textColor: '#000000' },
+    { value: 'Float', label: 'F', color: '#C6F6D5', bgColor: '#C6F6D5', textColor: '#000000' },
+    { value: 'String', label: 'S', color: '#FF8C00', bgColor: '#FF8C00', textColor: '#FFFFFF' },
+    { value: 'Boolean', label: 'B', color: '#E6E6FA', bgColor: '#E6E6FA', textColor: '#000000' },
+  ];
+
+  const hexToRgba = (hex: string, alpha: number): string => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   return (
     <div className={`${styles.nodeSources} nodrag`}>
       {outputs.map((output, index) => (
@@ -139,6 +176,23 @@ const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = fals
               document.dispatchEvent(event);
             }
           }}
+          style={{
+            '--handle-color': (() => {
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+              return selectedType.color;
+            })(),
+            '--handle-shadow': (() => {
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+              return hexToRgba(selectedType.color, 0.4);
+            })(),
+            '--handle-text-color': (() => {
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+              return selectedType.textColor;
+            })()
+          } as React.CSSProperties}
         >
           {editingIndex === index ? (
             <input
@@ -182,6 +236,16 @@ const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = fals
               >
                 {output.name}
               </span>
+              <TypeDropdown
+                key={`${output.id}-${output.type}-${updateKey}`}
+                options={typeOptions}
+                value={typeOptions.find(opt => {
+                  const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                  return opt.value === typeNames[output.type];
+                }) || typeOptions[0]}
+                onChange={(option) => handleTypeChange(index, option.value)}
+                isLocked={!variadic}
+              />
             </>
           )}
           <Handle 
@@ -189,6 +253,33 @@ const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = fals
             type="source"
             position={Position.Right}
             className={styles.outputHandle}
+            style={{
+              backgroundColor: (() => {
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                return selectedType.color;
+              })(),
+              borderColor: (() => {
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                return selectedType.color;
+              })(),
+              '--handle-color': (() => {
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                return selectedType.color;
+              })(),
+              '--handle-shadow': (() => {
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                return hexToRgba(selectedType.color, 0.4);
+              })(),
+              '--handle-shadow-strong': (() => {
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                return hexToRgba(selectedType.color, 0.6);
+              })()
+            } as React.CSSProperties}
           />
         </div>
       ))}
@@ -205,6 +296,6 @@ const NodeSources: React.FC<NodeSourcesProps> = memo(({ outputs, variadic = fals
       )}
     </div>
   );
-});
+};
 
 export default NodeSources;

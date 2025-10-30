@@ -12,16 +12,23 @@ import {
   ReactFlowProvider,
   applyNodeChanges,
   useReactFlow,
+  Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
-import { nodeTypes } from '../ScriptingNodes/ScriptingNode';
+import { nodeTypes, ScriptingNodeData } from '../ScriptingNodes/ScriptingNode';
 import { useCanvasDrop } from '../../hooks';
-import { ProjectState, NodeMetadata, NodeSummary } from '../../types/project';
+import { ProjectState, NodeMetadata, NodeSummary, IOType } from '../../types/project';
 import { nodeFileSystem } from '../../services/nodeFileSystem';
 
 // Helper function to compare arrays
 const arraysEqual = (arr1: string[], arr2: string[]): boolean => {
+  if (arr1.length !== arr2.length) return false;
+  return arr1.every((item, index) => item === arr2[index]);
+};
+
+// Helper function to compare type arrays
+const typeArraysEqual = (arr1: IOType[], arr2: IOType[]): boolean => {
   if (arr1.length !== arr2.length) return false;
   return arr1.every((item, index) => item === arr2[index]);
 };
@@ -44,9 +51,42 @@ export interface CanvasMethods {
 interface IDName {
   id: string;
   name: string;
+  type?: IOType;
 }
 
 const initialEdges: Edge[] = [];
+
+// Helper function to validate connections and remove invalid ones
+const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
+  return edges.filter(edge => {
+    const sourceNode = nodes.find(node => node.id === edge.source);
+    const targetNode = nodes.find(node => node.id === edge.target);
+    
+    if (!sourceNode || !targetNode) {
+      console.warn(`Removing edge with missing node: ${edge.source} -> ${edge.target}`);
+      return false;
+    }
+    
+    const sourceHandle = (sourceNode.data as ScriptingNodeData)?.outputs?.find(output => output.id === edge.sourceHandle);
+    const targetHandle = (targetNode.data as ScriptingNodeData)?.inputs?.find(input => input.id === edge.targetHandle);
+    
+    if (!sourceHandle || !targetHandle) {
+      console.warn(`Removing edge with missing handle: ${edge.sourceHandle} -> ${edge.targetHandle}`);
+      return false;
+    }
+    
+    // Type validation - only allow exact type matches
+    const sourceType = sourceHandle.type ?? IOType.None;
+    const targetType = targetHandle.type ?? IOType.None;
+    
+    if (sourceType !== targetType) {
+      console.warn(`Removing edge with type mismatch: ${IOType[sourceType]} -> ${IOType[targetType]}`);
+      return false;
+    }
+    
+    return true;
+  });
+};
 
 const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({ 
   nodes: propNodes, 
@@ -65,7 +105,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   });
   
   const canvasDrop = useCanvasDrop(propNodes, propOnNodesChange, onNodeAdd);
-  const { toObject } = useReactFlow();
+  const { toObject, getNodes, getEdges } = useReactFlow();
 
   // Save project functionality
   const saveProject = useCallback(async (): Promise<boolean> => {
@@ -75,7 +115,24 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     }
     
     try {
-      const currentState = toObject();
+      // Use getNodes/getEdges for most current state instead of toObject
+      const currentNodes = getNodes();
+      const currentEdges = getEdges();
+      
+      // Validate and clean connections before saving
+      const validatedEdges = validateAndCleanConnections(currentNodes, currentEdges);
+      
+      // Log if any connections were removed
+      const removedCount = currentEdges.length - validatedEdges.length;
+      if (removedCount > 0) {
+        console.log(`Removed ${removedCount} invalid connection(s) before saving`);
+      }
+      
+      const currentState = {
+        nodes: currentNodes,
+        edges: validatedEdges, 
+        viewport: toObject().viewport
+      };
       const loadedName = projectState.openedNodeName;
       const loadedId = projectState.openedNodeId;
       const path = projectState.openedNodePath;
@@ -156,14 +213,16 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         if (previousDep) {
           const changes: string[] = [];
           
-          // Check if inputs differ
-          const inputsChanged = !arraysEqual(previousDep.inputs, currentDep.inputs);
+          // Check if inputs differ (names and types)
+          const inputsChanged = !arraysEqual(previousDep.inputs, currentDep.inputs) ||
+                                !typeArraysEqual(previousDep.inputTypes || [], currentDep.inputTypes || []);
           if (inputsChanged) {
             changes.push('inputs');
           }
           
-          // Check if outputs differ  
-          const outputsChanged = !arraysEqual(previousDep.outputs, currentDep.outputs);
+          // Check if outputs differ (names and types)
+          const outputsChanged = !arraysEqual(previousDep.outputs, currentDep.outputs) ||
+                                 !typeArraysEqual(previousDep.outputTypes || [], currentDep.outputTypes || []);
           if (outputsChanged) {
             changes.push('outputs');
           }
@@ -216,7 +275,8 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
                   if (changedDep.changes.includes('inputs')) {
                     const newInputs = currentDep.inputs.map((name, index) => ({
                       id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
-                      name
+                      name,
+                      type: currentDep.inputTypes?.[index] || IOType.None
                     }));
                     nodeData.inputs = newInputs;
                   }
@@ -225,7 +285,8 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
                   if (changedDep.changes.includes('outputs')) {
                     const newOutputs = currentDep.outputs.map((name, index) => ({
                       id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
-                      name
+                      name,
+                      type: currentDep.outputTypes?.[index] || IOType.None
                     }));
                     nodeData.outputs = newOutputs;
                   }
@@ -234,7 +295,9 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
             }
           }
           
-          // Don't save - just update the canvas
+          // Update the live canvas with the changes and don't save
+          console.log('Applying dependency updates to live canvas without saving...');
+          propOnNodesChange(currentState.nodes);
           return false;
         }
         // If user confirms, we'll continue with saving
@@ -274,18 +337,19 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       let outputNode: Node | null = null;
       const inputArray: string[] = [];
       const outputArray: string[] = [];
+      const inputTypesArray: IOType[] = [];
+      const outputTypesArray: IOType[] = [];
       currentState.nodes.forEach((node: Node) => {
-        console.log(node.data)
         if (node.data?.["nodeId"] === "start") {
-          console.log(node.data);
-          (node.data?.["outputs"] as IDName[]).forEach(element => {
-            console.log(element);
+          (node.data?.["outputs"] as IDName[]).forEach((element, _index) => {
             inputArray.push(element.name);
+            inputTypesArray.push(element.type || IOType.None);
           });
           inputNode = node;
         } else if (node.data?.["nodeId"] === "finish") {
           (node.data?.["inputs"] as IDName[]).forEach(element => {
             outputArray.push(element.name);
+            outputTypesArray.push(element.type || IOType.None);
           });
           outputNode = node;
         }
@@ -299,7 +363,9 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         id: loadedId,
         name: loadedName,
         inputs: inputArray || [],
+        inputTypes: inputTypesArray || [],
         outputs: outputArray || [],
+        outputTypes: outputTypesArray || [],
         variadicOutputs: false,
         variadicInputs: false,
         solo: false
@@ -307,6 +373,17 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
 
       // Update canvas nodes to reflect any dependency changes before saving
       const updatedCanvasState = await updateCanvasForDependencyChanges(currentState, dependencies);
+
+      // Apply the updated canvas state to the live canvas immediately
+      if (updatedCanvasState && updatedCanvasState._dependencyChangesApplied) {
+        console.log('Applying updated canvas state to live canvas...');
+        // Validate connections when applying dependency changes
+        const validatedEdges = validateAndCleanConnections(updatedCanvasState.nodes, updatedCanvasState.edges);
+        propOnNodesChange(updatedCanvasState.nodes);
+        setEdges(validatedEdges);
+        // Update the canvas state with validated edges
+        updatedCanvasState.edges = validatedEdges;
+      }
 
       const finalSaveData: NodeMetadata = {
         summary: mySummary,
@@ -333,6 +410,8 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       console.log('Save result:', success);
       
       if (success) {
+        // Note: Recursive dependency updates are handled automatically by the canvasRefreshEmitter
+        // system in App.tsx when nodeFileSystem.writeNode() triggers dependency updates
         return true;
       } else {
         alert('Failed to save project');
@@ -346,11 +425,12 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   }, [toObject, projectState]);
 
   // Update canvas nodes based on dependency changes
-  const updateCanvasForDependencyChanges = useCallback(async (canvasState: any, dependencies: NodeSummary[]) => {
+  const updateCanvasForDependencyChanges = useCallback(async (canvasState: {nodes: Node[], edges: Edge[], viewport: Viewport}, dependencies: NodeSummary[]) => {
     console.log('Updating canvas for dependency changes...');
     
     // Create a deep copy of the canvas state to avoid mutating the original
     const updatedState = JSON.parse(JSON.stringify(canvasState));
+    let hasChanges = false;
     
     // Update each canvas node that corresponds to a dependency
     for (const canvasNode of updatedState.nodes) {
@@ -367,19 +447,26 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       if (matchingDependency) {
         console.log(`Updating canvas node ${canvasNode.id} (${canvasNode.data?.nodeId}) with dependency data`);
         
+        // Check if there are actual changes before updating
+        const currentInputs = JSON.stringify(canvasNode.data.inputs || []);
+        const currentOutputs = JSON.stringify(canvasNode.data.outputs || []);
+        const currentLabel = canvasNode.data.label;
+        
         // Update the canvas node's label and inputs/outputs
         canvasNode.data.label = matchingDependency.name;
         
         // Generate new inputs based on dependency data, preserving existing IDs where possible
         const newInputs = matchingDependency.inputs.map((inputName: string, index: number) => ({
           id: canvasNode.data.inputs?.[index]?.id || `input-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
-          name: inputName
+          name: inputName,
+          type: matchingDependency.inputTypes?.[index] || IOType.None
         }));
         
         // Generate new outputs based on dependency data, preserving existing IDs where possible
         const newOutputs = matchingDependency.outputs.map((outputName: string, index: number) => ({
           id: canvasNode.data.outputs?.[index]?.id || `output-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
-          name: outputName
+          name: outputName,
+          type: matchingDependency.outputTypes?.[index] || IOType.None
         }));
         
         // Update the canvas node data
@@ -389,24 +476,69 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         canvasNode.data.variadicOutputs = matchingDependency.variadicOutputs;
         canvasNode.data.solo = matchingDependency.solo;
         
-        console.log(`Updated canvas node with ${newInputs.length} inputs and ${newOutputs.length} outputs`);
+        // Check if anything actually changed
+        const newInputsStr = JSON.stringify(newInputs);
+        const newOutputsStr = JSON.stringify(newOutputs);
+        if (currentInputs !== newInputsStr || currentOutputs !== newOutputsStr || currentLabel !== matchingDependency.name) {
+          hasChanges = true;
+          console.log(`Updated canvas node with ${newInputs.length} inputs and ${newOutputs.length} outputs`);
+        }
       }
+    }
+    
+    // Mark the state as changed if we made updates
+    if (hasChanges) {
+      updatedState._dependencyChangesApplied = true;
     }
     
     return updatedState;
   }, []);
 
   // Load project functionality
+  // Migration function to ensure all nodes have type properties
+  const migrateNodesWithTypes = useCallback((nodes: Node[]) => {
+    return nodes.map(node => {
+      if (node.type === 'scripting-node') {
+        const scriptingData = node.data as ScriptingNodeData;
+        if (scriptingData.inputs) {
+          scriptingData.inputs = scriptingData.inputs.map((input) => ({
+            ...input,
+            type: input.type !== undefined ? input.type : IOType.None
+          }));
+        }
+        if (scriptingData.outputs) {
+          scriptingData.outputs = scriptingData.outputs.map((output) => ({
+            ...output,
+            type: output.type !== undefined ? output.type : IOType.None
+          }));
+        }
+      }
+      return node;
+    });
+  }, []);
+
   const loadProject = useCallback(async (newProjectState: ProjectState): Promise<boolean> => {
     try {
       if (newProjectState.hasNodeLoaded && newProjectState.canvasStateCache) {
+        // Migrate nodes to ensure they have type properties
+        const migratedNodes = migrateNodesWithTypes(newProjectState.canvasStateCache.nodes);
+        
+        // Validate and clean connections to remove any invalid type connections
+        const validatedEdges = validateAndCleanConnections(migratedNodes, newProjectState.canvasStateCache.edges);
+        
+        // Log if any connections were removed
+        const removedCount = newProjectState.canvasStateCache.edges.length - validatedEdges.length;
+        if (removedCount > 0) {
+          console.log(`Removed ${removedCount} invalid connection(s) during project load`);
+        }
+        
         // Load the canvas state from the saved data
-        propOnNodesChange(newProjectState.canvasStateCache.nodes);
-        setEdges(newProjectState.canvasStateCache.edges);
+        propOnNodesChange(migratedNodes);
+        setEdges(validatedEdges);
         setProjectState(newProjectState);
         
         // Sync the node ID counter to prevent ID conflicts when adding new nodes
-        canvasDrop.syncNodeIdCounter(newProjectState.canvasStateCache.nodes);
+        canvasDrop.syncNodeIdCounter(migratedNodes);
         
         return true;
       } else {
@@ -418,7 +550,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       alert('Failed to load project');
       return false;
     }
-  }, [propOnNodesChange, setEdges, canvasDrop]);
+  }, [propOnNodesChange, setEdges, canvasDrop, migrateNodesWithTypes]);
 
   // Get current project state
   const getProjectState = useCallback((): ProjectState | null => {
@@ -497,13 +629,52 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     propOnNodesChange(newNodes);
   }, [propOnNodesChange]);
   
-  const onConnect = useCallback(
-    (params: Edge | Connection) => {
+  // Add effect to validate and clean edges when nodes change
+  React.useEffect(() => {
+    setEdges(currentEdges => {
+      const validatedEdges = validateAndCleanConnections(propNodes, currentEdges);
+      if (validatedEdges.length !== currentEdges.length) {
+        console.log(`Removed ${currentEdges.length - validatedEdges.length} invalid connection(s) from canvas`);
+        return validatedEdges;
+      }
+      return currentEdges;
+    });
+  }, [propNodes, setEdges]);
+
+  const isValidConnection = useCallback(
+    (connection: Connection) => {
       // Prevent self-connections
-      if (params.source === params.target) {
-        return;
+      if (connection.source === connection.target) {
+        return false;
       }
       
+      // Type validation for connections
+      const sourceNode = propNodes.find(node => node.id === connection.source);
+      const targetNode = propNodes.find(node => node.id === connection.target);
+      
+      if (sourceNode && targetNode) {
+        const sourceHandle = (sourceNode.data as ScriptingNodeData)?.outputs?.find(output => output.id === connection.sourceHandle);
+        const targetHandle = (targetNode.data as ScriptingNodeData)?.inputs?.find(input => input.id === connection.targetHandle);
+        
+        if (sourceHandle && targetHandle) {
+          // Only allow connections between exact same types
+          const sourceType = sourceHandle.type ?? IOType.None;
+          const targetType = targetHandle.type ?? IOType.None;
+          
+          if (sourceType !== targetType) {
+            console.warn(`Cannot connect ${IOType[sourceType]} output to ${IOType[targetType]} input - type mismatch`);
+            return false;
+          }
+        }
+      }
+      
+      return true;
+    },
+    [propNodes]
+  );
+
+  const onConnect = useCallback(
+    (params: Edge | Connection) => {
       setEdges((eds) => {
         // Remove any existing connection to the same input handle
         const filteredEdges = eds.filter(edge => 
@@ -526,6 +697,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
           onNodesChange={wrappedOnNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          isValidConnection={isValidConnection}
           onInit={canvasDrop.setReactFlowInstance}
           onDrop={canvasDrop.onDrop}
           onDragOver={canvasDrop.onDragOver}
