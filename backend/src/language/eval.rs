@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot::{channel, Receiver, Sender};
 use tokio::sync::{Notify, RwLock};
-use tokio::task::JoinHandle;
+use tokio::task::{AbortHandle, JoinHandle, JoinSet};
 use uuid::Uuid;
 
 pub trait Asyncio: AsyncRead + AsyncWrite + Send + Sync {}
@@ -34,34 +34,25 @@ async fn task_listen(
   tasks: Vec<JoinHandle<(Uuid, Result<Vec<DataValue>, EvalError>)>>,
 ) -> ()
 {
-  let mut tdeq = VecDeque::from(tasks);
-  while !tdeq.is_empty()
+  let mut js = JoinSet::new();
+  let _: Vec<AbortHandle> = tasks.into_iter().map(|x| js.spawn(x)).collect();
+
+  while let Some(ret) = js.join_next().await
   {
-    let current = tdeq.pop_front().unwrap();
-    let tid = current.id();
-    if current.is_finished()
+    match ret
     {
-      let ret = current.await;
-      match ret
+      Ok(Ok((id, x))) =>
       {
-        Ok((id, x)) =>
+        match x
         {
-          match x
-          {
-            Ok(v) => println!("Node {id} finished successfully with value(s) {:?}", v),
-            Err(e) => println!("Node {id} failed with error {e:?}"),
-          }
+          Ok(v) => println!("Node {id} finished successfully with value(s) {:?}", v),
+          Err(e) => println!("Node {id} failed with error {e:?}"),
         }
-        Err(e) => println!("Task TID{} join error {:?}", tid, e),
       }
-    }
-    else
-    {
-      tokio::task::yield_now().await;
-      tdeq.push_back(current);
+      Ok(Err(e)) => println!("Task join error {:?}", e),
+      Err(e) => println!("Task join error {:?}", e),
     }
   }
-  println!("Evaluator with scope {} finished", eval.scope_id);
 }
 
 pub trait EvaluateIt
