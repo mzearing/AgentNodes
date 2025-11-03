@@ -26,6 +26,8 @@ pub enum EvalError
   PatternNotFound(Uuid, Vec<u8>),
   InvalidUtf8(FromUtf8Error),
   PortOutOfBounds(usize),
+  NoEndNode,
+  Closed,
 }
 impl From<ArithmaticError> for EvalError
 {

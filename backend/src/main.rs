@@ -7,10 +7,15 @@ use language::eval::Evaluator;
 #[tokio::main]
 async fn main() -> Result<(), ()>
 {
-  //console_subscriber::init();
-  let eval = Evaluator::new("testprogs/val_print.json".to_string(), None).unwrap();
+  // console_subscriber::init();
+  let eval = Evaluator::new("testprogs/add.json".to_string(), None).unwrap();
+  let instance = eval.instantiate(vec![]).await;
 
-  println!("{:?}", eval.get_outputs().await.unwrap());
+  for _ in 0..10
+  {
+    println!("{:?}", instance.get_outputs().await);
+  }
+  instance.shutdown().await;
   // eval.kill().await;
   Ok(())
 }
