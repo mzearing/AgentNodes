@@ -1,16 +1,22 @@
-mod eval_error;
-pub use eval_error::*;
+mod eval;
 mod language;
 
-use language::eval::Evaluator;
+use eval::Evaluator;
 
 #[tokio::main]
 async fn main() -> Result<(), ()>
 {
-  //console_subscriber::init();
-  let eval = Evaluator::new("testprogs/val_print.json".to_string(), None).unwrap();
+  // console_subscriber::init();
+  let eval = Evaluator::new("testprogs/print_complex.json".to_string(), None).unwrap();
+  let instance = eval.instantiate(vec![]).await;
 
-  println!("{:?}", eval.get_outputs().await.unwrap());
+  for _ in 0..100
+  {
+    // println!("{:?}", instance.get_outputs().await);
+    let b = instance.get_outputs().await;
+    b.unwrap();
+  }
+  instance.shutdown().await;
   // eval.kill().await;
   Ok(())
 }

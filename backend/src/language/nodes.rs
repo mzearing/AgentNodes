@@ -1,10 +1,9 @@
 use super::typing::{DataType, DataValue};
-use crate::language::eval::{
-  EvaluateIt, Evaluator, ExecutionNode, NodeInputs, NodeOutput, NodeState,
-};
-use crate::EvalError;
+use crate::eval::EvalError;
+use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ControlFlow
@@ -72,6 +71,7 @@ pub struct Complex
 {
   pub inputs: Vec<DataType>,
   pub outputs: Vec<DataType>,
+  pub end_node: Uuid,
   defaults: std::collections::HashMap<String, DataValue>,
   pub instances: std::collections::HashMap<uuid::Uuid, Instance>,
 }
@@ -81,33 +81,39 @@ impl EvaluateIt for NodeType
   async fn evaluate(
     &self,
     eval: Arc<Evaluator>,
-    node: &mut ExecutionNode,
-    inputs: NodeInputs,
-  ) -> Result<NodeOutput, EvalError>
+    node: &ExecutionNode,
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError>
   {
-    let actual_inputs: Vec<DataValue> = inputs.iter().cloned().map(|x| x.1).collect();
     match self
     {
       NodeType::Atomic(atomic_type) =>
       {
-        Self::eval_atomic(atomic_type.clone(), eval.clone(), node, actual_inputs).await
+        Self::eval_atomic(atomic_type.clone(), eval.clone(), node, inputs).await
       }
       NodeType::Complex(path) =>
       {
+        // println!("In complex eval");
         let rel = format!("{}{}{}", eval.my_path, std::path::MAIN_SEPARATOR, path);
 
-        let opt_e = eval.get_evaluator(rel.clone()).await;
+        let opt_e = eval.get_evaluator(&rel).await;
         if let Some(e) = opt_e
         {
-          e.send_inputs(inputs)?;
-          e.get_outputs().await
+          let i = e.instantiate(inputs).await;
+          let out = i.get_outputs().await;
+          i.shutdown().await;
+          // println!("Finished complex eval");
+          out
         }
         else
         {
           let e = Evaluator::new(rel.clone(), Some(eval.clone()))?;
-          eval.add_evaluator(rel, e.clone()).await;
-          e.send_inputs(inputs)?;
-          e.get_outputs().await
+          eval.add_evaluator(&rel, e.clone()).await;
+          let i = e.instantiate(inputs).await;
+          let out = i.get_outputs().await;
+          i.shutdown().await;
+          // println!("Finished complex eval");
+          out
         }
       }
     }
@@ -119,9 +125,9 @@ impl NodeType
   async fn eval_atomic(
     atomic_type: AtomicType,
     eval: Arc<Evaluator>,
-    node: &mut ExecutionNode,
+    node: &ExecutionNode,
     inputs: Vec<DataValue>,
-  ) -> Result<NodeOutput, EvalError>
+  ) -> Result<Vec<DataValue>, EvalError>
   {
     match atomic_type
     {
@@ -129,17 +135,17 @@ impl NodeType
       {
         inputs.iter().for_each(|x| println!("{}", x));
         tokio::task::yield_now().await;
-        Ok((node.inputs_state, vec![DataValue::None]))
+        Ok(vec![DataValue::None])
       }
       AtomicType::BinOp(atomic_bin_op) =>
       {
         tokio::task::yield_now().await;
-        Ok((node.inputs_state, Self::eval_bin_op(atomic_bin_op, inputs)?))
+        Self::eval_bin_op(atomic_bin_op, inputs)
       }
       AtomicType::Value(data_value) =>
       {
         tokio::task::yield_now().await;
-        Ok((NodeState::MoreData, vec![data_value]))
+        Ok(vec![data_value])
       }
       AtomicType::Control(control_flow) =>
       {
@@ -157,7 +163,7 @@ impl NodeType
         {
           let regex = regex::Regex::new(&pattern).map_err(EvalError::from)?;
           let ret = regex.replace(input, replace).to_string();
-          Ok((node.inputs_state, vec![DataValue::String(ret)]))
+          Ok(vec![DataValue::String(ret)])
         }
         else
         {
@@ -168,13 +174,7 @@ impl NodeType
         }
       }
       AtomicType::Io(io) => Self::eval_io(io, node, eval, inputs).await,
-      AtomicType::Variable(_t) =>
-      {
-        Ok((
-          NodeState::MoreData,
-          vec![Self::eval_variable(node, inputs).await?],
-        ))
-      }
+      AtomicType::Variable(_t) => Ok(vec![Self::eval_variable(node, inputs).await?]),
     }
   }
 
@@ -198,72 +198,73 @@ impl NodeType
   async fn eval_control(
     control_flow: ControlFlow,
     eval: Arc<Evaluator>,
-    node: &mut ExecutionNode,
+    node: &ExecutionNode,
     inputs: Vec<DataValue>,
-  ) -> Result<NodeOutput, EvalError>
+  ) -> Result<Vec<DataValue>, EvalError>
   {
     match control_flow
     {
       ControlFlow::Start =>
       {
-        let inputs = eval.get_inputs().await?;
-        node.inputs_state = if inputs.iter().any(|x| x.0 == NodeState::Finished)
-        {
-          NodeState::Finished
-        }
-        else
-        {
-          NodeState::MoreData
-        };
+        todo!();
+        // let inputs = eval.get_inputs().await?;
+        // node.inputs_state = if inputs.iter().any(|x| x.0 == NodeState::Finished)
+        // {
+        //   NodeState::Finished
+        // }
+        // else
+        // {
+        //   NodeState::MoreData
+        // };
 
-        Ok((node.inputs_state, inputs.into_iter().map(|x| x.1).collect()))
+        // Ok((node.inputs_state, inputs.into_iter().map(|x| x.1).collect()))
       }
       ControlFlow::End =>
       {
-        eval.send_outputs((node.inputs_state, inputs)).await?;
-        node.inputs_state = NodeState::Finished;
-        Ok((node.inputs_state, vec![]))
+        tokio::task::yield_now().await;
+        Ok(inputs)
       }
     }
   }
 
   async fn eval_variable(
-    node: &mut ExecutionNode,
+    node: &ExecutionNode,
     inputs: Vec<DataValue>,
   ) -> Result<DataValue, EvalError>
   {
-    if inputs.len() != 0
-    {
-      let mut guard = node.stored_val.write().await;
-      if inputs.len() == 1
-      {
-        (*guard) = Some(inputs[0].clone());
-      }
-      else
-      {
-        (*guard) = Some(DataValue::Array(inputs));
-      }
-    }
+    todo!();
+    // if inputs.len() != 0
+    // {
+    //   let mut guard = node.stored_val.write().await;
+    //   if inputs.len() == 1
+    //   {
+    //     (*guard) = Some(inputs[0].clone());
+    //   }
+    //   else
+    //   {
+    //     (*guard) = Some(DataValue::Array(inputs));
+    //   }
+    // }
 
-    match node.stored_val.read().await.as_ref()
-    {
-      Some(x) => Ok(x.clone()),
-      None => Ok(DataValue::None),
-    }
+    // match node.stored_val.read().await.as_ref()
+    // {
+    //   Some(x) => Ok(x.clone()),
+    //   None => Ok(DataValue::None),
+    // }
   }
   async fn eval_io(
     io: AtomicIo,
-    node: &mut ExecutionNode,
+    node: &ExecutionNode,
     eval: Arc<Evaluator>,
     inputs: Vec<DataValue>,
-  ) -> Result<NodeOutput, EvalError>
+  ) -> Result<Vec<DataValue>, EvalError>
   {
     match io
     {
       AtomicIo::Open(io_type) =>
       {
-        let mut guard = node.stored_val.write().await;
-        match guard.clone()
+        let val = node.get_stored().await;
+        match val
         {
           Some(x) => Ok(vec![x]),
           None =>
@@ -286,7 +287,7 @@ impl NodeType
                   .await
               }
             };
-            (*guard) = Some(DataValue::Handle(handle.clone()));
+            node.set_stored(DataValue::Handle(handle.clone())).await;
             Ok(vec![DataValue::Handle(handle)])
           }
         }
@@ -344,7 +345,6 @@ impl NodeType
         }
       }
     }
-    .map(|x| (node.inputs_state, x))
   }
 }
 
