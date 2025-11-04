@@ -1,6 +1,6 @@
 use super::typing::{DataType, DataValue};
-use crate::language::eval::{EvaluateIt, Evaluator, ExecutionNode, NodeState};
-use crate::EvalError;
+use crate::eval::EvalError;
+use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -221,9 +221,6 @@ impl NodeType
       }
       ControlFlow::End =>
       {
-        // todo!();
-        // eval.send_outputs(inputs);
-        // node.inputs_state = NodeState::Finished;
         tokio::task::yield_now().await;
         Ok(inputs)
       }
@@ -262,93 +259,92 @@ impl NodeType
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
-    todo!()
-    // match io
-    // {
-    //   AtomicIo::Open(io_type) =>
-    //   {
-    //     let mut guard = node.stored_val.write().await;
-    //     match guard.clone()
-    //     {
-    //       Some(x) => Ok(vec![x]),
-    //       None =>
-    //       {
-    //         let handle = match io_type
-    //         {
-    //           IoType::File =>
-    //           {
-    //             let path = format!("{}", inputs[0]);
-    //             eval
-    //               .register_io(Box::pin(tokio::fs::File::open(path).await?))
-    //               .await
-    //           }
-    //           IoType::TcpSocket =>
-    //           {
-    //             eval
-    //               .register_io(Box::pin(
-    //                 tokio::net::TcpStream::connect(format!("{}:{}", inputs[0], inputs[1])).await?,
-    //               ))
-    //               .await
-    //           }
-    //         };
-    //         (*guard) = Some(DataValue::Handle(handle.clone()));
-    //         Ok(vec![DataValue::Handle(handle)])
-    //       }
-    //     }
-    //   }
-    //   AtomicIo::GetLine =>
-    //   {
-    //     if let DataValue::Handle(handle) = inputs[0]
-    //     {
-    //       let bytes = eval.read_until(&handle, b"\n").await?;
-    //       let s = String::from_utf8(bytes)?.trim_end_matches('\r').to_string();
-    //       Ok(vec![DataValue::String(s)])
-    //     }
-    //     else
-    //     {
-    //       Err(EvalError::IncorrectTyping {
-    //         got: vec![inputs[0].get_type()],
-    //         expected: vec![DataType::Handle],
-    //       })
-    //     }
-    //   }
-    //   AtomicIo::Read =>
-    //   {
-    //     if let (DataValue::Handle(h), DataValue::Integer(size)) = (&inputs[0], &inputs[1])
-    //     {
-    //       let mut buf = Vec::new();
-    //       buf.resize(*size as usize, 0);
-    //       let count = eval.read_bytes(h, &mut buf).await?;
-    //       buf.resize(count, 0);
-    //       Ok(vec![DataValue::Array(
-    //         buf.into_iter().map(|x| DataValue::Byte(x)).collect(),
-    //       )])
-    //     }
-    //     else
-    //     {
-    //       Err(EvalError::IncorrectTyping {
-    //         got: inputs.into_iter().map(|x| x.get_type()).collect(),
-    //         expected: vec![DataType::Handle, DataType::Integer],
-    //       })
-    //     }
-    //   }
-    //   AtomicIo::Write =>
-    //   {
-    //     if let (DataValue::String(s), DataValue::Handle(h)) = (&inputs[1], &inputs[0])
-    //     {
-    //       let mut bytes = s.bytes().collect();
-    //       eval.write_bytes(h, &mut bytes).await?;
-    //       Ok(vec![DataValue::None])
-    //     }
-    //     else
-    //     {
-    //       Err(EvalError::IncorrectTyping {
-    //         got: inputs.into_iter().map(|x| x.get_type()).collect(),
-    //         expected: vec![DataType::Handle, DataType::String],
-    //       })
-    //     }
-    //   }
-    // }
+    match io
+    {
+      AtomicIo::Open(io_type) =>
+      {
+        let val = node.get_stored().await;
+        match val
+        {
+          Some(x) => Ok(vec![x]),
+          None =>
+          {
+            let handle = match io_type
+            {
+              IoType::File =>
+              {
+                let path = format!("{}", inputs[0]);
+                eval
+                  .register_io(Box::pin(tokio::fs::File::open(path).await?))
+                  .await
+              }
+              IoType::TcpSocket =>
+              {
+                eval
+                  .register_io(Box::pin(
+                    tokio::net::TcpStream::connect(format!("{}:{}", inputs[0], inputs[1])).await?,
+                  ))
+                  .await
+              }
+            };
+            node.set_stored(DataValue::Handle(handle.clone())).await;
+            Ok(vec![DataValue::Handle(handle)])
+          }
+        }
+      }
+      AtomicIo::GetLine =>
+      {
+        if let DataValue::Handle(handle) = inputs[0]
+        {
+          let bytes = eval.read_until(&handle, b"\n").await?;
+          let s = String::from_utf8(bytes)?.trim_end_matches('\r').to_string();
+          Ok(vec![DataValue::String(s)])
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: vec![inputs[0].get_type()],
+            expected: vec![DataType::Handle],
+          })
+        }
+      }
+      AtomicIo::Read =>
+      {
+        if let (DataValue::Handle(h), DataValue::Integer(size)) = (&inputs[0], &inputs[1])
+        {
+          let mut buf = Vec::new();
+          buf.resize(*size as usize, 0);
+          let count = eval.read_bytes(h, &mut buf).await?;
+          buf.resize(count, 0);
+          Ok(vec![DataValue::Array(
+            buf.into_iter().map(|x| DataValue::Byte(x)).collect(),
+          )])
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
+            expected: vec![DataType::Handle, DataType::Integer],
+          })
+        }
+      }
+      AtomicIo::Write =>
+      {
+        if let (DataValue::String(s), DataValue::Handle(h)) = (&inputs[1], &inputs[0])
+        {
+          let mut bytes = s.bytes().collect();
+          eval.write_bytes(h, &mut bytes).await?;
+          Ok(vec![DataValue::None])
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
+            expected: vec![DataType::Handle, DataType::String],
+          })
+        }
+      }
+    }
   }
 }
 

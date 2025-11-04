@@ -1,8 +1,7 @@
-mod eval_error;
-pub use eval_error::*;
+mod eval;
 mod language;
 
-use language::eval::Evaluator;
+use eval::Evaluator;
 
 #[tokio::main]
 async fn main() -> Result<(), ()>
