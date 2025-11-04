@@ -18,7 +18,7 @@
       "Input 2"
     ],
     "outputTypes": [
-      4,
+      2,
       0
     ],
     "variadicOutputs": false,
@@ -30,32 +30,17 @@
       "path": "complex/group-1760638366900/node-1760638508261",
       "id": "node-1760638508261",
       "name": "gghgg",
-      "inputs": [
-        "Outputghng",
-        "Output 4",
-        "Output 2",
-        "Output 3",
-        "Output 5"
-      ],
-      "inputTypes": [
-        0,
-        2,
-        3,
-        3,
-        4
-      ],
+      "inputs": [],
+      "inputTypes": [],
       "outputs": [
-        "Input",
-        "Input 2",
-        "Input 3"
+        "Output"
       ],
       "outputTypes": [
-        2,
-        1,
-        0
+        1
       ],
       "variadicOutputs": false,
       "variadicInputs": false,
+      "constantData": [],
       "solo": false
     }
   ],
@@ -114,7 +99,7 @@
             {
               "id": "input-1761670919687-0-7ymt4j8qt",
               "name": "Input",
-              "type": 4
+              "type": 2
             },
             {
               "id": "input-1761690541428-0g5lxk26l",
@@ -145,48 +130,12 @@
         "data": {
           "nodeId": "node-1760638508261",
           "label": "gghgg",
-          "inputs": [
-            {
-              "id": "input-1761845181504-0-ujxmg6spr",
-              "name": "Outputghng",
-              "type": 0
-            },
-            {
-              "id": "input-1761845181504-1-gbyk90gxm",
-              "name": "Output 4",
-              "type": 2
-            },
-            {
-              "id": "input-1761845181504-2-rkrefgphb",
-              "name": "Output 2",
-              "type": 3
-            },
-            {
-              "id": "input-1761846155061-3-wmgcj4fh8",
-              "name": "Output 3",
-              "type": 3
-            },
-            {
-              "id": "input-1761848071999-4-ypz4iiwvs",
-              "name": "Output 5",
-              "type": 4
-            }
-          ],
+          "inputs": [],
           "outputs": [
             {
               "id": "output-1761845181504-0-u840ej779",
-              "name": "Input",
-              "type": 2
-            },
-            {
-              "id": "output-1761845181504-1-osdkjfndg",
-              "name": "Input 2",
+              "name": "Output",
               "type": 1
-            },
-            {
-              "id": "output-1761845181504-2-6agb2jj4j",
-              "name": "Input 3",
-              "type": 0
             }
           ],
           "variadicInputs": false,

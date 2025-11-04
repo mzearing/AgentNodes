@@ -1,0 +1,11 @@
+{
+  "id": "tcp-socket",
+  "name": "TCP Socket",
+  "inputs": ["Host", "Port"],
+  "outputs": ["Handle"],
+  "inputTypes": [3, 1],
+  "outputTypes": [0],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "solo": false
+}

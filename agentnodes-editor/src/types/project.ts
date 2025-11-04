@@ -29,12 +29,13 @@ export interface NodeSummary {
   path: string;
   id: string;
   name: string;
-  inputs: string[]
-  inputTypes: IOType[]
-  outputs: string[]
-  outputTypes: IOType[]
+  inputs: string[];
+  inputTypes: IOType[];
+  outputs: string[];
+  outputTypes: IOType[];
   variadicOutputs: boolean;
   variadicInputs: boolean;
+  constantData: IOType[];
   solo: boolean;
 }
 

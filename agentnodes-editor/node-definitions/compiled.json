@@ -1,0 +1,75 @@
+{
+  "inputs": [],
+  "outputs": [
+    "Integer"
+  ],
+  "defaults": {},
+  "instances": {
+    "dd7bc9ec-e15b-4574-a458-06fdff9901f0": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "e0ffd04f-6e7e-4de4-928b-d6d85455945a",
+          0
+        ]
+      ]
+    },
+    "659ea206-3cc6-40c2-bd28-f47b2e39f229": {
+      "node_type": {
+        "Atomic": {
+          "Value": 2
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": []
+    },
+    "e0ffd04f-6e7e-4de4-928b-d6d85455945a": {
+      "node_type": {
+        "Atomic": {
+          "BinOp": "Add"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "659ea206-3cc6-40c2-bd28-f47b2e39f229",
+          0
+        ],
+        [
+          "Integer",
+          "1d397a15-6727-4680-b2f8-909027c3198b",
+          0
+        ]
+      ]
+    },
+    "1d397a15-6727-4680-b2f8-909027c3198b": {
+      "node_type": {
+        "Atomic": {
+          "Value": 3
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": []
+    }
+  },
+  "end_node": "dd7bc9ec-e15b-4574-a458-06fdff9901f0"
+}

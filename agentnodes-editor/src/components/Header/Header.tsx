@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
 import styles from './Header.module.css';
+import { ReactFlowJsonObject, Node, Edge } from '@xyflow/react';
 
 interface HeaderProps {
   projectName: string;
   onProjectNameChange: (name: string) => void;
   onSaveProject: () => void;
+  canvasData?: ReactFlowJsonObject<Node, Edge>;
+  onCompile?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
   projectName,
   onProjectNameChange,
-  onSaveProject
+  onSaveProject,
+  canvasData,
+  onCompile
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState(projectName);
@@ -31,6 +36,12 @@ const Header: React.FC<HeaderProps> = ({
     } else if (e.key === 'Escape') {
       setTempName(projectName);
       setIsEditing(false);
+    }
+  };
+
+  const handleCompile = () => {
+    if (onCompile) {
+      onCompile();
     }
   };
 
@@ -65,6 +76,13 @@ const Header: React.FC<HeaderProps> = ({
           title="Save project as complex node"
         >
           Save
+        </button>
+        <button
+          className={styles.actionButton}
+          onClick={handleCompile}
+          title="Compile canvas to backend format"
+        >
+          Compile
         </button>
         <button
           className={styles.runButton}

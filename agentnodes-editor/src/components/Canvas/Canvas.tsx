@@ -13,10 +13,11 @@ import {
   applyNodeChanges,
   useReactFlow,
   Viewport,
+  ReactFlowJsonObject,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
-import { nodeTypes, ScriptingNodeData } from '../ScriptingNodes/ScriptingNode';
+import { nodeTypes, ScriptingNodeData, ConstantDataValue } from '../ScriptingNodes/ScriptingNode';
 import { useCanvasDrop } from '../../hooks';
 import { ProjectState, NodeMetadata, NodeSummary, IOType } from '../../types/project';
 import { nodeFileSystem } from '../../services/nodeFileSystem';
@@ -33,6 +34,22 @@ const typeArraysEqual = (arr1: IOType[], arr2: IOType[]): boolean => {
   return arr1.every((item, index) => item === arr2[index]);
 };
 
+// Helper function to get default value for IOType
+const getDefaultValueForType = (type: IOType): string | number | boolean => {
+  switch (type) {
+    case IOType.Integer:
+      return 0;
+    case IOType.Float:
+      return 0.0;
+    case IOType.String:
+      return '';
+    case IOType.Boolean:
+      return false;
+    default:
+      return '';
+  }
+};
+
 interface CanvasProps {
   nodes: Node[];
   onNodesChange: (nodes: Node[]) => void;
@@ -46,6 +63,7 @@ export interface CanvasMethods {
   getProjectState: () => ProjectState | null;
   setProjectState: (projectState: ProjectState) => void;
   reloadCurrentProject: () => Promise<boolean>;
+  getCanvasData: () => ReactFlowJsonObject<Node, Edge> | null;
 }
 
 interface IDName {
@@ -368,6 +386,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         outputTypes: outputTypesArray || [],
         variadicOutputs: false,
         variadicInputs: false,
+        constantData: [],
         solo: false
       }
 
@@ -512,6 +531,13 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
             type: output.type !== undefined ? output.type : IOType.None
           }));
         }
+        // Initialize constantValues if they don't exist but constantData does
+        if (scriptingData.constantData && scriptingData.constantData.length > 0 && !scriptingData.constantValues) {
+          scriptingData.constantValues = scriptingData.constantData.map((type): ConstantDataValue => ({
+            type,
+            value: getDefaultValueForType(type)
+          }));
+        }
       }
       return node;
     });
@@ -613,6 +639,18 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     }
   }, [projectState, loadProject]);
 
+  const getCanvasData = useCallback((): ReactFlowJsonObject<Node, Edge> | null => {
+    if (!projectState?.hasNodeLoaded) {
+      return null;
+    }
+    
+    return {
+      nodes: propNodes,
+      edges: edges,
+      viewport: { x: 0, y: 0, zoom: 1 } // Default viewport
+    };
+  }, [propNodes, edges, projectState]);
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     saveProject,
@@ -620,7 +658,8 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     getProjectState,
     setProjectState: setProjectStateMethod,
     reloadCurrentProject,
-  }), [saveProject, loadProject, getProjectState, setProjectStateMethod, reloadCurrentProject]);
+    getCanvasData,
+  }), [saveProject, loadProject, getProjectState, setProjectStateMethod, reloadCurrentProject, getCanvasData]);
 
   // Use the nodes from props directly and create a wrapped onChange
   const wrappedOnNodesChange = React.useCallback((changes: Parameters<typeof applyNodeChanges>[0]) => {

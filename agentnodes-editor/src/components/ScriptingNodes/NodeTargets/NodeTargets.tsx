@@ -1,5 +1,5 @@
 import React, { useState, DragEvent, useCallback } from 'react';
-import { Position, Handle } from '@xyflow/react';
+import { Position, Handle as HandleComponent } from '@xyflow/react';
 import styles from './NodeTargets.module.css';
 import { InputHandle } from '../ScriptingNode';
 import TypeDropdown, { DropdownOption } from '../TypeDropdown/TypeDropdown';
@@ -250,7 +250,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
               ×
             </button>
           )}
-          <Handle 
+          <HandleComponent 
             id={input.id} 
             type="target"
             position={Position.Left}

@@ -1,9 +1,10 @@
-import React, { useCallback, memo } from 'react';
+import React, { useCallback } from 'react';
 import { type NodeProps, type NodeTypes } from '@xyflow/react';
 import styles from './ScriptingNode.module.css';
 import NodeHeader from './NodeHeader/NodeHeader';
 import NodeTargets from './NodeTargets/NodeTargets';
 import NodeSources from './NodeSources/NodeSources';
+import NodeData from './NodeData/NodeData';
 import { useNodeHandles } from '../../hooks';
 import { IOType } from '../../types/project';
 
@@ -19,6 +20,11 @@ export interface OutputHandle {
   type: IOType;
 }
 
+export interface ConstantDataValue {
+  type: IOType;
+  value: string | number | boolean;
+}
+
 export interface ScriptingNodeData extends Record<string, unknown> {
   nodeId?: string;
   label: string;
@@ -29,6 +35,8 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   variadicOutputs?: boolean;
   solo?: boolean;
   metadataPath?: string;
+  constantData?: IOType[];
+  constantValues?: ConstantDataValue[];
 }
 
 const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
@@ -45,8 +53,14 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
     nodeHandles.updateOutputs(newOutputs, currentOutputs);
   }, [nodeHandles, scriptNodeData.outputs]);
 
+  const handleConstantValuesChange = useCallback((newValues: ConstantDataValue[]) => {
+    nodeHandles.updateConstantValues(newValues);
+  }, [nodeHandles]);
+
+  const hasConstants = scriptNodeData.constantData && scriptNodeData.constantData.length > 0 && scriptNodeData.constantData.some(type => type !== IOType.None);
+
   return (
-    <div className={`${styles.scriptingNode} ${selected ? styles.selected : ''}`}>
+    <div className={`${styles.scriptingNode} ${selected ? styles.selected : ''} ${!hasConstants ? styles.noConstants : ''}`}>
       <NodeHeader 
         label={scriptNodeData.label}
       />
@@ -55,11 +69,19 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
         variadic={scriptNodeData.variadicInputs || false}
         onInputsChange={handleInputsChange}
       />
+      {hasConstants && (
+        <NodeData 
+          constantData={scriptNodeData.constantData}
+          constantValues={scriptNodeData.constantValues}
+          onConstantValuesChange={handleConstantValuesChange}
+        />
+      )}
       <NodeSources 
         outputs={scriptNodeData.outputs}
         variadic={scriptNodeData.variadicOutputs || false}
         onOutputsChange={handleOutputsChange}
       />
+      
     </div>
   );
 };

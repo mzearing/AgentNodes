@@ -1,0 +1,12 @@
+{
+  "id": "boolean-constant",
+  "name": "Boolean Constant",
+  "inputs": [],
+  "inputTypes": [],
+  "outputs": ["Value"],
+  "outputTypes": [4],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "constantData": [4],
+  "solo": false
+}

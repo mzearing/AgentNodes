@@ -115,9 +115,12 @@ export const useSidebarHandlers = ({
       label: node.name,
       inputs: node.inputs,
       outputs: node.outputs,
+      inputTypes: node.inputTypes,
+      outputTypes: node.outputTypes,
       variadicInputs: node.variadicInputs,
       variadicOutputs: node.variadicOutputs,
-      solo: node.solo
+      solo: node.solo,
+      constantData: node.constantData
     };
     
     event.dataTransfer.setData('application/reactflow', JSON.stringify(dragData));

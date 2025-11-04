@@ -1,0 +1,11 @@
+{
+  "id": "integer-constant",
+  "name": "Integer Constant",
+  "inputs": [],
+  "outputs": ["Value"],
+  "outputTypes": [1],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "constantData": [1],
+  "solo": false
+}

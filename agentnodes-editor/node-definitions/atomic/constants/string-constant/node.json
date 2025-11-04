@@ -1,0 +1,11 @@
+{
+  "id": "string-constant",
+  "name": "String Constant",
+  "inputs": [],
+  "outputs": ["Value"],
+  "outputTypes": [3],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "constantData": [3],
+  "solo": false
+}

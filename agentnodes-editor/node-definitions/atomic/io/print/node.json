@@ -1,0 +1,11 @@
+{
+  "id": "print",
+  "name": "Print",
+  "inputs": ["Value"],
+  "outputs": [],
+  "inputTypes": [0],
+  "outputTypes": [],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "solo": false
+}

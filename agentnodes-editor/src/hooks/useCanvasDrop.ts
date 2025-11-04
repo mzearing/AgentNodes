@@ -40,13 +40,16 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
 
       if (!nodeData) return;
 
-      const { nodeId, groupId, category, label, inputs, outputs, variadicInputs, variadicOutputs, solo } = JSON.parse(nodeData);
+      const { nodeId, groupId, category, label, inputs, outputs, inputTypes, outputTypes, variadicInputs, variadicOutputs, solo, constantData } = JSON.parse(nodeData);
       
       let finalInputs = inputs;
       let finalOutputs = outputs;
+      let finalInputTypes = inputTypes;
+      let finalOutputTypes = outputTypes;
       let finalVariadicInputs = variadicInputs;
       let finalVariadicOutputs = variadicOutputs;
       let finalSolo = solo;
+      let finalConstantData = constantData || [];
 
       if (groupId && category) {
         try {
@@ -59,16 +62,22 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
             if (freshNodeData) {
               finalInputs = freshNodeData.inputs;
               finalOutputs = freshNodeData.outputs;
+              finalInputTypes = freshNodeData.inputTypes;
+              finalOutputTypes = freshNodeData.outputTypes;
               finalVariadicInputs = freshNodeData.variadicInputs;
               finalVariadicOutputs = freshNodeData.variadicOutputs;
               finalSolo = freshNodeData.solo;
+              finalConstantData = freshNodeData.constantData || [];
               
               console.log(`Updated node "${label}" with fresh data:`, {
                 inputs: finalInputs,
                 outputs: finalOutputs,
+                inputTypes: finalInputTypes,
+                outputTypes: finalOutputTypes,
                 variadicInputs: finalVariadicInputs,
                 variadicOutputs: finalVariadicOutputs,
-                solo: finalSolo
+                solo: finalSolo,
+                constantData: finalConstantData
               });
             }
           }
@@ -84,14 +93,32 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
       const inputHandles = finalInputs.map((name: string, index: number) => ({
         id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
         name,
-        type: IOType.None
+        type: finalInputTypes?.[index] || IOType.None
       }));
       
       const outputHandles = finalOutputs.map((name: string, index: number) => ({
         id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
         name,
-        type: IOType.None
+        type: finalOutputTypes?.[index] || IOType.None
       }));
+
+      // Initialize constant values based on constantData
+      const initializeConstantValues = (constantData: IOType[]) => {
+        return constantData.map((type) => {
+          switch (type) {
+            case IOType.Integer:
+              return { type, value: 0 };
+            case IOType.Float:
+              return { type, value: 0.0 };
+            case IOType.String:
+              return { type, value: '' };
+            case IOType.Boolean:
+              return { type, value: false };
+            default:
+              return { type, value: '' };
+          }
+        });
+      };
 
       const scriptingNodeData: ScriptingNodeData = {
         nodeId,
@@ -101,7 +128,9 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         variadicInputs: finalVariadicInputs,
         variadicOutputs: finalVariadicOutputs,
         solo: finalSolo,
-        metadataPath: groupId && category ? `${category.toLowerCase()}/${groupId}` : undefined
+        metadataPath: groupId && category ? `${category.toLowerCase()}/${groupId}` : undefined,
+        constantData: finalConstantData,
+        constantValues: finalConstantData && finalConstantData.length > 0 ? initializeConstantValues(finalConstantData) : undefined
       };
 
       const newNode: Node = {

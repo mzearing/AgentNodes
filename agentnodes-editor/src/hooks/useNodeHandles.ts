@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useReactFlow, useUpdateNodeInternals } from '@xyflow/react';
-import { InputHandle, OutputHandle } from '../components/ScriptingNodes/ScriptingNode';
+import { InputHandle, OutputHandle, ConstantDataValue } from '../components/ScriptingNodes/ScriptingNode';
 
 export const useNodeHandles = (nodeId: string) => {
   const { setNodes, setEdges } = useReactFlow();
@@ -80,8 +80,30 @@ export const useNodeHandles = (nodeId: string) => {
     setTimeout(() => updateNodeInternals(nodeId), 0);
   }, [setNodes, setEdges, updateNodeInternals, nodeId]);
 
+  const updateConstantValues = useCallback((newValues: ConstantDataValue[]) => {
+    setNodes((nodes) => {
+      const targetNode = nodes.find(node => node.id === nodeId);
+      if (!targetNode) return nodes;
+      
+      const updatedNode = {
+        ...targetNode,
+        data: {
+          ...targetNode.data,
+          constantValues: newValues,
+        },
+      };
+      
+      // Only create new array if node actually changed
+      const nodeIndex = nodes.indexOf(targetNode);
+      const newNodes = [...nodes];
+      newNodes[nodeIndex] = updatedNode;
+      return newNodes;
+    });
+  }, [setNodes, nodeId]);
+
   return {
     updateInputs,
-    updateOutputs
+    updateOutputs,
+    updateConstantValues
   };
 };

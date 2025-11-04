@@ -7,15 +7,23 @@
   transition: all 0.2s ease;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  grid-template-rows: 50px 1fr;
+  grid-template-rows: 50px auto 1fr;
   grid-template-areas:
-    'nodeHeader nodeHeader'
-    'nodeTargets nodeSources';
+    'nodeHeader nodeHeader nodeHeader'
+    'nodeConstants nodeConstants nodeConstants'
+    'nodeTargets nodePlaceholder nodeSources';
 }
 
 .scriptingNode.selected {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus);
+}
+
+.scriptingNode.noConstants {
+  grid-template-rows: 50px 1fr;
+  grid-template-areas:
+    'nodeHeader nodeHeader nodeHeader'
+    'nodeTargets nodePlaceholder nodeSources';
 }
 
 .scriptingNode:hover {

@@ -1,0 +1,11 @@
+{
+  "id": "write",
+  "name": "Write",
+  "inputs": ["Handle", "Data"],
+  "outputs": ["Result"],
+  "inputTypes": [0, 3],
+  "outputTypes": [0],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "solo": false
+}

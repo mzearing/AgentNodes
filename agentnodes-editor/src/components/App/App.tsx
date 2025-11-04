@@ -6,6 +6,7 @@ import Canvas, { CanvasMethods } from '../Canvas/Canvas';
 import Sidebar from '../Sidebar/Sidebar';
 import { ProjectState } from '../../types/project';
 import { sidebarRefreshEmitter, canvasRefreshEmitter } from '../../hooks/useSidebarData';
+import { compilationService } from '../../services/compilationService';
 
 
 const App: React.FC = () => {
@@ -58,6 +59,53 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleCompile = useCallback(async () => {
+    if (canvasRef.current) {
+      const canvasData = canvasRef.current.getCanvasData();
+      console.log('Canvas data retrieved:', canvasData);
+      if (canvasData) {
+        console.log('Starting compilation with canvas data:', canvasData);
+        const result = compilationService.compile(canvasData);
+        console.log('Compilation result:', result);
+        
+        if (result.success && result.data) {
+          try {
+            // Save compiled.json to the node definitions directory
+            const dataStr = JSON.stringify(result.data, null, 2);
+            const compiledFilePath = './node-definitions/compiled.json';
+            
+            if (window.electronAPI?.writeFile) {
+              await window.electronAPI.writeFile(compiledFilePath, dataStr);
+              alert('Compilation successful! File saved to node-definitions/compiled.json');
+            } else {
+              // Fallback to download if electron API not available
+              const blob = new Blob([dataStr], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `${projectName || 'compiled_program'}.json`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+              alert('Compilation successful! File downloaded (Electron API not available).');
+            }
+          } catch (error) {
+            console.error('Failed to save compiled file:', error);
+            alert(`Failed to save compiled file: ${error}`);
+          }
+        } else {
+          const errorMessage = result.errors?.join('\n') || 'Unknown compilation error';
+          alert(`Compilation failed:\n${errorMessage}`);
+        }
+      } else {
+        alert('No canvas data available. Please load a project first.');
+      }
+    } else {
+      alert('Canvas not available');
+    }
+  }, [projectName]);
+
   // Listen for canvas refresh events to reload the current project when dependencies change
   useEffect(() => {
     const unsubscribe = canvasRefreshEmitter.subscribe(async () => {
@@ -76,6 +124,8 @@ const App: React.FC = () => {
         projectName={projectName}
         onProjectNameChange={handleProjectNameChange}
         onSaveProject={handleSaveProject}
+        canvasData={canvasRef.current?.getCanvasData()}
+        onCompile={handleCompile}
       />
       <Sidebar 
         nodes={nodes} 

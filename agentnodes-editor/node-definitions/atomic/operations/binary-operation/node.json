@@ -1,0 +1,12 @@
+{
+  "id": "binary-operation",
+  "name": "Binary Operation",
+  "inputs": ["Left", "Right"],
+  "outputs": ["Result"],
+  "inputTypes": [1, 1],
+  "outputTypes": [1],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "constantData": [3],
+  "solo": false
+}

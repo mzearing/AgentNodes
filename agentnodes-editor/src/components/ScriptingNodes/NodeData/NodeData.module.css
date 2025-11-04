@@ -1,0 +1,92 @@
+.nodeData {
+  grid-area: nodeConstants;
+  padding: 10px 12px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(0, 0, 0, 0.15);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.constantDataContainer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+
+.constantDataItem {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+.numberInput,
+.textInput {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ffffff;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+  max-width: 120px;
+  transition: border-color 0.2s ease;
+}
+
+.numberInput:focus,
+.textInput:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+
+.numberInput:hover,
+.textInput:hover {
+  border-color: #555;
+}
+
+.numberInput {
+  text-align: right;
+}
+
+.checkboxInput {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #444;
+  border-radius: 2px;
+  background: #2a2a2a;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.checkboxInput:checked {
+  background: #0078d4;
+  border-color: #0078d4;
+}
+
+.checkboxInput:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.checkboxInput:hover {
+  border-color: #555;
+}
+
+.checkboxInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px #0078d4;
+}

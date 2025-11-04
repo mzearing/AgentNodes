@@ -1,0 +1,12 @@
+{
+  "id": "math-with-constant",
+  "name": "Math + Constant",
+  "inputs": ["Input Value"],
+  "inputTypes": [1],
+  "outputs": ["Result"],
+  "outputTypes": [1],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "constantData": [1],
+  "solo": false
+}

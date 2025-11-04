@@ -242,7 +242,7 @@ export class NodeFileSystemService {
     return false;
   }
 
-  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; inputTypes?: IOType[]; outputTypes?: IOType[]; variadicInputs?: boolean; variadicOutputs?: boolean; solo?: boolean } | null> {
+  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; inputTypes?: IOType[]; outputTypes?: IOType[]; variadicInputs?: boolean; variadicOutputs?: boolean; solo?: boolean; constantData?: IOType[] } | null> {
     try {
       if (window.electronAPI?.readFile) {
         const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
@@ -261,7 +261,8 @@ export class NodeFileSystemService {
             outputTypes: node.summary.outputTypes || [],
             variadicInputs: undefined, // Complex nodes don't have variadic settings
             variadicOutputs: undefined,
-            solo: undefined // Complex nodes are not solo nodes
+            solo: undefined, // Complex nodes are not solo nodes
+            constantData: node.summary.constantData || []
           };
         } else {
           // Atomic node - get data directly
@@ -272,7 +273,8 @@ export class NodeFileSystemService {
             outputTypes: node.outputTypes || [],
             variadicInputs: node.variadicInputs,
             variadicOutputs: node.variadicOutputs,
-            solo: node.solo
+            solo: node.solo,
+            constantData: node.constantData || []
           };
         }
       }
@@ -413,6 +415,7 @@ export class NodeFileSystemService {
           outputTypes: node.outputTypes || (node.outputs || []).map(() => IOType.None),
           variadicInputs: node.variadicInputs || false,
           variadicOutputs: node.variadicOutputs || false,
+          constantData: node.constantData || [],
           solo: node.solo || false,
           path
         };
@@ -570,21 +573,15 @@ export class NodeFileSystemService {
             depPathParts[0] === newSummaryPathParts[0] && // category
             depPathParts[1] === newSummaryPathParts[1] && // groupId  
             depPathParts[2] === newSummaryPathParts[2]) { // nodeId
-          
-          // Update the dependency with new information
           metadata.dependencies[i] = { ...newSummary };
           updated = true;
-          console.log(`Updated dependency ${dep.path} -> ${newSummary.path}`);
         }
       }
       
       if (updated) {
-        // Update canvas nodes to reflect the new dependency information
         await this.updateCanvasNodesFromDependencies(metadata);
         
-        // Save the updated node (skip dependency update to prevent infinite recursion)
         await this.writeNode(dependent.groupId, dependent.nodeId, metadata as JSON, dependent.category, true);
-        console.log(`Successfully updated dependencies in ${dependent.groupId}/${dependent.nodeId}`);
       }
       
     } catch (error) {
@@ -595,14 +592,8 @@ export class NodeFileSystemService {
   private async updateCanvasNodesFromDependencies(metadata: any): Promise<void> {
     try {
       if (!metadata.data || !metadata.data.nodes || !metadata.dependencies) {
-        console.log('No canvas data or dependencies to update');
         return;
       }
-
-      console.log('Updating canvas nodes from dependencies...');
-      console.log('Available dependencies:', metadata.dependencies.map((d: any) => ({ id: d.id, name: d.name })));
-      console.log('Canvas nodes:', metadata.data.nodes.map((n: any) => ({ id: n.id, nodeId: n.data?.nodeId, label: n.data?.label })));
-      
       let updatedNodes = 0;
       
       // Update each canvas node that corresponds to a dependency
@@ -618,16 +609,6 @@ export class NodeFileSystemService {
         });
 
         if (matchingDependency) {
-          console.log(`Updating canvas node ${canvasNode.id} (${canvasNode.data?.nodeId}) with dependency data:`, {
-            oldInputs: canvasNode.data.inputs?.length || 0,
-            newInputs: matchingDependency.inputs.length,
-            oldOutputs: canvasNode.data.outputs?.length || 0,
-            newOutputs: matchingDependency.outputs.length,
-            oldInputTypes: canvasNode.data.inputs?.map((i: any) => i.type) || [],
-            newInputTypes: matchingDependency.inputTypes || [],
-            oldOutputTypes: canvasNode.data.outputs?.map((o: any) => o.type) || [],
-            newOutputTypes: matchingDependency.outputTypes || []
-          });
           
           // Update the canvas node's label and inputs/outputs
           canvasNode.data.label = matchingDependency.name;

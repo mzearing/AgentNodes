@@ -1,0 +1,11 @@
+{
+  "id": "float-constant",
+  "name": "Float Constant",
+  "inputs": [],
+  "outputs": ["Value"],
+  "outputTypes": [2],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "constantData": [2],
+  "solo": false
+}
