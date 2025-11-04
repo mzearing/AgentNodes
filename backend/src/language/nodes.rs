@@ -93,14 +93,16 @@ impl EvaluateIt for NodeType
       }
       NodeType::Complex(path) =>
       {
-        println!("In complex eval");
+        // println!("In complex eval");
         let rel = format!("{}{}{}", eval.my_path, std::path::MAIN_SEPARATOR, path);
 
         let opt_e = eval.get_evaluator(&rel).await;
         if let Some(e) = opt_e
         {
-          let out = e.instantiate(inputs).await.get_outputs().await;
-          println!("Finished complex eval");
+          let i = e.instantiate(inputs).await;
+          let out = i.get_outputs().await;
+          i.shutdown().await;
+          // println!("Finished complex eval");
           out
         }
         else
@@ -110,7 +112,7 @@ impl EvaluateIt for NodeType
           let i = e.instantiate(inputs).await;
           let out = i.get_outputs().await;
           i.shutdown().await;
-          println!("Finished complex eval");
+          // println!("Finished complex eval");
           out
         }
       }

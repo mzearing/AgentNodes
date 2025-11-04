@@ -2,13 +2,14 @@ use super::nodes::Instance;
 use super::typing::{DataType, DataValue};
 use crate::language::nodes::Complex;
 use crate::EvalError;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::fs::File;
 use std::pin::Pin;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot::{channel, Receiver, Sender};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::{Notify, OnceCell, RwLock};
 use tokio::task::{AbortHandle, JoinHandle, JoinSet};
 use uuid::Uuid;
 
@@ -35,23 +36,35 @@ async fn task_listen(
 ) -> ()
 {
   let mut js = JoinSet::new();
-  let _: Vec<AbortHandle> = tasks.into_iter().map(|x| js.spawn(x)).collect();
+  let mut abort_handles: Vec<AbortHandle> = tasks.into_iter().map(|x| js.spawn(x)).collect();
 
-  while let Some(ret) = js.join_next().await
+  while !eval.closed.load(std::sync::atomic::Ordering::Acquire)
   {
-    match ret
+    if let Some(ret) = js.try_join_next()
     {
-      Ok(Ok((id, x))) =>
+      match ret
       {
-        match x
+        Ok(Ok((id, x))) =>
         {
-          Ok(v) => println!("Node {id} finished successfully with value(s) {:?}", v),
-          Err(e) => println!("Node {id} failed with error {e:?}"),
+          match x
+          {
+            Ok(v) => println!("Node {id} finished successfully with value(s) {:?}", v),
+            Err(e) => println!("Node {id} failed with error {e:?}"),
+          }
         }
+        Ok(Err(e)) => println!("Task join error {:?}", e),
+        Err(e) => println!("Task join error {:?}", e),
       }
-      Ok(Err(e)) => println!("Task join error {:?}", e),
-      Err(e) => println!("Task join error {:?}", e),
     }
+    else if js.is_empty()
+    {
+      return;
+    }
+    tokio::task::yield_now().await;
+  }
+  for handle in abort_handles.drain(0..)
+  {
+    handle.abort();
   }
 }
 
@@ -71,9 +84,11 @@ pub struct Evaluator
   pub(self) nodes: HashMap<Uuid, Arc<ExecutionNode>>,
   complex_cache: RwLock<HashMap<String, Arc<Self>>>,
   parent: Option<Arc<Self>>,
-  end_node: Option<Uuid>,
+  end_node: Uuid,
   inputs: RwLock<Vec<DataValue>>,
   pub(crate) my_path: String,
+  listen_handle: RwLock<Option<JoinHandle<()>>>,
+  closed: AtomicBool,
 }
 
 impl AsyncClone for Evaluator
@@ -82,12 +97,18 @@ impl AsyncClone for Evaluator
   {
     Self {
       scope_id: self.scope_id.clone(),
-      nodes: self.nodes.clone(),
+      nodes: self
+        .nodes
+        .iter()
+        .map(|(id, node)| (id.clone(), Arc::new((*(node.clone())).clone())))
+        .collect(),
       complex_cache: RwLock::new(self.complex_cache.read().await.clone()),
       parent: self.parent.clone(),
       end_node: self.end_node.clone(),
       inputs: RwLock::new(Vec::new()),
       my_path: self.my_path.clone(),
+      listen_handle: RwLock::new(None),
+      closed: AtomicBool::new(false),
     }
   }
 }
@@ -109,11 +130,13 @@ impl Clone for ExecutionNode
 {
   fn clone(&self) -> Self
   {
+    let mut outputs = Vec::new();
+    outputs.resize_with(self.outputs.len(), || RwLock::new(Vec::new()));
     Self {
       id: self.id.clone(),
       instance: self.instance.clone(),
       inputs: self.inputs.clone(),
-      outputs: Vec::new(),
+      outputs: outputs,
       state: RwLock::new(NodeState::Waiting),
       trigger: Notify::new(),
     }
@@ -124,6 +147,7 @@ impl ExecutionNode
 {
   async fn run(self: Arc<Self>, eval: Arc<Evaluator>) -> (Uuid, Result<Vec<DataValue>, EvalError>)
   {
+    // println!("{}:{:?}", self.id, *self.state.read().await);
     (self.id.clone(), self.process(eval).await)
   }
 
@@ -158,14 +182,20 @@ impl ExecutionNode
      *  4. Loop through all outputs and send to listeners
      *  5. clear the trigger and the listeners
      */
-    while *self.state.read().await != NodeState::Closed
+
+    while *(self.state.read().await) != NodeState::Closed
     {
+      // let id = tokio::task::try_id().unwrap();
+      // println!("{:?}", self.state.read().await);
       // println!("{} waiting for notif", tokio::task::try_id().unwrap());
+
       //1
+      // println!("{id} step 1");
       self.trigger.notified().await;
       // println!("{} notified", tokio::task::try_id().unwrap());
 
       //2
+      // println!("{id} step 2");
       let mut inputs = Vec::with_capacity(self.inputs.len());
       for (_, id, port) in &self.inputs
       {
@@ -175,15 +205,17 @@ impl ExecutionNode
           if *node.state.read().await == NodeState::Closed
           {
             self.broadcast_closed().await;
+            // println!("2a_1");
             return Ok(vec![]);
           }
-
+          // println!("{id} step 2b notify");
           let i = node.listen(port.clone()).await?.await?;
 
           // 2a_2, check if we got None, also signifying a close
           if i.is_none()
           {
             self.broadcast_closed().await;
+            // println!("2a_2");
             return Ok(vec![]);
           }
 
@@ -192,6 +224,7 @@ impl ExecutionNode
       }
 
       // 3
+      // println!("{id} step 3");
       let res = self
         .instance
         .node_type
@@ -200,6 +233,7 @@ impl ExecutionNode
       if let Ok(outputs) = res
       {
         // 4
+        // println!("{id} step 4");
         for (socket, out) in self.outputs.iter().zip(outputs.iter())
         {
           socket.write().await.drain(..).for_each(|x| {
@@ -214,6 +248,7 @@ impl ExecutionNode
       }
 
       // 5, outputs already drained, set back to waiting
+      // println!("{id} step 5");
       *self.state.write().await = NodeState::Waiting;
     }
     Ok(vec![])
@@ -221,26 +256,27 @@ impl ExecutionNode
 
   pub async fn trigger_processing(&self)
   {
+    // println!("{} triggered", self.id);
     if *self.state.read().await == NodeState::Waiting
     {
-      // println!("notifying");
+      // println!("{} notifying", self.id);
       self.trigger.notify_one();
       *self.state.write().await = NodeState::Processing;
     }
     // else
     // {
-    //   println!("Already Processing")
+    //   println!("State: {:?}", self.state.read().await)
     // }
   }
 
   // triggers AND adds a listener, must do both simultaneously in hopes of not fucking up the order
   pub async fn listen(&self, port: usize) -> Result<Receiver<Option<DataValue>>, EvalError>
   {
+    // println!("listen");
     if port >= self.outputs.len()
     {
       return Err(EvalError::PortOutOfBounds(port));
     }
-
     let (send, recv) = channel();
     self.outputs[port].write().await.push(send);
     self.trigger_processing().await;
@@ -299,12 +335,14 @@ impl Evaluator
       nodes,
       complex_cache: RwLock::new(HashMap::new()),
       parent,
-      end_node: Some(Self::convert_id(&scope_id, me.end_node)),
+      end_node: Self::convert_id(&scope_id, me.end_node),
       inputs: RwLock::new(Vec::new()),
       my_path: std::path::Path::new(&path)
         .parent()
         .map(|x| x.to_str().unwrap().to_string())
         .unwrap_or_default(),
+      listen_handle: RwLock::new(None),
+      closed: AtomicBool::new(false),
     }))
   }
 
@@ -325,34 +363,51 @@ impl Evaluator
 
   pub async fn get_outputs(&self) -> Result<Vec<DataValue>, EvalError>
   {
-    if let Some(end) = self.end_node.as_ref()
+    // println!("Getoutputs");
+    let node = self.nodes.get(&self.end_node).ok_or(EvalError::NoEndNode)?;
+    // println!("Got");
+    let mut out = Vec::with_capacity(node.outputs.len());
+    for i in 0..node.outputs.len()
     {
-      let node = self.nodes.get(end).ok_or(EvalError::NoEndNode)?;
-      let mut out = Vec::with_capacity(node.outputs.len());
-      for i in 0..node.outputs.len()
-      {
-        out.push(
-          node
-            .clone()
-            .listen(i)
-            .await?
-            .await?
-            .ok_or(EvalError::Closed)?,
-        );
-      }
-      Ok(out)
+      let n = node.clone();
+      // println!("listening");
+      let recv = n.listen(i).await?;
+      // println!("receiving");
+      let res = recv.await?.ok_or(EvalError::Closed)?;
+      out.push(res);
+
+      // out.push(
+      //   node
+      //     .clone()
+      //     .listen(i)
+      //     .await?
+      //     .await?
+      //     .ok_or(EvalError::Closed)?,
+      // );
     }
-    else
-    {
-      Err(EvalError::NoEndNode)
-    }
+    Ok(out)
   }
 
-  pub async fn shutdown(&self)
+  pub async fn shutdown(self: Arc<Self>)
   {
-    for node in self.nodes.values()
+    self
+      .closed
+      .store(true, std::sync::atomic::Ordering::Release);
+    // self
+    //   .listen_handle
+    //   .write()
+    //   .await
+    //   .take()
+    //   .unwrap()
+    //   .await
+    //   .unwrap();
+  }
+  #[allow(dead_code)]
+  pub async fn print_states(&self)
+  {
+    for x in self.nodes.values()
     {
-      node.close().await;
+      println!("{}:{:?}", x.id, x.state.read().await);
     }
   }
 
@@ -360,12 +415,14 @@ impl Evaluator
   {
     let instance = Arc::new((*self).clone().await);
     instance.set_inputs(inputs).await;
-    let tasks = self
+    let tasks = instance
       .nodes
       .values()
       .map(|x| x.clone().spawn(instance.clone()))
       .collect();
-    tokio::task::spawn(task_listen(instance.clone(), tasks));
+    *instance.listen_handle.write().await =
+      Some(tokio::task::spawn(task_listen(instance.clone(), tasks)));
+
     instance
   }
 
