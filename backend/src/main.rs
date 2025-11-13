@@ -1,22 +1,28 @@
+mod cli;
 mod eval;
 mod language;
 
+use clap::Parser;
+use cli::Cli;
 use eval::Evaluator;
 
 #[tokio::main]
-async fn main() -> Result<(), ()>
+async fn main()
 {
+  let cli = Cli::parse();
+
   // console_subscriber::init();
-  let eval = Evaluator::new("testprogs/compiled.json".to_string(), None).unwrap();
+  let eval = Evaluator::new(cli.filename.to_str().unwrap().to_string(), None).unwrap();
   let instance = eval.instantiate(vec![]).await;
 
-  for _ in 0..100
+  if cli.print_output
   {
     println!("{:?}", instance.get_outputs().await);
-    //let b = instance.get_outputs().await;
-    //b.unwrap();
   }
+  else
+  {
+    let _ = instance.get_outputs().await;
+  }
+
   instance.shutdown().await;
-  // eval.kill().await;
-  Ok(())
 }

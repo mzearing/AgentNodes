@@ -41,8 +41,13 @@
       "type": "object",      
       "description" : "All the nodes the complex node contains",
       "additionalProperties" : {"$ref" : "#/$defs/instance"}
+    },
+    "end_node":
+    {
+      "type" : "string",
+      "description" : "The uuid of the final node in the graph"
     }
 
   },
-  "required": ["inputs", "outputs", "defaults", "instances"]
+  "required": ["inputs", "outputs", "defaults", "instances", "end_node"]
 }

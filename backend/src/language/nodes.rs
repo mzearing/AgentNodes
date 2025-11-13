@@ -1,5 +1,5 @@
 use super::typing::{DataType, DataValue};
-use crate::eval::EvalError;
+use crate::eval::{EvalError, NodeConnection};
 use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -10,6 +10,7 @@ pub enum ControlFlow
 {
   Start,
   End,
+  While(NodeConnection),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -20,7 +21,7 @@ pub enum AtomicType
   BinOp(AtomicBinOp),
   Value(DataValue),
   Control(ControlFlow),
-  Variable(DataType),
+  Variable(NodeConnection),
   Io(AtomicIo),
 }
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -174,7 +175,10 @@ impl NodeType
         }
       }
       AtomicType::Io(io) => Self::eval_io(io, node, eval, inputs).await,
-      AtomicType::Variable(_t) => Ok(vec![Self::eval_variable(node, inputs).await?]),
+      AtomicType::Variable(connection) =>
+      {
+        Ok(vec![Self::eval_variable(node, eval, connection).await?])
+      }
     }
   }
 
@@ -204,53 +208,87 @@ impl NodeType
   {
     match control_flow
     {
-      ControlFlow::Start =>
-      {
-        todo!();
-        // let inputs = eval.get_inputs().await?;
-        // node.inputs_state = if inputs.iter().any(|x| x.0 == NodeState::Finished)
-        // {
-        //   NodeState::Finished
-        // }
-        // else
-        // {
-        //   NodeState::MoreData
-        // };
-
-        // Ok((node.inputs_state, inputs.into_iter().map(|x| x.1).collect()))
-      }
+      ControlFlow::Start => Ok(eval.get_inputs().await),
       ControlFlow::End =>
       {
         tokio::task::yield_now().await;
         Ok(inputs)
+      }
+      ControlFlow::While(end_node) =>
+      {
+        if let DataValue::Boolean(cond) = inputs[0]
+        {
+          if cond
+          {
+            let end = eval.find_node(&end_node.1)?;
+            let outputs = end
+              .listen_all()
+              .await
+              .join_all()
+              .await
+              .into_iter()
+              .map(|x| x.unwrap_or(DataValue::None))
+              .collect();
+            node.trigger_processing().await;
+            Ok(outputs)
+          }
+          else
+          {
+            Ok(vec![])
+          }
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
+            expected: vec![DataType::Boolean],
+          })
+        }
       }
     }
   }
 
   async fn eval_variable(
     node: &ExecutionNode,
-    inputs: Vec<DataValue>,
+    eval: Arc<Evaluator>,
+    connection: NodeConnection,
   ) -> Result<DataValue, EvalError>
   {
-    todo!();
-    // if inputs.len() != 0
-    // {
-    //   let mut guard = node.stored_val.write().await;
-    //   if inputs.len() == 1
-    //   {
-    //     (*guard) = Some(inputs[0].clone());
-    //   }
-    //   else
-    //   {
-    //     (*guard) = Some(DataValue::Array(inputs));
-    //   }
-    // }
+    if !node.channel_exists().await
+    {
+      node
+        .channel_set(
+          eval
+            .find_node(&connection.1)?
+            .weak_listen(connection.2)
+            .await?,
+        )
+        .await;
+    }
 
-    // match node.stored_val.read().await.as_ref()
-    // {
-    //   Some(x) => Ok(x.clone()),
-    //   None => Ok(DataValue::None),
-    // }
+    if node.channel_data_ready().await
+    {
+      if let Some(x) = node.channel_read_data().await?
+      {
+        node.set_stored(x).await;
+      }
+      node
+        .channel_set(
+          eval
+            .find_node(&connection.1)?
+            .weak_listen(connection.2)
+            .await?,
+        )
+        .await;
+    }
+    if let Some(v) = node.get_stored().await
+    {
+      Ok(v)
+    }
+    else
+    {
+      Ok(DataValue::None)
+    }
   }
   async fn eval_io(
     io: AtomicIo,
