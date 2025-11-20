@@ -312,4 +312,13 @@ impl Evaluator
 
     io.write_all(buf).await.map_err(EvalError::from)
   }
+
+  pub fn find_node(&self, id: &Uuid) -> Result<Arc<ExecutionNode>, EvalError>
+  {
+    self
+      .nodes
+      .get(id)
+      .cloned()
+      .ok_or(EvalError::NodeNotFound(id.clone()))
+  }
 }
