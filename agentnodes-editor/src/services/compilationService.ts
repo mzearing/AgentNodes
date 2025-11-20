@@ -205,7 +205,8 @@ export class CompilationService {
     
     // Handle complex nodes
     if (metadataPath?.startsWith('complex/')) {
-      return { Complex: `${nodeId}.json` };
+      const groupId = metadataPath.split('/')[1];
+      return { Complex: `${groupId}/${nodeId}/compiled.json` };
     }
     
     // Default to atomic with the nodeId

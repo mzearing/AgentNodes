@@ -16,15 +16,37 @@
     "constantData": [],
     "solo": false
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "path": "complex/group-1760638366900/node-1763662682627",
+      "id": "node-1763662682627",
+      "name": "Test",
+      "inputs": [
+        "Output"
+      ],
+      "inputTypes": [
+        1
+      ],
+      "outputs": [
+        "Input"
+      ],
+      "outputTypes": [
+        1
+      ],
+      "variadicOutputs": false,
+      "variadicInputs": false,
+      "constantData": [],
+      "solo": false
+    }
+  ],
   "data": {
     "nodes": [
       {
         "id": "node_10",
         "type": "scripting-node",
         "position": {
-          "x": 498.098236356641,
-          "y": -170.67368753386393
+          "x": 726.5285487794564,
+          "y": -171.87595233608926
         },
         "data": {
           "nodeId": "finish",
@@ -176,6 +198,43 @@
         },
         "selected": false,
         "dragging": false
+      },
+      {
+        "id": "node_18",
+        "type": "scripting-node",
+        "position": {
+          "x": 469.72594369822207,
+          "y": -166.08626543037838
+        },
+        "data": {
+          "nodeId": "node-1763662682627",
+          "label": "Test",
+          "inputs": [
+            {
+              "id": "input-1763662741244-0-4muz4ts56",
+              "name": "Output",
+              "type": 1
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1763662741244-0-2miipy2o7",
+              "name": "Input",
+              "type": 1
+            }
+          ],
+          "metadataPath": "complex/group-1760638366900",
+          "constantData": [],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "solo": false
+        },
+        "measured": {
+          "width": 202,
+          "height": 92
+        },
+        "selected": false,
+        "dragging": false
       }
     ],
     "edges": [
@@ -188,26 +247,34 @@
         "selected": false
       },
       {
-        "source": "node_16",
-        "sourceHandle": "output-1762295856159-0-qrnhxtfov",
-        "target": "node_10",
-        "targetHandle": "input-1761690528128-1v9yjkatn",
-        "id": "xy-edge__node_16output-1762295856159-0-qrnhxtfov-node_10input-1761690528128-1v9yjkatn",
-        "selected": false
-      },
-      {
         "source": "node_17",
         "sourceHandle": "output-1762297873257-0-thls4g20f",
         "target": "node_16",
         "targetHandle": "input-1762295856159-0-66xw7of2t",
         "id": "xy-edge__node_17output-1762297873257-0-thls4g20f-node_16input-1762295856159-0-66xw7of2t",
         "selected": false
+      },
+      {
+        "source": "node_16",
+        "sourceHandle": "output-1762295856159-0-qrnhxtfov",
+        "target": "node_18",
+        "targetHandle": "input-1763662741244-0-4muz4ts56",
+        "id": "xy-edge__node_16output-1762295856159-0-qrnhxtfov-node_18input-1763662741244-0-4muz4ts56",
+        "selected": false
+      },
+      {
+        "source": "node_18",
+        "sourceHandle": "output-1763662741244-0-2miipy2o7",
+        "target": "node_10",
+        "targetHandle": "input-1761690528128-1v9yjkatn",
+        "id": "xy-edge__node_18output-1763662741244-0-2miipy2o7-node_10input-1761690528128-1v9yjkatn",
+        "selected": false
       }
     ],
     "viewport": {
-      "x": 355.97486564087546,
-      "y": 582.2622119451371,
-      "zoom": 0.776108018895778
+      "x": 57.78660905180939,
+      "y": 311.29999048875766,
+      "zoom": 0.5
     }
   }
 }
