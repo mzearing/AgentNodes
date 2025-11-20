@@ -100,6 +100,8 @@ export const useGroupManagement = (initialGroups: NodeGroup[], options: GroupMan
       outputTypes: [IOType.None],
       variadicOutputs: false,
       variadicInputs: false,
+      multitypeInputs: false,
+      multitypeOutputs: false,
       constantData: [],
       solo: false,
       path: ''

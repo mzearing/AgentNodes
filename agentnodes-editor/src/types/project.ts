@@ -30,11 +30,13 @@ export interface NodeSummary {
   id: string;
   name: string;
   inputs: string[];
-  inputTypes: IOType[];
+  inputTypes: IOType[] | IOType[][];
   outputs: string[];
-  outputTypes: IOType[];
+  outputTypes: IOType[] | IOType[][];
   variadicOutputs: boolean;
   variadicInputs: boolean;
+  multitypeInputs?: boolean;
+  multitypeOutputs?: boolean;
   constantData: IOType[];
   solo: boolean;
 }

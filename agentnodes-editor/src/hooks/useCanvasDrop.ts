@@ -40,7 +40,7 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
 
       if (!nodeData) return;
 
-      const { nodeId, groupId, category, label, inputs, outputs, inputTypes, outputTypes, variadicInputs, variadicOutputs, solo, constantData } = JSON.parse(nodeData);
+      const { nodeId, groupId, category, label, inputs, outputs, inputTypes, outputTypes, variadicInputs, variadicOutputs, multitypeInputs, multitypeOutputs, solo, constantData } = JSON.parse(nodeData);
       
       let finalInputs = inputs;
       let finalOutputs = outputs;
@@ -48,6 +48,8 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
       let finalOutputTypes = outputTypes;
       let finalVariadicInputs = variadicInputs;
       let finalVariadicOutputs = variadicOutputs;
+      let finalMultitypeInputs = multitypeInputs;
+      let finalMultitypeOutputs = multitypeOutputs;
       let finalSolo = solo;
       let finalConstantData = constantData || [];
 
@@ -66,6 +68,8 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
               finalOutputTypes = freshNodeData.outputTypes;
               finalVariadicInputs = freshNodeData.variadicInputs;
               finalVariadicOutputs = freshNodeData.variadicOutputs;
+              finalMultitypeInputs = freshNodeData.multitypeInputs;
+              finalMultitypeOutputs = freshNodeData.multitypeOutputs;
               finalSolo = freshNodeData.solo;
               finalConstantData = freshNodeData.constantData || [];
               
@@ -127,6 +131,8 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         outputs: outputHandles,
         variadicInputs: finalVariadicInputs,
         variadicOutputs: finalVariadicOutputs,
+        multitypeInputs: finalMultitypeInputs,
+        multitypeOutputs: finalMultitypeOutputs,
         solo: finalSolo,
         metadataPath: groupId && category ? `${category.toLowerCase()}/${groupId}` : undefined,
         constantData: finalConstantData,

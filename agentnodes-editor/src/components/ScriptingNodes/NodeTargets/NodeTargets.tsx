@@ -8,10 +8,11 @@ import { IOType } from '../../../types/project';
 interface NodeTargetsProps {
   inputs: InputHandle[];
   variadic?: boolean;
+  multitype?: boolean;
   onInputsChange?: (inputs: InputHandle[]) => void;
 }
 
-const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onInputsChange }) => {
+const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, multitype = false, onInputsChange }) => {
   const [updateKey, setUpdateKey] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
@@ -137,13 +138,16 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
     setDragOverIndex(null);
   };
 
-  const typeOptions: DropdownOption[] = [
+  const allTypeOptions: DropdownOption[] = [
     { value: 'None', label: 'N', color: '#4A5568', bgColor: '#4A5568', textColor: '#FFFFFF' },
     { value: 'Integer', label: 'I', color: '#BEE3F8', bgColor: '#BEE3F8', textColor: '#000000' },
     { value: 'Float', label: 'F', color: '#C6F6D5', bgColor: '#C6F6D5', textColor: '#000000' },
     { value: 'String', label: 'S', color: '#FF8C00', bgColor: '#FF8C00', textColor: '#FFFFFF' },
     { value: 'Boolean', label: 'B', color: '#E6E6FA', bgColor: '#E6E6FA', textColor: '#000000' },
   ];
+
+  // TODO: Function to get available type options for specific inputs based on type arrays
+  // This would be used when inputTypes contains arrays like [[0, 1, 2], [3, 4]] for multitype inputs
 
   const hexToRgba = (hex: string, alpha: number): string => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -181,17 +185,17 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
           style={{
             '--handle-color': (() => {
               const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-              const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
               return selectedType.color;
             })(),
             '--handle-shadow': (() => {
               const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-              const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
               return hexToRgba(selectedType.color, 0.4);
             })(),
             '--handle-text-color': (() => {
               const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-              const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
               return selectedType.textColor;
             })()
           } as React.CSSProperties}
@@ -217,13 +221,13 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
             <>
               <TypeDropdown
                 key={`${input.id}-${input.type}-${updateKey}`}
-                options={typeOptions}
-                value={typeOptions.find(opt => {
+                options={allTypeOptions}
+                value={allTypeOptions.find(opt => {
                   const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
                   return opt.value === typeNames[input.type];
-                }) || typeOptions[0]}
+                }) || allTypeOptions[0]}
                 onChange={(option) => handleTypeChange(index, option.value)}
-                isLocked={!variadic}
+                isLocked={!multitype}
               />
               <span 
                 className={styles.inputLabel}
@@ -258,27 +262,27 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, onI
             style={{
               backgroundColor: (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               borderColor: (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-color': (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-shadow': (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.4);
               })(),
               '--handle-shadow-strong': (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[input.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.6);
               })()
             } as React.CSSProperties}

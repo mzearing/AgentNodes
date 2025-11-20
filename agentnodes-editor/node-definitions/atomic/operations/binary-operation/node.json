@@ -7,6 +7,8 @@
   "outputTypes": [1],
   "variadicInputs": false,
   "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
   "constantData": [3],
   "solo": false
 }

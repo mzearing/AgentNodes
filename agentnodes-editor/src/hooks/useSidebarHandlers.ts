@@ -119,6 +119,8 @@ export const useSidebarHandlers = ({
       outputTypes: node.outputTypes,
       variadicInputs: node.variadicInputs,
       variadicOutputs: node.variadicOutputs,
+      multitypeInputs: node.multitypeInputs,
+      multitypeOutputs: node.multitypeOutputs,
       solo: node.solo,
       constantData: node.constantData
     };

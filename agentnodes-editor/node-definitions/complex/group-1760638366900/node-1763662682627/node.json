@@ -54,18 +54,18 @@
         "selected": false
       },
       {
-        "id": "node_2",
+        "id": "node_3",
         "type": "scripting-node",
         "position": {
-          "x": 181.1823911641394,
-          "y": -67.5005516479001
+          "x": 221.3855419037734,
+          "y": -70.98980428920785
         },
         "data": {
           "nodeId": "finish",
           "label": "Finish",
           "inputs": [
             {
-              "id": "input-1763662726944-0-wf210hj5s",
+              "id": "input-1763666696418-0-9jtr0tx84",
               "name": "Input",
               "type": 1
             }
@@ -73,6 +73,8 @@
           "outputs": [],
           "variadicInputs": true,
           "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
           "solo": true,
           "metadataPath": "atomic/control-flow",
           "constantData": []
@@ -81,23 +83,23 @@
           "width": 163,
           "height": 127
         },
-        "selected": true,
-        "dragging": false
+        "dragging": false,
+        "selected": true
       }
     ],
     "edges": [
       {
         "source": "node_1",
         "sourceHandle": "output-1763662725903-0-w114a53a7",
-        "target": "node_2",
-        "targetHandle": "input-1763662726944-0-wf210hj5s",
-        "id": "xy-edge__node_1output-1763662725903-0-w114a53a7-node_2input-1763662726944-0-wf210hj5s"
+        "target": "node_3",
+        "targetHandle": "input-1763666696418-0-9jtr0tx84",
+        "id": "xy-edge__node_1output-1763662725903-0-w114a53a7-node_3input-1763666696418-0-9jtr0tx84"
       }
     ],
     "viewport": {
-      "x": 183.29909714667028,
-      "y": 364.14449622326066,
-      "zoom": 0.8317635167801963
+      "x": 157.25885496197333,
+      "y": 553.5220053321925,
+      "zoom": 0.8525450371102561
     }
   }
 }

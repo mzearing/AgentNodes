@@ -3,9 +3,11 @@
   "name": "Print",
   "inputs": ["Value"],
   "outputs": [],
-  "inputTypes": [0],
+  "inputTypes": [[0, 1, 2, 3, 4]],
   "outputTypes": [],
   "variadicInputs": false,
   "variadicOutputs": false,
+  "multitypeInputs": true,
+  "multitypeOutputs": false,
   "solo": false
 }

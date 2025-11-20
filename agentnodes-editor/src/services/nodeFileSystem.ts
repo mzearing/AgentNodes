@@ -242,7 +242,7 @@ export class NodeFileSystemService {
     return false;
   }
 
-  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; inputTypes?: IOType[]; outputTypes?: IOType[]; variadicInputs?: boolean; variadicOutputs?: boolean; solo?: boolean; constantData?: IOType[] } | null> {
+  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; inputTypes?: IOType[]; outputTypes?: IOType[]; variadicInputs?: boolean; variadicOutputs?: boolean; multitypeInputs?: boolean; multitypeOutputs?: boolean; solo?: boolean; constantData?: IOType[] } | null> {
     try {
       if (window.electronAPI?.readFile) {
         const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
@@ -261,6 +261,8 @@ export class NodeFileSystemService {
             outputTypes: node.summary.outputTypes || [],
             variadicInputs: undefined, // Complex nodes don't have variadic settings
             variadicOutputs: undefined,
+            multitypeInputs: node.summary.multitypeInputs,
+            multitypeOutputs: node.summary.multitypeOutputs,
             solo: undefined, // Complex nodes are not solo nodes
             constantData: node.summary.constantData || []
           };
@@ -273,6 +275,8 @@ export class NodeFileSystemService {
             outputTypes: node.outputTypes || [],
             variadicInputs: node.variadicInputs,
             variadicOutputs: node.variadicOutputs,
+            multitypeInputs: node.multitypeInputs,
+            multitypeOutputs: node.multitypeOutputs,
             solo: node.solo,
             constantData: node.constantData || []
           };
@@ -415,6 +419,8 @@ export class NodeFileSystemService {
           outputTypes: node.outputTypes || (node.outputs || []).map(() => IOType.None),
           variadicInputs: node.variadicInputs || false,
           variadicOutputs: node.variadicOutputs || false,
+          multitypeInputs: node.multitypeInputs || false,
+          multitypeOutputs: node.multitypeOutputs || false,
           constantData: node.constantData || [],
           solo: node.solo || false,
           path
@@ -642,6 +648,8 @@ export class NodeFileSystemService {
           canvasNode.data.outputs = newOutputs;
           canvasNode.data.variadicInputs = matchingDependency.variadicInputs;
           canvasNode.data.variadicOutputs = matchingDependency.variadicOutputs;
+          canvasNode.data.multitypeInputs = matchingDependency.multitypeInputs;
+          canvasNode.data.multitypeOutputs = matchingDependency.multitypeOutputs;
           canvasNode.data.solo = matchingDependency.solo;
           
           updatedNodes++;

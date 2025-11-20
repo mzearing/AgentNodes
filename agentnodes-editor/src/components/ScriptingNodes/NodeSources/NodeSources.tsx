@@ -8,10 +8,11 @@ import { IOType } from '../../../types/project';
 interface NodeSourcesProps {
   outputs: OutputHandle[];
   variadic?: boolean;
+  multitype?: boolean;
   onOutputsChange?: (outputs: OutputHandle[]) => void;
 }
 
-const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, onOutputsChange }) => {
+const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, multitype = false, onOutputsChange }) => {
   const [updateKey, setUpdateKey] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
@@ -135,7 +136,7 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
     setDragOverIndex(null);
   };
 
-  const typeOptions: DropdownOption[] = [
+  const allTypeOptions: DropdownOption[] = [
     { value: 'None', label: 'N', color: '#4A5568', bgColor: '#4A5568', textColor: '#FFFFFF' },
     { value: 'Integer', label: 'I', color: '#BEE3F8', bgColor: '#BEE3F8', textColor: '#000000' },
     { value: 'Float', label: 'F', color: '#C6F6D5', bgColor: '#C6F6D5', textColor: '#000000' },
@@ -179,17 +180,17 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
           style={{
             '--handle-color': (() => {
               const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-              const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
               return selectedType.color;
             })(),
             '--handle-shadow': (() => {
               const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-              const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
               return hexToRgba(selectedType.color, 0.4);
             })(),
             '--handle-text-color': (() => {
               const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-              const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
               return selectedType.textColor;
             })()
           } as React.CSSProperties}
@@ -238,13 +239,13 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
               </span>
               <TypeDropdown
                 key={`${output.id}-${output.type}-${updateKey}`}
-                options={typeOptions}
-                value={typeOptions.find(opt => {
+                options={allTypeOptions}
+                value={allTypeOptions.find(opt => {
                   const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
                   return opt.value === typeNames[output.type];
-                }) || typeOptions[0]}
+                }) || allTypeOptions[0]}
                 onChange={(option) => handleTypeChange(index, option.value)}
-                isLocked={!variadic}
+                isLocked={!multitype}
               />
             </>
           )}
@@ -256,27 +257,27 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, on
             style={{
               backgroundColor: (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               borderColor: (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-color': (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-shadow': (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.4);
               })(),
               '--handle-shadow-strong': (() => {
                 const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                const selectedType = typeOptions.find(opt => opt.value === typeNames[output.type]) || typeOptions[0];
+                const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.6);
               })()
             } as React.CSSProperties}
