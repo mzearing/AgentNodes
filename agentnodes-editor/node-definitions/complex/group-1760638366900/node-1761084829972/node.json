@@ -10,8 +10,8 @@
     ],
     "inputTypes": [
       2,
-      0,
-      0
+      4,
+      1
     ],
     "outputs": [
       "Input",
@@ -23,6 +23,7 @@
     ],
     "variadicOutputs": false,
     "variadicInputs": false,
+    "constantData": [],
     "solo": false
   },
   "dependencies": [
@@ -50,8 +51,8 @@
         "id": "node_1",
         "type": "scripting-node",
         "position": {
-          "x": 569.6644736842105,
-          "y": 188.26315789473685
+          "x": 69.7104465216189,
+          "y": 16.942704621348774
         },
         "data": {
           "nodeId": "start",
@@ -66,12 +67,12 @@
             {
               "id": "output-1761690540269-62njgwjga",
               "name": "Output 2",
-              "type": 0
+              "type": 4
             },
             {
               "id": "output-1761690540747-qmy8974eq",
               "name": "Output 3",
-              "type": 0
+              "type": 1
             }
           ],
           "variadicInputs": false,
@@ -83,14 +84,15 @@
           "width": 183,
           "height": 183
         },
-        "selected": false
+        "selected": false,
+        "dragging": false
       },
       {
         "id": "node_2",
         "type": "scripting-node",
         "position": {
-          "x": 832.3486842105265,
-          "y": 166.0197368421053
+          "x": 441.22085692599904,
+          "y": 15.171538991323345
         },
         "data": {
           "nodeId": "finish",
@@ -117,15 +119,15 @@
           "width": 174,
           "height": 167
         },
-        "selected": true,
+        "selected": false,
         "dragging": false
       },
       {
         "id": "node_3",
         "type": "scripting-node",
         "position": {
-          "x": 764.8948323577619,
-          "y": -114.13274077937238
+          "x": 450.268591126131,
+          "y": -119.52017641690031
         },
         "data": {
           "nodeId": "node-1760638508261",
@@ -144,16 +146,18 @@
           "metadataPath": "complex/group-1760638366900"
         },
         "measured": {
-          "width": 242,
-          "height": 244
-        }
+          "width": 104,
+          "height": 84
+        },
+        "selected": false,
+        "dragging": false
       }
     ],
     "edges": [],
     "viewport": {
-      "x": -94.54091260236441,
-      "y": 524.2207860378649,
-      "zoom": 0.9394393344599612
+      "x": 412.8979946010488,
+      "y": 350.8494278925451,
+      "zoom": 0.6131573973961064
     }
   }
 }

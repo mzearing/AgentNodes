@@ -3,6 +3,7 @@ import { Node } from '@xyflow/react';
 import styles from '../NodeGroups.module.css';
 import { NodeSummary, Category } from "../../../../../types/project"
 import { ScriptingNodeData } from '../../../../ScriptingNodes/ScriptingNode';
+import { useNodeCompilationStatus } from '../../../../../hooks/useNodeCompilationStatus';
 
 interface NodeItemEditingState {
   isEditing: boolean;
@@ -37,6 +38,7 @@ const NodeItem: React.FC<NodeItemProps> = ({
   handlers,
 }) => {
   const editNodeInputRef = useRef<HTMLInputElement>(null);
+  const { isCompiled, isLoading } = useNodeCompilationStatus(node, activeCategory);
 
   useEffect(() => {
     if (editingState.isEditing && editNodeInputRef.current) {
@@ -54,7 +56,12 @@ const NodeItem: React.FC<NodeItemProps> = ({
     });
   };
 
-  const isDisabled = isNodeAlreadyOnCanvas(node);
+  // A node is disabled if:
+  // 1. It's already on canvas and is solo, OR
+  // 2. It's a complex node that hasn't been compiled
+  const isOnCanvas = isNodeAlreadyOnCanvas(node);
+  const isUncompiled = activeCategory === 'Complex' && !isCompiled && !isLoading;
+  const isDisabled = isOnCanvas || isUncompiled;
 
   return (
     <div
@@ -79,7 +86,7 @@ const NodeItem: React.FC<NodeItemProps> = ({
           <div className={styles.nodeName}>{node.name}</div>
         )}
       </div>
-      {activeCategory === 'Complex' && !isDisabled && (
+      {activeCategory === 'Complex' && !isOnCanvas && (
         <div className={styles.nodeActions}>
           <button
             className={styles.nodeDeleteButton}

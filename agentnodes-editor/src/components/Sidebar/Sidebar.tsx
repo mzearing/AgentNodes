@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import styles from './Sidebar.module.css';
 import SidebarContent from './components/SidebarContent/SidebarContent';
@@ -44,17 +44,19 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes, onLoadProject, onRefreshFuncti
     onLoadProject,
   });
 
+  // Memoize the refresh function to prevent unnecessary re-renders
+  const memoizedRefreshFunction = useCallback(async () => {
+    console.log('Sidebar: Refresh function called!');
+    return await refreshGroups();
+  }, [refreshGroups]);
+
   // Provide the refresh function to the parent component
   useEffect(() => {
     if (onRefreshFunctionReady) {
       console.log('Sidebar: Setting refresh function...');
-      const refreshFunction = async () => {
-        console.log('Sidebar: Refresh function called!');
-        return await refreshGroups();
-      };
-      onRefreshFunctionReady(refreshFunction);
+      onRefreshFunctionReady(memoizedRefreshFunction);
     }
-  }, [onRefreshFunctionReady, refreshGroups]);
+  }, [onRefreshFunctionReady, memoizedRefreshFunction]);
 
   return (
     <div className={styles.sidebar}>

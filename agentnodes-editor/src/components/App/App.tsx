@@ -7,6 +7,7 @@ import Sidebar from '../Sidebar/Sidebar';
 import { ProjectState } from '../../types/project';
 import { sidebarRefreshEmitter, canvasRefreshEmitter } from '../../hooks/useSidebarData';
 import { compilationService } from '../../services/compilationService';
+import { nodeCompilationStatusService } from '../../services/nodeCompilationStatus';
 
 
 const App: React.FC = () => {
@@ -62,21 +63,26 @@ const App: React.FC = () => {
   const handleCompile = useCallback(async () => {
     if (canvasRef.current) {
       const canvasData = canvasRef.current.getCanvasData();
+      const projectState = canvasRef.current.getProjectState();
       console.log('Canvas data retrieved:', canvasData);
-      if (canvasData) {
+      if (canvasData && projectState) {
         console.log('Starting compilation with canvas data:', canvasData);
         const result = compilationService.compile(canvasData);
         console.log('Compilation result:', result);
         
         if (result.success && result.data) {
           try {
-            // Save compiled.json to the node definitions directory
+            // Save compiled.json to the specific node's folder
             const dataStr = JSON.stringify(result.data, null, 2);
-            const compiledFilePath = './node-definitions/compiled.json';
+            const compiledFilePath = `./node-definitions/${projectState.openedNodePath}/${projectState.openedNodeId}/compiled.json`;
             
             if (window.electronAPI?.writeFile) {
               await window.electronAPI.writeFile(compiledFilePath, dataStr);
-              alert('Compilation successful! File saved to node-definitions/compiled.json');
+              
+              // Clear compilation cache for the compiled node to ensure UI updates
+              nodeCompilationStatusService.clearCache();
+              
+              alert(`Compilation successful! File saved to ${compiledFilePath}`);
             } else {
               // Fallback to download if electron API not available
               const blob = new Blob([dataStr], { type: 'application/json' });
@@ -99,12 +105,17 @@ const App: React.FC = () => {
           alert(`Compilation failed:\n${errorMessage}`);
         }
       } else {
-        alert('No canvas data available. Please load a project first.');
+        alert('No canvas data or project state available. Please load a project first.');
       }
     } else {
       alert('Canvas not available');
     }
   }, [projectName]);
+
+  // Stable callback for sidebar refresh function (no-op since refresh not needed in this component)
+  const handleSidebarRefreshReady = useCallback((_refreshFn: () => void) => {
+    // No-op: refresh function not needed in this component
+  }, []);
 
   // Listen for canvas refresh events to reload the current project when dependencies change
   useEffect(() => {
@@ -130,9 +141,7 @@ const App: React.FC = () => {
       <Sidebar 
         nodes={nodes} 
         onLoadProject={handleLoadProject}
-        onRefreshFunctionReady={(_refreshFn: () => void) => {
-          // No-op: refresh function not needed in this component
-        }}
+        onRefreshFunctionReady={handleSidebarRefreshReady}
       />
       <div className={hasProjectLoaded ? '' : styles.hiddenCanvas}>
         <Canvas 
