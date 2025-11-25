@@ -9,10 +9,11 @@ interface NodeSourcesProps {
   outputs: OutputHandle[];
   variadic?: boolean;
   multitype?: boolean;
+  availableTypes?: (IOType[] | undefined)[];
   onOutputsChange?: (outputs: OutputHandle[]) => void;
 }
 
-const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, multitype = false, onOutputsChange }) => {
+const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, multitype = false, availableTypes, onOutputsChange }) => {
   const [updateKey, setUpdateKey] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
@@ -144,6 +145,25 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
     { value: 'Boolean', label: 'B', color: '#E6E6FA', bgColor: '#E6E6FA', textColor: '#000000' },
   ];
 
+  // Function to get available type options for specific outputs based on type arrays
+  const getAvailableTypeOptions = (outputIndex: number): DropdownOption[] => {
+    if (!multitype || !availableTypes) {
+      return allTypeOptions;
+    }
+    
+    const availableTypesForOutput = availableTypes[outputIndex];
+    if (!availableTypesForOutput || availableTypesForOutput.length === 0) {
+      return allTypeOptions;
+    }
+    
+    // Filter type options to only show available ones
+    return allTypeOptions.filter(option => {
+      const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+      const typeIndex = typeNames.indexOf(option.value);
+      return availableTypesForOutput.includes(typeIndex as IOType);
+    });
+  };
+
   const hexToRgba = (hex: string, alpha: number): string => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -239,11 +259,12 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
               </span>
               <TypeDropdown
                 key={`${output.id}-${output.type}-${updateKey}`}
-                options={allTypeOptions}
-                value={allTypeOptions.find(opt => {
+                options={getAvailableTypeOptions(index)}
+                value={(() => {
+                  const availableOptions = getAvailableTypeOptions(index);
                   const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                  return opt.value === typeNames[output.type];
-                }) || allTypeOptions[0]}
+                  return availableOptions.find(opt => opt.value === typeNames[output.type]) || availableOptions[0];
+                })()}
                 onChange={(option) => handleTypeChange(index, option.value)}
                 isLocked={!multitype}
               />

@@ -4,6 +4,19 @@ import { ScriptingNodeData } from '../components/ScriptingNodes/ScriptingNode';
 import { nodeFileSystem } from '../services/nodeFileSystem';
 import { Category, IOType } from "../types/project";
 
+// Helper function to extract available types from type arrays
+const extractAvailableTypes = (types: IOType[] | IOType[][] | undefined): (IOType[] | undefined)[] | undefined => {
+  if (!types || types.length === 0) return undefined;
+  
+  // Check if it's IOType[][] (array of arrays)
+  if (Array.isArray(types[0])) {
+    return types as IOType[][];
+  }
+  
+  // Convert IOType[] to IOType[][] format (each type becomes a single-element array)
+  return (types as IOType[]).map(type => [type]);
+};
+
 let nodeId = 1;
 const getNodeId = () => `node_${nodeId++}`;
 
@@ -94,16 +107,23 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         x: event.clientX,
         y: event.clientY,
       });
+      // Helper to get first type from IOType | IOType[] for handle creation
+      const getFirstType = (typeOrArray: IOType | IOType[] | undefined): IOType => {
+        if (typeOrArray === undefined) return IOType.None;
+        if (Array.isArray(typeOrArray)) return typeOrArray[0] || IOType.None;
+        return typeOrArray;
+      };
+
       const inputHandles = finalInputs.map((name: string, index: number) => ({
         id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
         name,
-        type: finalInputTypes?.[index] || IOType.None
+        type: getFirstType(finalInputTypes?.[index])
       }));
       
       const outputHandles = finalOutputs.map((name: string, index: number) => ({
         id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`,
         name,
-        type: finalOutputTypes?.[index] || IOType.None
+        type: getFirstType(finalOutputTypes?.[index])
       }));
 
       // Initialize constant values based on constantData
@@ -133,6 +153,8 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         variadicOutputs: finalVariadicOutputs,
         multitypeInputs: finalMultitypeInputs,
         multitypeOutputs: finalMultitypeOutputs,
+        availableInputTypes: extractAvailableTypes(finalInputTypes),
+        availableOutputTypes: extractAvailableTypes(finalOutputTypes),
         solo: finalSolo,
         metadataPath: groupId && category ? `${category.toLowerCase()}/${groupId}` : undefined,
         constantData: finalConstantData,

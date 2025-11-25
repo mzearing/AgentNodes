@@ -6,10 +6,12 @@
     "inputs": [],
     "inputTypes": [],
     "outputs": [
-      "Output"
+      "Input"
     ],
     "outputTypes": [
-      1
+      [
+        1
+      ]
     ],
     "variadicOutputs": false,
     "variadicInputs": false,
@@ -41,36 +43,6 @@
   ],
   "data": {
     "nodes": [
-      {
-        "id": "node_10",
-        "type": "scripting-node",
-        "position": {
-          "x": 726.5285487794564,
-          "y": -171.87595233608926
-        },
-        "data": {
-          "nodeId": "finish",
-          "label": "Finish",
-          "inputs": [
-            {
-              "id": "input-1761690528128-1v9yjkatn",
-              "name": "Output",
-              "type": 1
-            }
-          ],
-          "outputs": [],
-          "variadicInputs": true,
-          "variadicOutputs": false,
-          "solo": true,
-          "metadataPath": "atomic/control-flow"
-        },
-        "measured": {
-          "width": 174,
-          "height": 127
-        },
-        "selected": false,
-        "dragging": false
-      },
       {
         "id": "node_15",
         "type": "scripting-node",
@@ -106,56 +78,6 @@
         "measured": {
           "width": 166,
           "height": 150
-        },
-        "selected": false,
-        "dragging": false
-      },
-      {
-        "id": "node_16",
-        "type": "scripting-node",
-        "position": {
-          "x": 195.40917936764708,
-          "y": -254.71236528924445
-        },
-        "data": {
-          "nodeId": "binary-operation",
-          "label": "Binary Operation",
-          "inputs": [
-            {
-              "id": "input-1762295856159-0-66xw7of2t",
-              "name": "Left",
-              "type": 1
-            },
-            {
-              "id": "input-1762295856159-1-5ekwfbpy5",
-              "name": "Right",
-              "type": 1
-            }
-          ],
-          "outputs": [
-            {
-              "id": "output-1762295856159-0-qrnhxtfov",
-              "name": "Result",
-              "type": 1
-            }
-          ],
-          "variadicInputs": false,
-          "variadicOutputs": false,
-          "solo": false,
-          "metadataPath": "atomic/operations",
-          "constantData": [
-            3
-          ],
-          "constantValues": [
-            {
-              "type": 3,
-              "value": "+"
-            }
-          ]
-        },
-        "measured": {
-          "width": 199,
-          "height": 196
         },
         "selected": false,
         "dragging": false
@@ -235,46 +157,143 @@
         },
         "selected": false,
         "dragging": false
+      },
+      {
+        "id": "node_19",
+        "type": "scripting-node",
+        "position": {
+          "x": 725.7577231758695,
+          "y": -176.55607478801866
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [
+            {
+              "id": "input-1763667604530-0-f6o8620h6",
+              "name": "Input",
+              "type": 1
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": []
+        },
+        "measured": {
+          "width": 163,
+          "height": 127
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_20",
+        "type": "scripting-node",
+        "position": {
+          "x": 160.53983598713106,
+          "y": -267.5478088415158
+        },
+        "data": {
+          "nodeId": "binary-operation",
+          "label": "Binary Operation",
+          "inputs": [
+            {
+              "id": "input-1764110063737-0-pk65jhgyr",
+              "name": "Left",
+              "type": 1
+            },
+            {
+              "id": "input-1764110063737-1-y5xgjcyzb",
+              "name": "Right",
+              "type": 1
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1764110063737-0-zxifph678",
+              "name": "Result",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": true,
+          "availableInputTypes": [
+            [
+              1,
+              2
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              1,
+              2
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/operations",
+          "constantData": [
+            3
+          ],
+          "constantValues": [
+            {
+              "type": 3,
+              "value": ""
+            }
+          ]
+        },
+        "measured": {
+          "width": 199,
+          "height": 196
+        },
+        "selected": true,
+        "dragging": false
       }
     ],
     "edges": [
       {
-        "source": "node_15",
-        "sourceHandle": "output-1762295838296-0-1594pfifc",
-        "target": "node_16",
-        "targetHandle": "input-1762295856159-1-5ekwfbpy5",
-        "id": "xy-edge__node_15output-1762295838296-0-1594pfifc-node_16input-1762295856159-1-5ekwfbpy5",
-        "selected": false
+        "source": "node_18",
+        "sourceHandle": "output-1763662741244-0-2miipy2o7",
+        "target": "node_19",
+        "targetHandle": "input-1763667604530-0-f6o8620h6",
+        "id": "xy-edge__node_18output-1763662741244-0-2miipy2o7-node_19input-1763667604530-0-f6o8620h6"
       },
       {
         "source": "node_17",
         "sourceHandle": "output-1762297873257-0-thls4g20f",
-        "target": "node_16",
-        "targetHandle": "input-1762295856159-0-66xw7of2t",
-        "id": "xy-edge__node_17output-1762297873257-0-thls4g20f-node_16input-1762295856159-0-66xw7of2t",
-        "selected": false
+        "target": "node_20",
+        "targetHandle": "input-1764110063737-0-pk65jhgyr",
+        "id": "xy-edge__node_17output-1762297873257-0-thls4g20f-node_20input-1764110063737-0-pk65jhgyr"
       },
       {
-        "source": "node_16",
-        "sourceHandle": "output-1762295856159-0-qrnhxtfov",
+        "source": "node_15",
+        "sourceHandle": "output-1762295838296-0-1594pfifc",
+        "target": "node_20",
+        "targetHandle": "input-1764110063737-1-y5xgjcyzb",
+        "id": "xy-edge__node_15output-1762295838296-0-1594pfifc-node_20input-1764110063737-1-y5xgjcyzb"
+      },
+      {
+        "source": "node_20",
+        "sourceHandle": "output-1764110063737-0-zxifph678",
         "target": "node_18",
         "targetHandle": "input-1763662741244-0-4muz4ts56",
-        "id": "xy-edge__node_16output-1762295856159-0-qrnhxtfov-node_18input-1763662741244-0-4muz4ts56",
-        "selected": false
-      },
-      {
-        "source": "node_18",
-        "sourceHandle": "output-1763662741244-0-2miipy2o7",
-        "target": "node_10",
-        "targetHandle": "input-1761690528128-1v9yjkatn",
-        "id": "xy-edge__node_18output-1763662741244-0-2miipy2o7-node_10input-1761690528128-1v9yjkatn",
-        "selected": false
+        "id": "xy-edge__node_20output-1764110063737-0-zxifph678-node_18input-1763662741244-0-4muz4ts56"
       }
     ],
     "viewport": {
-      "x": 57.78660905180939,
-      "y": 311.29999048875766,
-      "zoom": 0.5
+      "x": 192.55377563008392,
+      "y": 605.7276804214571,
+      "zoom": 0.8623792563299615
     }
   }
 }

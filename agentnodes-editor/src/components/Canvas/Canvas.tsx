@@ -28,10 +28,30 @@ const arraysEqual = (arr1: string[], arr2: string[]): boolean => {
   return arr1.every((item, index) => item === arr2[index]);
 };
 
-// Helper function to compare type arrays
-const typeArraysEqual = (arr1: IOType[], arr2: IOType[]): boolean => {
+// Helper function to compare type arrays (now supports IOType[][])
+const typeArraysEqual = (arr1: IOType[][] | IOType[], arr2: IOType[][] | IOType[]): boolean => {
   if (arr1.length !== arr2.length) return false;
-  return arr1.every((item, index) => item === arr2[index]);
+  
+  // Handle legacy IOType[] format by treating each item as a single-element array
+  const normalize = (arr: IOType[][] | IOType[]): IOType[][] => {
+    if (arr.length === 0) return [];
+    // Check if it's IOType[] (legacy format)
+    if (typeof arr[0] === 'number') {
+      return (arr as IOType[]).map(type => [type]);
+    }
+    return arr as IOType[][];
+  };
+  
+  const norm1 = normalize(arr1);
+  const norm2 = normalize(arr2);
+  
+  if (norm1.length !== norm2.length) return false;
+  
+  return norm1.every((subArr1, index) => {
+    const subArr2 = norm2[index];
+    if (subArr1.length !== subArr2.length) return false;
+    return subArr1.every((item, subIndex) => item === subArr2[subIndex]);
+  });
 };
 
 // Helper function to get default value for IOType
@@ -381,9 +401,9 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         id: loadedId,
         name: loadedName,
         inputs: inputArray || [],
-        inputTypes: inputTypesArray || [],
+        inputTypes: (inputTypesArray || []).map(type => [type]),
         outputs: outputArray || [],
-        outputTypes: outputTypesArray || [],
+        outputTypes: (outputTypesArray || []).map(type => [type]),
         variadicOutputs: false,
         variadicInputs: false,
         constantData: [],

@@ -1,6 +1,18 @@
 import { Category, NodeGroup, NodeSummary, IOType } from "../types/project";
 import { canvasRefreshEmitter } from "../hooks/useSidebarData";
 
+// Helper function to detect if types indicate multitype capability
+const detectMultitype = (types: IOType[] | IOType[][] | undefined): boolean => {
+  if (!types || types.length === 0) return false;
+  
+  // If it's an array of arrays, check if any sub-array has multiple types
+  if (Array.isArray(types[0])) {
+    return (types as IOType[][]).some(typeArr => typeArr.length > 1);
+  }
+  
+  return false;
+};
+
 declare global {
   interface Window {
     electronAPI: {
@@ -419,8 +431,8 @@ export class NodeFileSystemService {
           outputTypes: node.outputTypes || (node.outputs || []).map(() => IOType.None),
           variadicInputs: node.variadicInputs || false,
           variadicOutputs: node.variadicOutputs || false,
-          multitypeInputs: node.multitypeInputs || false,
-          multitypeOutputs: node.multitypeOutputs || false,
+          multitypeInputs: node.multitypeInputs ?? detectMultitype(node.inputTypes),
+          multitypeOutputs: node.multitypeOutputs ?? detectMultitype(node.outputTypes),
           constantData: node.constantData || [],
           solo: node.solo || false,
           path

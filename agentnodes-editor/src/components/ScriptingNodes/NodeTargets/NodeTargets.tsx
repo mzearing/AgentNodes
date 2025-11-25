@@ -9,10 +9,11 @@ interface NodeTargetsProps {
   inputs: InputHandle[];
   variadic?: boolean;
   multitype?: boolean;
+  availableTypes?: (IOType[] | undefined)[];
   onInputsChange?: (inputs: InputHandle[]) => void;
 }
 
-const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, multitype = false, onInputsChange }) => {
+const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, multitype = false, availableTypes, onInputsChange }) => {
   const [updateKey, setUpdateKey] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
@@ -146,8 +147,24 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
     { value: 'Boolean', label: 'B', color: '#E6E6FA', bgColor: '#E6E6FA', textColor: '#000000' },
   ];
 
-  // TODO: Function to get available type options for specific inputs based on type arrays
-  // This would be used when inputTypes contains arrays like [[0, 1, 2], [3, 4]] for multitype inputs
+  // Function to get available type options for specific inputs based on type arrays
+  const getAvailableTypeOptions = (inputIndex: number): DropdownOption[] => {
+    if (!multitype || !availableTypes) {
+      return allTypeOptions;
+    }
+    
+    const availableTypesForInput = availableTypes[inputIndex];
+    if (!availableTypesForInput || availableTypesForInput.length === 0) {
+      return allTypeOptions;
+    }
+    
+    // Filter type options to only show available ones
+    return allTypeOptions.filter(option => {
+      const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+      const typeIndex = typeNames.indexOf(option.value);
+      return availableTypesForInput.includes(typeIndex as IOType);
+    });
+  };
 
   const hexToRgba = (hex: string, alpha: number): string => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -221,11 +238,12 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
             <>
               <TypeDropdown
                 key={`${input.id}-${input.type}-${updateKey}`}
-                options={allTypeOptions}
-                value={allTypeOptions.find(opt => {
+                options={getAvailableTypeOptions(index)}
+                value={(() => {
+                  const availableOptions = getAvailableTypeOptions(index);
                   const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
-                  return opt.value === typeNames[input.type];
-                }) || allTypeOptions[0]}
+                  return availableOptions.find(opt => opt.value === typeNames[input.type]) || availableOptions[0];
+                })()}
                 onChange={(option) => handleTypeChange(index, option.value)}
                 isLocked={!multitype}
               />

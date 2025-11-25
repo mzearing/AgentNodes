@@ -34,10 +34,12 @@
       "inputs": [],
       "inputTypes": [],
       "outputs": [
-        "Output"
+        "Input"
       ],
       "outputTypes": [
-        1
+        [
+          1
+        ]
       ],
       "variadicOutputs": false,
       "variadicInputs": false,
@@ -136,8 +138,10 @@
           "outputs": [
             {
               "id": "output-1761845181504-0-u840ej779",
-              "name": "Output",
-              "type": 1
+              "name": "Input",
+              "type": [
+                1
+              ]
             }
           ],
           "variadicInputs": false,

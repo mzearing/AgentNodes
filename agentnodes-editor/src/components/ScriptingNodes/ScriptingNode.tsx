@@ -35,6 +35,8 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   variadicOutputs?: boolean;
   multitypeInputs?: boolean;
   multitypeOutputs?: boolean;
+  availableInputTypes?: (IOType[] | undefined)[];
+  availableOutputTypes?: (IOType[] | undefined)[];
   solo?: boolean;
   metadataPath?: string;
   constantData?: IOType[];
@@ -70,6 +72,7 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
         inputs={scriptNodeData.inputs} 
         variadic={scriptNodeData.variadicInputs || false}
         multitype={scriptNodeData.multitypeInputs || false}
+        availableTypes={scriptNodeData.availableInputTypes}
         onInputsChange={handleInputsChange}
       />
       {hasConstants && (
@@ -83,6 +86,7 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
         outputs={scriptNodeData.outputs}
         variadic={scriptNodeData.variadicOutputs || false}
         multitype={scriptNodeData.multitypeOutputs || false}
+        availableTypes={scriptNodeData.availableOutputTypes}
         onOutputsChange={handleOutputsChange}
       />
       
