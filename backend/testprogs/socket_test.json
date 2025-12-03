@@ -2,6 +2,7 @@
   "inputs": [],
   "outputs": [],
   "defaults": {},
+  "end_node": "006a2592-ca53-11f0-a545-00155d8c2776",
   "instances": {
     "6356aa10-6133-47c4-87ad-5d5016d47796":{
       "inputs": [],
@@ -13,6 +14,17 @@
       },
       "default_overrides": {}
     },
+    "dd1a64ba-cfd6-11f0-b81d-00155d55e5e2":{
+      "inputs": [],
+      "outputs": ["String"],
+      "node_type": {
+        "Atomic" : {
+          "Value" : "\r\n"
+        }
+      },
+      "default_overrides": {}
+    },
+
     "01ce7213-589c-4ca9-b76a-f40db7978b78":
     {
       "default_overrides": {},
@@ -40,45 +52,120 @@
         }
       }
     },
-    "891fe32b-2d98-4d08-9407-47c42e3787fe" :
+    "0af6bef8-ca53-11f0-8da3-00155d8c2776" : 
     {
+      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0]],
+      "outputs": ["Boolean"],
       "default_overrides": {},
-      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0], ["None", "ddb82ce4-d5a1-4b91-8f7f-ca9a72260cef", 0]],
-      "outputs": ["Array"],
       "node_type": {
-        "Atomic":{
-          "Io" : "GetLine"
-        }
+        "Complex" : "write_get_request.json"
       }
     },
-    "dbe1291c-9b61-4985-a871-03126cefdeb9":{
-      "default_overrides": {},
-      "inputs": [],
+    
+    "592b807e-cfd3-11f0-ada6-00155d55e5e2": 
+    {
+      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0]],
       "outputs": ["String"],
-      "node_type": {
-        "Atomic": {
-          "Value" : "GET / HTTP/1.1\r\nHost: api.ipify.org\r\nUser-Agent: curl/8.5.0\r\nAccept: */*\r\n\r\n"
-        }
-      } 
-    },
-    "ddb82ce4-d5a1-4b91-8f7f-ca9a72260cef":{
       "default_overrides": {},
-      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0], ["String", "dbe1291c-9b61-4985-a871-03126cefdeb9", 0]],
-      "outputs": ["None"],
       "node_type": {
-        "Atomic" :
-        {
-          "Io" : "Write"
+        "Atomic":{
+          "Io": "GetLine"
         }
       }
     },
 
-    "1cc37314-f319-4f51-b484-5e8fa9e05976":{
+    "0209e578-cfd4-11f0-b975-00155d55e5e2":{
+      "inputs": [["String", "592b807e-cfd3-11f0-ada6-00155d55e5e2", 0]],
+      "outputs": ["None"],
       "default_overrides": {},
-      "inputs": [["Array", "891fe32b-2d98-4d08-9407-47c42e3787fe", 0]],
-      "outputs": [],
       "node_type": {
         "Atomic" : "Print"
+      }
+    },
+
+    "40c9c468-cfd4-11f0-8823-00155d55e5e2":{
+      "inputs": [],
+      "outputs": ["String"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic" :
+        {
+          "Variable" : ["String", "592b807e-cfd3-11f0-ada6-00155d55e5e2", 0]
+        }
+      }
+    },
+
+    "4641ed42-cfd6-11f0-a446-00155d55e5e2":{
+      "inputs": [["String", "40c9c468-cfd4-11f0-8823-00155d55e5e2", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic":"IsNone"
+      }
+    },
+    "adfe2f36-cfd6-11f0-bcca-00155d55e5e2":{
+      "inputs": [["String", "40c9c468-cfd4-11f0-8823-00155d55e5e2", 0], ["String", "dd1a64ba-cfd6-11f0-b81d-00155d55e5e2", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type":{
+        "Atomic":{
+          "LogicalOp": "Eq"
+        }
+      }
+    },
+    "af82b258-cfd8-11f0-aa60-00155d55e5e2":{
+      "inputs": [["Boolean","adfe2f36-cfd6-11f0-bcca-00155d55e5e2", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type":{
+        "Atomic":{
+          "LogicalOp": "Not"
+        }
+      }
+    },
+
+    "0104f930-cfd7-11f0-8984-00155d55e5e2":{
+      "inputs": [["Boolean", "af82b258-cfd8-11f0-aa60-00155d55e5e2", 0], ["Boolean", "4641ed42-cfd6-11f0-a446-00155d55e5e2", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type":{
+        "Atomic":{
+          "LogicalOp": "Or"
+        }
+      }
+    },
+
+    "496ee4b0-cfd7-11f0-9cc6-00155d55e5e2":{
+      "inputs": [["Boolean","0104f930-cfd7-11f0-8984-00155d55e5e2", 0], ["Boolean", "0af6bef8-ca53-11f0-8da3-00155d8c2776", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type":{
+        "Atomic":{
+          "LogicalOp": "And"
+        }
+      }
+    },
+    "9e30eb00-cfd8-11f0-a6ba-00155d55e5e2":{
+      "inputs": [["Boolean", "496ee4b0-cfd7-11f0-9cc6-00155d55e5e2", 0]],
+      "outputs": ["None"],
+      "default_overrides": {},
+      "node_type":{
+        "Atomic":{
+          "Control":{
+            "While": ["None", "0209e578-cfd4-11f0-b975-00155d55e5e2", 0]
+          }
+        }
+      }
+    },
+
+    "006a2592-ca53-11f0-a545-00155d8c2776":{
+      "inputs": [["None", "9e30eb00-cfd8-11f0-a6ba-00155d55e5e2", 0]],
+      "outputs": ["None"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic":{
+          "Control" : "End"
+        }
       }
     }
   }

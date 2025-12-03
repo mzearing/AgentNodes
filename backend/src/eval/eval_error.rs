@@ -24,6 +24,7 @@ pub enum EvalError
   InvalidUtf8(FromUtf8Error),
   PortOutOfBounds(usize),
   NodeNotFound(Uuid),
+  CastError((DataType, DataType)),
   NoListeningNode,
   NoEndNode,
   Closed,

@@ -20,8 +20,8 @@ pub type NodeConnection = (DataType, Uuid, usize); //(id, port)
 // IMPORTANT, USE Uuid v5 SO ITS SCOPED
 pub struct ExecutionNode
 {
-  pub(super) id: Uuid,
-  instance: Instance,
+  pub(crate) id: Uuid,
+  pub(crate) instance: Instance,
   inputs: Vec<NodeConnection>,
   pub(super) outputs: Vec<RwLock<Vec<Sender<Option<DataValue>>>>>,
   pub(super) state: RwLock<NodeState>,
@@ -129,8 +129,14 @@ impl ExecutionNode
         }
       }
 
+      // 5, outputs already drained, set back to waiting
+      // println!("{id} step 5");
+      *self.state.write().await = NodeState::Waiting;
+
       // 3
       // println!("{id} step 3");
+      // dbg!(&self.instance.node_type);
+      // dbg!(&inputs);
       let res = self
         .instance
         .node_type
@@ -138,6 +144,7 @@ impl ExecutionNode
         .await;
       if let Ok(outputs) = res
       {
+        // dbg!(&outputs);
         // 4
         // println!("{id} step 4");
         for (socket, out) in self.outputs.iter().zip(outputs.iter())
@@ -152,10 +159,6 @@ impl ExecutionNode
         self.broadcast_closed().await;
         return res;
       }
-
-      // 5, outputs already drained, set back to waiting
-      // println!("{id} step 5");
-      *self.state.write().await = NodeState::Waiting;
     }
     Ok(vec![])
   }

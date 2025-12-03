@@ -1,53 +1,427 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "agent_nodes.schema.json",
-  "$defs" : {
-    "instance":
-    {
-      "type" : "object",
-      "properties" :
-      {
-        "node_type" : {"type" : "object", "description" : "the type of node (complex or atomic)"},
-        "default_overrides" : {"type" : "object"},
-        "outputs" :{
-          "type" : "array",
-          "description" : "The output types of the instance"
-        },
-        "inputs" : {
-          "type" : "array",
-          "description" : "2d array of (DataType, UUID, Input socket)"
-        }
+  "title": "Complex",
+  "type": "object",
+  "properties": {
+    "defaults": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/DataValue"
+      }
+    },
+    "end_node": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DataType"
+      }
+    },
+    "instances": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Instance"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DataType"
       }
     }
   },
-  "title": "Complex Node",
-  "description": "A complex node definition for the agent nodes lang",
-  "type": "object",
-  "properties": {
-    "inputs": {
-      "description" : "Input types for the complex node",
-      "type" : "array"
+  "required": [
+    "inputs",
+    "outputs",
+    "end_node",
+    "defaults",
+    "instances"
+  ],
+  "$defs": {
+    "AtomicBinOp": {
+      "type": "string",
+      "enum": [
+        "Add",
+        "Sub",
+        "Mul",
+        "Div",
+        "Pow",
+        "Mod"
+      ]
     },
-    "outputs": {
-      "description" : "Output types for the complex node",
-      "type": "array"
+    "AtomicIo": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Read",
+            "Write",
+            "GetLine"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Open": {
+              "$ref": "#/$defs/IoType"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Open"
+          ]
+        }
+      ]
     },
-    "defaults": {
-      "description" : "unused",
-      "type" : "object"
+    "AtomicLogic": {
+      "type": "string",
+      "enum": [
+        "And",
+        "Or",
+        "Xor",
+        "Not",
+        "Eq"
+      ]
     },
-    "instances" : 
-    {
-      "type": "object",      
-      "description" : "All the nodes the complex node contains",
-      "additionalProperties" : {"$ref" : "#/$defs/instance"}
+    "AtomicType": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Print",
+            "Replace",
+            "IsNone"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "BinOp": {
+              "$ref": "#/$defs/AtomicBinOp"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "BinOp"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "UnaryOp": {
+              "$ref": "#/$defs/AtomicUnaryOp"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "UnaryOp"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Value": {
+              "$ref": "#/$defs/DataValue"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Control": {
+              "$ref": "#/$defs/ControlFlow"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Control"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Variable": {
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Variable"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Io": {
+              "$ref": "#/$defs/AtomicIo"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Io"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Cast": {
+              "$ref": "#/$defs/DataType"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Cast"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "LogicalOp": {
+              "$ref": "#/$defs/AtomicLogic"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "LogicalOp"
+          ]
+        }
+      ]
     },
-    "end_node":
-    {
-      "type" : "string",
-      "description" : "The uuid of the final node in the graph"
+    "AtomicUnaryOp": {
+      "type": "string",
+      "enum": [
+        "Neg"
+      ]
+    },
+    "ControlFlow": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Start",
+            "End"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "WaitForInit": {
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "WaitForInit"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "While": {
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "While"
+          ]
+        }
+      ]
+    },
+    "DataType": {
+      "type": "string",
+      "enum": [
+        "Array",
+        "String",
+        "Integer",
+        "Float",
+        "Boolean",
+        "Byte",
+        "Handle",
+        "Object",
+        "None"
+      ]
+    },
+    "DataValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataValue"
+          }
+        },
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DataValue"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Instance": {
+      "type": "object",
+      "properties": {
+        "default_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DataValue"
+          }
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/DataType"
+              },
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              }
+            ]
+          }
+        },
+        "node_type": {
+          "$ref": "#/$defs/NodeType"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataType"
+          }
+        }
+      },
+      "required": [
+        "node_type",
+        "default_overrides",
+        "outputs",
+        "inputs"
+      ]
+    },
+    "IoType": {
+      "type": "string",
+      "enum": [
+        "File",
+        "TcpSocket"
+      ]
+    },
+    "NodeType": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Atomic": {
+              "$ref": "#/$defs/AtomicType"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Atomic"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Complex": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Complex"
+          ]
+        }
+      ]
     }
-
-  },
-  "required": ["inputs", "outputs", "defaults", "instances", "end_node"]
+  }
 }
+

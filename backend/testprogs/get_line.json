@@ -1,0 +1,99 @@
+{
+  "inputs": [],
+  "outputs": [],
+  "defaults": {},
+  "end_node": "b7d8dfa8-b5c1-11f0-a417-00155dcaeda5",
+  "instances": {
+    "6356aa10-6133-47c4-87ad-5d5016d47796":{
+      "inputs": [],
+      "outputs": ["String"],
+      "node_type": {
+        "Atomic" : {
+          "Value" : "api.ipify.org"
+        }
+      },
+      "default_overrides": {}
+    },
+    "01ce7213-589c-4ca9-b76a-f40db7978b78":
+    {
+      "default_overrides": {},
+      "inputs": [],
+      "outputs": ["Integer"],
+      "node_type": {
+        "Atomic" : {
+          "Value" : "80"
+        }
+      }
+    },
+    "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0":
+    {
+      "default_overrides": {},
+      "inputs": [
+        ["String", "6356aa10-6133-47c4-87ad-5d5016d47796", 0], 
+        ["Integer", "01ce7213-589c-4ca9-b76a-f40db7978b78", 0]
+      ],
+      "outputs": ["Handle"],
+      "node_type": {
+        "Atomic": {
+          "Io" : {
+            "Open" : "TcpSocket"
+          }
+        }
+      }
+    },
+    "891fe32b-2d98-4d08-9407-47c42e3787fe" :
+    {
+      "default_overrides": {},
+      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0], ["None", "ddb82ce4-d5a1-4b91-8f7f-ca9a72260cef", 0]],
+      "outputs": ["Array"],
+      "node_type": {
+        "Atomic":{
+          "Io" : "GetLine"
+        }
+      }
+    },
+    "dbe1291c-9b61-4985-a871-03126cefdeb9":{
+      "default_overrides": {},
+      "inputs": [],
+      "outputs": ["String"],
+      "node_type": {
+        "Atomic": {
+          "Value" : "GET / HTTP/1.1\r\nHost: api.ipify.org\r\nUser-Agent: curl/8.5.0\r\nAccept: */*\r\n\r\n"
+        }
+      } 
+    },
+    "ddb82ce4-d5a1-4b91-8f7f-ca9a72260cef":{
+      "default_overrides": {},
+      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0], ["String", "dbe1291c-9b61-4985-a871-03126cefdeb9", 0]],
+      "outputs": ["None"],
+      "node_type": {
+        "Atomic" :
+        {
+          "Io" : "Write"
+        }
+      }
+    },
+
+    "1cc37314-f319-4f51-b484-5e8fa9e05976":{
+      "default_overrides": {},
+      "inputs": [["Array", "891fe32b-2d98-4d08-9407-47c42e3787fe", 0]],
+      "outputs": ["None"],
+      "node_type": {
+        "Atomic" : "Print"
+      }
+    },
+    "b7d8dfa8-b5c1-11f0-a417-00155dcaeda5":
+    {
+      "node_type" :
+      {
+        "Atomic" : 
+        {
+          "Control" : "End"
+        }
+      },
+      "default_overrides" : {},
+      "outputs" : ["None"],
+      "inputs" : [["None", "1cc37314-f319-4f51-b484-5e8fa9e05976", 0]]
+    }
+  }
+}

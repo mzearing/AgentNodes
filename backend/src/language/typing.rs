@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
   collections::HashMap,
@@ -13,7 +14,7 @@ pub enum ArithmaticError
   DivByZero,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
 pub enum DataType
 {
   Array,
@@ -27,7 +28,7 @@ pub enum DataType
   None,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 pub enum DataValue
 {
@@ -275,5 +276,25 @@ impl DataValue
       DataValue::Object(_) => DataType::Object,
       DataValue::None => DataType::None,
     }
+  }
+
+  pub fn try_cast(&self, to_type: DataType) -> Result<DataValue, (DataType, DataType)>
+  {
+    if self.get_type() == to_type
+    {
+      return Ok(self.clone());
+    }
+
+    match (self, &to_type)
+    {
+      (DataValue::None, DataType::Boolean) => Ok(DataValue::Boolean(false)),
+      (DataValue::Integer(x), DataType::Float) => Ok(DataValue::Float(x.clone() as f64)),
+      (DataValue::Float(x), DataType::Integer) => Ok(DataValue::Integer(x.trunc() as i64)),
+      _ => Err((self.get_type(), to_type)),
+    }
+  }
+  pub fn is_none(&self) -> bool
+  {
+    *self == DataValue::None
   }
 }

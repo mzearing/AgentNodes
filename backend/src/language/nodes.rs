@@ -1,30 +1,50 @@
 use super::typing::{DataType, DataValue};
-use crate::eval::{EvalError, NodeConnection};
+use crate::eval::{AsyncClone, EvalError, NodeConnection};
 use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::ops::{BitAnd, BitOr, BitXor, Mul};
 use std::sync::Arc;
+use std::vec;
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum ControlFlow
-{
-  Start,
-  End,
-  While(NodeConnection),
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
 pub enum AtomicType
 {
   Print,
   Replace,
   BinOp(AtomicBinOp),
+  UnaryOp(AtomicUnaryOp),
   Value(DataValue),
   Control(ControlFlow),
   Variable(NodeConnection),
   Io(AtomicIo),
+  Cast(DataType),
+  IsNone,
+  LogicalOp(AtomicLogic),
 }
-#[derive(Deserialize, Serialize, Debug, Clone)]
+
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+pub enum ControlFlow
+{
+  Start,
+  End,
+  WaitForInit(NodeConnection),
+  While(NodeConnection),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
+pub enum AtomicLogic
+{
+  And,
+  Or,
+  Xor,
+  Not,
+  Eq,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
 pub enum AtomicIo
 {
   Open(IoType),
@@ -33,14 +53,14 @@ pub enum AtomicIo
   GetLine,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
 pub enum IoType
 {
   File,
   TcpSocket,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy)]
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, JsonSchema)]
 pub enum AtomicBinOp
 {
   Add,
@@ -51,14 +71,20 @@ pub enum AtomicBinOp
   Mod,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+pub enum AtomicUnaryOp
+{
+  Neg,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
 pub enum NodeType
 {
   Atomic(AtomicType),
   Complex(String),
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
 pub struct Instance
 {
   pub node_type: NodeType,
@@ -67,7 +93,7 @@ pub struct Instance
   pub inputs: Vec<(DataType, uuid::Uuid, usize)>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
 pub struct Complex
 {
   pub inputs: Vec<DataType>,
@@ -94,27 +120,31 @@ impl EvaluateIt for NodeType
       }
       NodeType::Complex(path) =>
       {
-        // println!("In complex eval");
-        let rel = format!("{}{}{}", eval.my_path, std::path::MAIN_SEPARATOR, path);
-
-        let opt_e = eval.get_evaluator(&rel).await;
-        if let Some(e) = opt_e
+        if let Some(runner) = eval.get_complex_runner(&node.id).await
         {
-          let i = e.instantiate(inputs).await;
-          let out = i.get_outputs().await;
-          i.shutdown().await;
-          // println!("Finished complex eval");
-          out
+          runner.send_inputs(inputs).await;
+          runner.get_outputs().await
         }
         else
         {
-          let e = Evaluator::new(rel.clone(), Some(eval.clone()))?;
-          eval.add_evaluator(&rel, e.clone()).await;
-          let i = e.instantiate(inputs).await;
-          let out = i.get_outputs().await;
-          i.shutdown().await;
-          // println!("Finished complex eval");
-          out
+          // println!("In complex eval");
+          let rel = format!("{}{}{}", eval.my_path, std::path::MAIN_SEPARATOR, path);
+
+          let opt_e = eval.get_evaluator(&rel).await;
+          if let Some(e) = opt_e
+          {
+            let i = e.instantiate(inputs).await;
+            eval.add_complex_runner(i.clone(), &node.id).await;
+            i.get_outputs().await
+          }
+          else
+          {
+            let e = Evaluator::new(rel.clone(), Some(eval.clone()))?;
+            eval.clone().add_evaluator(&rel, e.clone()).await;
+            let i = e.instantiate(inputs).await;
+            eval.add_complex_runner(i.clone(), &node.id).await;
+            i.get_outputs().await
+          }
         }
       }
     }
@@ -179,6 +209,34 @@ impl NodeType
       {
         Ok(vec![Self::eval_variable(node, eval, connection).await?])
       }
+      AtomicType::Cast(to_type) =>
+      {
+        inputs
+          .get(0)
+          .ok_or(EvalError::IncorrectInputCount)?
+          .try_cast(to_type)
+          .map(|x| vec![x])
+          .map_err(|t| EvalError::CastError(t))
+      }
+      AtomicType::UnaryOp(unop) =>
+      {
+        tokio::task::yield_now().await;
+        Self::eval_unary(unop, inputs).await
+      }
+      AtomicType::LogicalOp(logic_op) =>
+      {
+        tokio::task::yield_now().await;
+        Self::eval_logic(logic_op, inputs)
+      }
+      AtomicType::IsNone =>
+      {
+        if inputs.len() != 1
+        {
+          return Err(EvalError::IncorrectInputCount);
+        }
+        tokio::task::yield_now().await;
+        Ok(vec![DataValue::Boolean(inputs[0].is_none())])
+      }
     }
   }
 
@@ -221,7 +279,7 @@ impl NodeType
           if cond
           {
             let end = eval.find_node(&end_node.1)?;
-            let outputs = end
+            let _outputs: Vec<DataValue> = end
               .listen_all()
               .await
               .join_all()
@@ -229,12 +287,13 @@ impl NodeType
               .into_iter()
               .map(|x| x.unwrap_or(DataValue::None))
               .collect();
+            // dbg!(_outputs);
             node.trigger_processing().await;
-            Ok(outputs)
+            Ok(vec![])
           }
           else
           {
-            Ok(vec![])
+            Ok(vec![DataValue::None])
           }
         }
         else
@@ -243,6 +302,32 @@ impl NodeType
             got: inputs.into_iter().map(|x| x.get_type()).collect(),
             expected: vec![DataType::Boolean],
           })
+        }
+      }
+      ControlFlow::WaitForInit(initializer) =>
+      {
+        if node.get_stored().await.is_none()
+        {
+          let v = eval
+            .find_node(&initializer.1)?
+            .listen_all()
+            .await
+            .join_all()
+            .await;
+          node.set_stored(DataValue::Boolean(true)).await;
+          return Ok(
+            v.into_iter()
+              .map(|x| x.unwrap_or(DataValue::None))
+              .collect(),
+          );
+        }
+        if inputs[0] == DataValue::None
+        {
+          Ok(vec![])
+        }
+        else
+        {
+          Ok(inputs)
         }
       }
     }
@@ -256,13 +341,9 @@ impl NodeType
   {
     if !node.channel_exists().await
     {
+      let conn_node = eval.find_node(&connection.1)?;
       node
-        .channel_set(
-          eval
-            .find_node(&connection.1)?
-            .weak_listen(connection.2)
-            .await?,
-        )
+        .channel_set(conn_node.weak_listen(connection.2).await?)
         .await;
     }
 
@@ -283,6 +364,10 @@ impl NodeType
     }
     if let Some(v) = node.get_stored().await
     {
+      // if let DataValue::String(s) = &v
+      // {
+      //   println!("{:?}", s);
+      // }
       Ok(v)
     }
     else
@@ -381,6 +466,95 @@ impl NodeType
             expected: vec![DataType::Handle, DataType::String],
           })
         }
+      }
+    }
+  }
+
+  async fn eval_unary(
+    atomic_unary_op: AtomicUnaryOp,
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError>
+  {
+    match atomic_unary_op
+    {
+      AtomicUnaryOp::Neg =>
+      {
+        let mut outputs = Vec::with_capacity(inputs.len());
+        for x in inputs.into_iter().map(|x| x.mul(DataValue::Integer(-1)))
+        {
+          outputs.push(x?);
+        }
+        Ok(outputs)
+      }
+    }
+  }
+
+  fn eval_logic(
+    logical_op: AtomicLogic,
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError>
+  {
+    if logical_op == AtomicLogic::Eq
+    {
+      if inputs.len() != 2
+      {
+        return Err(EvalError::IncorrectInputCount);
+      }
+      else
+      {
+        return Ok(vec![DataValue::Boolean(inputs[0] == inputs[1])]);
+      }
+    }
+
+    let mut bools = Vec::with_capacity(inputs.len());
+    for res_bool in inputs.iter().cloned().map(|x| {
+      x.try_cast(DataType::Boolean)
+        .map_err(|e| EvalError::CastError(e))
+    })
+    {
+      if let DataValue::Boolean(b) = res_bool?
+      {
+        bools.push(b);
+      }
+      else
+      {
+        panic!("This should never happen!! (eval_logic)")
+      }
+    }
+
+    match logical_op
+    {
+      AtomicLogic::And =>
+      {
+        Ok(vec![DataValue::Boolean(
+          bools
+            .into_iter()
+            .reduce(|acc, next| acc.bitand(next))
+            .unwrap(),
+        )])
+      }
+      AtomicLogic::Or =>
+      {
+        Ok(vec![DataValue::Boolean(
+          bools
+            .into_iter()
+            .reduce(|acc, next| acc.bitor(next))
+            .unwrap(),
+        )])
+      }
+      AtomicLogic::Xor =>
+      {
+        Ok(vec![DataValue::Boolean(
+          bools
+            .into_iter()
+            .reduce(|acc, next| acc.bitxor(next))
+            .unwrap(),
+        )])
+      }
+      AtomicLogic::Not => Ok(bools.into_iter().map(|x| DataValue::Boolean(!x)).collect()),
+      AtomicLogic::Eq =>
+      {
+        todo!()
       }
     }
   }

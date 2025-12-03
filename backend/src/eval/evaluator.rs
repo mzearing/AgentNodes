@@ -6,7 +6,7 @@ use std::{
 };
 use tokio::{
   io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
-  sync::RwLock,
+  sync::{RwLock, RwLockWriteGuard},
   task::{AbortHandle, JoinHandle, JoinSet},
 };
 use uuid::Uuid;
@@ -86,15 +86,21 @@ pub struct Evaluator
 {
   pub scope_id: Uuid,
   pub(super) nodes: HashMap<Uuid, Arc<ExecutionNode>>,
-  complex_cache: RwLock<HashMap<String, Arc<Self>>>,
+  evaluator_cache: RwLock<HashMap<String, Arc<Self>>>, // cache of parsed evaluators, not "alive"
+  complex_nodes: RwLock<HashMap<Uuid, Arc<Self>>>,     // running complex nodes
+
   parent: Option<Arc<Self>>,
   end_node: Uuid,
-  inputs: RwLock<Vec<DataValue>>,
+  inputs: (
+    tokio::sync::mpsc::Sender<Vec<DataValue>>,
+    RwLock<tokio::sync::mpsc::Receiver<Vec<DataValue>>>,
+  ),
   pub(crate) my_path: String,
   listen_handle: RwLock<Option<JoinHandle<()>>>,
   pub(self) closed: AtomicBool,
   io_registry: Arc<RwLock<HashMap<Uuid, IoObject>>>,
 }
+
 impl AsyncClone for Evaluator
 {
   async fn clone(&self) -> Self
@@ -106,10 +112,14 @@ impl AsyncClone for Evaluator
         .iter()
         .map(|(id, node)| (id.clone(), Arc::new((*(node.clone())).clone())))
         .collect(),
-      complex_cache: RwLock::new(self.complex_cache.read().await.clone()),
+      evaluator_cache: RwLock::new(self.evaluator_cache.read().await.clone()),
+      complex_nodes: RwLock::new(HashMap::new()),
       parent: self.parent.clone(),
       end_node: self.end_node.clone(),
-      inputs: RwLock::new(Vec::new()),
+      inputs: {
+        let channels = tokio::sync::mpsc::channel(1024);
+        (channels.0, RwLock::new(channels.1))
+      },
       my_path: self.my_path.clone(),
       listen_handle: RwLock::new(None),
       closed: AtomicBool::new(false),
@@ -147,10 +157,14 @@ impl Evaluator
     Ok(Arc::new(Self {
       scope_id: scope_id.clone(),
       nodes,
-      complex_cache: RwLock::new(HashMap::new()),
+      evaluator_cache: RwLock::new(HashMap::new()),
+      complex_nodes: RwLock::new(HashMap::new()),
       parent,
       end_node: Self::convert_id(&scope_id, me.end_node),
-      inputs: RwLock::new(Vec::new()),
+      inputs: {
+        let channels = tokio::sync::mpsc::channel(1024);
+        (channels.0, RwLock::new(channels.1))
+      },
       my_path: std::path::Path::new(&path)
         .parent()
         .map(|x| x.to_str().unwrap().to_string())
@@ -166,14 +180,14 @@ impl Evaluator
     Uuid::new_v5(scope, unscoped.as_bytes())
   }
 
-  async fn set_inputs(&self, inputs: Vec<DataValue>)
+  pub async fn send_inputs(&self, inputs: Vec<DataValue>)
   {
-    *self.inputs.write().await = inputs
+    self.inputs.0.clone().send(inputs).await.unwrap();
   }
 
   pub async fn get_inputs(&self) -> Vec<DataValue>
   {
-    self.inputs.read().await.clone()
+    self.inputs.1.write().await.recv().await.unwrap_or_default()
   }
 
   pub async fn get_outputs(&self) -> Result<Vec<DataValue>, EvalError>
@@ -229,7 +243,7 @@ impl Evaluator
   pub async fn instantiate(self: Arc<Self>, inputs: Vec<DataValue>) -> Arc<Self>
   {
     let instance = Arc::new((*self).clone().await);
-    instance.set_inputs(inputs).await;
+    instance.send_inputs(inputs).await;
     let tasks = instance
       .nodes
       .values()
@@ -243,7 +257,7 @@ impl Evaluator
 
   pub async fn get_evaluator(&self, path: &str) -> Option<Arc<Self>>
   {
-    if let Some(e) = self.complex_cache.read().await.get(path)
+    if let Some(e) = self.evaluator_cache.read().await.get(path)
     {
       Some(e.clone())
     }
@@ -253,7 +267,7 @@ impl Evaluator
       if let Some(e) = &got
       {
         self
-          .complex_cache
+          .evaluator_cache
           .write()
           .await
           .insert(path.to_string(), e.clone());
@@ -266,10 +280,20 @@ impl Evaluator
     }
   }
 
+  pub async fn get_complex_runner(&self, id: &Uuid) -> Option<Arc<Self>>
+  {
+    self.complex_nodes.read().await.get(id).cloned()
+  }
+
+  pub async fn add_complex_runner(&self, instance: Arc<Self>, id: &Uuid)
+  {
+    self.complex_nodes.write().await.insert(*id, instance);
+  }
+
   pub async fn add_evaluator(self: Arc<Self>, path: &str, eval: Arc<Self>)
   {
     self
-      .complex_cache
+      .evaluator_cache
       .write()
       .await
       .insert(path.to_string(), eval.clone());
@@ -291,23 +315,47 @@ impl Evaluator
     ret
   }
 
-  pub async fn read_until(&self, id: &Uuid, pattern: &[u8]) -> Result<Vec<u8>, EvalError>
+  async fn find_registry_mut(
+    self: &Arc<Self>,
+    id: &Uuid,
+  ) -> Result<RwLockWriteGuard<'_, HashMap<Uuid, IoObject>>, EvalError>
   {
-    let mut guard = self.io_registry.write().await;
+    if self.io_registry.read().await.contains_key(id)
+    {
+      return Ok(self.io_registry.write().await);
+    }
+
+    let mut current = &self.parent;
+    while let Some(parent) = &current
+    {
+      if parent.io_registry.read().await.contains_key(id)
+      {
+        return Ok(parent.io_registry.write().await);
+      }
+      current = &parent.parent
+    }
+    Err(EvalError::IoNotFound(id.clone()))
+  }
+
+  pub async fn read_until(self: Arc<Self>, id: &Uuid, pattern: &[u8])
+    -> Result<Vec<u8>, EvalError>
+  {
+    let mut guard = self.find_registry_mut(id).await?;
     let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
     read_until_generic(io, pattern).await
   }
 
-  pub async fn read_bytes(&self, id: &Uuid, buf: &mut Vec<u8>) -> Result<usize, EvalError>
+  pub async fn read_bytes(self: Arc<Self>, id: &Uuid, buf: &mut Vec<u8>)
+    -> Result<usize, EvalError>
   {
-    let mut guard = self.io_registry.write().await;
+    let mut guard = self.find_registry_mut(id).await?;
     let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
     io.read_buf(buf).await.map_err(EvalError::from)
   }
 
-  pub async fn write_bytes(&self, id: &Uuid, buf: &mut Vec<u8>) -> Result<(), EvalError>
+  pub async fn write_bytes(self: Arc<Self>, id: &Uuid, buf: &mut Vec<u8>) -> Result<(), EvalError>
   {
-    let mut guard = self.io_registry.write().await;
+    let mut guard = self.find_registry_mut(id).await?;
     let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
 
     io.write_all(buf).await.map_err(EvalError::from)
@@ -317,7 +365,7 @@ impl Evaluator
   {
     self
       .nodes
-      .get(id)
+      .get(&Uuid::new_v5(&self.scope_id, id.as_bytes()))
       .cloned()
       .ok_or(EvalError::NodeNotFound(id.clone()))
   }

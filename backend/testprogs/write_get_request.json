@@ -1,0 +1,81 @@
+{
+  "inputs": ["Handle"],
+  "outputs": ["Boolean"],
+  "defaults": {},
+  "end_node": "3f755d1a-ca53-11f0-ad8d-00155d8c2776",
+  "instances": {
+    "0cf99642-ca50-11f0-b48b-00155d8c2776":{
+      "inputs": [],
+      "outputs": ["String"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic": {
+          "Value" : "GET / HTTP/1.1\r\nHost: api.ipify.org\r\nUser-Agent: curl/8.5.0\r\nAccept: */*\r\n\r\n"
+        }
+      } 
+    },
+    "328ff522-ca50-11f0-a356-00155d8c2776":{
+      "inputs": [],
+      "outputs": ["Handle"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic" : {
+          "Control" : "Start"
+        }
+      }
+    },
+    "9c60e09c-ca50-11f0-a22f-00155d8c2776":{
+      "inputs": [["Handle", "328ff522-ca50-11f0-a356-00155d8c2776", 0], ["String", "0cf99642-ca50-11f0-b48b-00155d8c2776", 0]],
+      "outputs": ["None"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic": {
+          "Io" : "Write"
+        }
+      }
+    },
+    "5938e52a-ca51-11f0-8c10-00155d8c2776":{
+      "inputs": [["None", "9c60e09c-ca50-11f0-a22f-00155d8c2776", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic" : "IsNone"
+      }
+    },
+    "83952a36-ca51-11f0-a69b-00155d8c2776":{
+      "inputs": [],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic":{
+          "Variable": ["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0]
+        }
+      }
+    },
+    "c9530a02-ca51-11f0-8867-00155d8c2776":{
+      "inputs": [["Boolean", "83952a36-ca51-11f0-a69b-00155d8c2776", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic":
+        {
+          "Control" : 
+          {
+            "WaitForInit": ["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0]
+          }
+        }
+      }
+    },
+    "3f755d1a-ca53-11f0-ad8d-00155d8c2776":{
+      "inputs": [["Boolean", "c9530a02-ca51-11f0-8867-00155d8c2776", 0]],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type": {
+        "Atomic": {
+          "Control" : "End"
+        }
+      }
+    }
+
+  }
+}
