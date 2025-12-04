@@ -427,7 +427,8 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       const finalSaveData: NodeMetadata = {
         summary: mySummary,
         dependencies: dependencies,
-        data: updatedCanvasState
+        data: updatedCanvasState,
+        variables: projectState.variables || []
       };
 
       // Save the node data
@@ -748,8 +749,21 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
 
 
   return (
-    <div className={styles.canvas}>
-      <div className={styles.reactFlowWrapper} ref={canvasDrop.reactFlowWrapper}>
+    <div 
+      className={styles.canvas}
+      onDragEnter={canvasDrop.onDragEnter}
+      onDragLeave={canvasDrop.onDragLeave}
+      onDrop={canvasDrop.onDrop}
+      onDragOver={canvasDrop.onDragOver}
+    >
+      <div 
+        className={styles.reactFlowWrapper} 
+        ref={canvasDrop.reactFlowWrapper}
+        onDragEnter={canvasDrop.onDragEnter}
+        onDragLeave={canvasDrop.onDragLeave}
+        onDrop={canvasDrop.onDrop}
+        onDragOver={canvasDrop.onDragOver}
+      >
         <ReactFlow
           nodes={propNodes}
           edges={edges}

@@ -38,18 +38,106 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
-  const onDragOver = useCallback((event: React.DragEvent) => {
+  const setReactFlowInstanceWithLogging = useCallback((instance: ReactFlowInstance) => {
+    setReactFlowInstance(instance);
+  }, []);
+
+  const onDragEnter = useCallback((event: React.DragEvent) => {
+    console.log('onDragEnter called');
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDragLeave = useCallback((event: React.DragEvent) => {
+    console.log('onDragLeave called');
+  }, []);
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    console.log('onDragOver called, effectAllowed:', event.dataTransfer.effectAllowed);
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Check what types of data are available
+    const types = Array.from(event.dataTransfer.types);
+    console.log('Available data types:', types);
+    
+    // Try to match the effect
+    if (event.dataTransfer.effectAllowed.includes('copy')) {
+      event.dataTransfer.dropEffect = 'copy';
+    } else {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    
+    return false;
   }, []);
 
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
+      console.log('onDrop called - this should appear!');
       event.preventDefault();
+      event.stopPropagation();
 
-      if (!reactFlowWrapper.current || !reactFlowInstance) return;
+      if (!reactFlowWrapper.current || !reactFlowInstance) {
+        console.error(`Canvas drop failed - reactFlowWrapper: ${!!reactFlowWrapper.current}, reactFlowInstance: ${!!reactFlowInstance}`);
+        return;
+      }
 
       const nodeData = event.dataTransfer.getData('application/reactflow');
+      const variableData = event.dataTransfer.getData('application/variablenode');
+      
+      console.log('Drop data:', { nodeData, variableData });
+
+      if (!nodeData && !variableData) {
+        console.log('No valid drop data found');
+        return;
+      }
+
+      // Handle variable get/set nodes
+      if (variableData) {
+        console.log('Variable drop received:', variableData);
+        const { variableId, variableName, variableType, nodeType } = JSON.parse(variableData);
+        
+        const position = reactFlowInstance.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        const isGetter = nodeType === 'get';
+        const scriptingNodeData: ScriptingNodeData = {
+          nodeId: `variable_${nodeType}_${variableId}`,
+          label: `${isGetter ? 'Get' : 'Set'} ${variableName}`,
+          inputs: isGetter ? [] : [{ id: `input-${Date.now()}`, name: 'value', type: variableType }],
+          outputs: isGetter ? [{ id: `output-${Date.now()}`, name: variableName, type: variableType }] : [],
+          variadicInputs: false,
+          variadicOutputs: false,
+          multitypeInputs: false,
+          multitypeOutputs: false,
+          availableInputTypes: undefined,
+          availableOutputTypes: undefined,
+          solo: false,
+          metadataPath: undefined,
+          constantData: [],
+          constantValues: undefined,
+          variableId,
+          variableName,
+          isVariableNode: true,
+          isGetter
+        };
+
+        const newNode: Node = {
+          id: getNodeId(),
+          type: 'scripting-node',
+          position,
+          data: scriptingNodeData,
+        };
+
+        const newNodes = nodes.concat(newNode);
+        console.log('Creating variable node:', newNode);
+        console.log('Updated nodes array length:', newNodes.length);
+        onNodesChange(newNodes); 
+        onNodeAdd?.(newNode);
+        console.log('Variable node creation completed');
+        return;
+      }
 
       if (!nodeData) return;
 
@@ -190,7 +278,9 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
   return {
     reactFlowWrapper,
     reactFlowInstance,
-    setReactFlowInstance,
+    setReactFlowInstance: setReactFlowInstanceWithLogging,
+    onDragEnter,
+    onDragLeave,
     onDragOver,
     onDrop,
     syncNodeIdCounter

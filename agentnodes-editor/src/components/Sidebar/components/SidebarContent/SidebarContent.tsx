@@ -1,19 +1,22 @@
 import React from 'react';
 import { Node } from '@xyflow/react';
-import { Category, NodeGroup } from '../../../../types/project';
+import { Category, NodeGroup, Variable, IOType } from '../../../../types/project';
 import CategoryTabs from '../CategoryTabs/CategoryTabs';
 import NodeGroups from '../NodeGroups/NodeGroups';
+import VariableTabs from '../VariableTabs/VariableTabs';
 
 interface SidebarContentData {
   isLoading: boolean;
   activeCategory: Category;
   getCurrentGroups: () => NodeGroup[];
   nodes: Node[];
+  variables: Variable[];
 }
 
 interface SidebarContentManagement {
   groupManagement: ReturnType<typeof import('../../../../hooks').useGroupManagement>;
   nodeManagement: ReturnType<typeof import('../../../../hooks').useNodeManagement>;
+  variableManagement: ReturnType<typeof import('../../../../hooks/useVariableManagement').useVariableManagement>;
   dragAndDrop: ReturnType<typeof import('../../../../hooks').useDragAndDrop>;
 }
 
@@ -22,6 +25,7 @@ interface SidebarContentHandlers {
   sidebarHandlers: ReturnType<typeof import('../../../../hooks/useSidebarHandlers').useSidebarHandlers>;
   nodeHandlers: ReturnType<typeof import('../../../../hooks/useSidebarNodeHandlers').useSidebarNodeHandlers>;
   dragHandlers: ReturnType<typeof import('../../../../hooks/useSidebarDragHandlers').useSidebarDragHandlers>;
+  onVariableDragStart: (e: React.DragEvent, variable: Variable, nodeType: 'get' | 'set') => void;
 }
 
 interface SidebarContentProps {
@@ -90,6 +94,22 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
           onGroupDrop: handlers.dragHandlers.handleGroupDrop,
           onCreateNewGroup: handlers.sidebarHandlers.createNewGroup
         }}
+      />
+      <VariableTabs
+        variables={data.variables}
+        editingVariable={management.variableManagement.editingVariable}
+        editingVariableName={management.variableManagement.editingVariableName}
+        onStartEditing={management.variableManagement.startEditingVariable}
+        onFinishEditing={management.variableManagement.finishEditingVariable}
+        onCancelEditing={management.variableManagement.cancelEditingVariable}
+        onNameChange={management.variableManagement.setEditingVariableName}
+        onNameKeyDown={() => {
+          // Key handling is done in VariablesList component
+        }}
+        onTypeChange={(id: string, type: IOType) => management.variableManagement.updateVariable(id, { type })}
+        onDelete={management.variableManagement.deleteVariable}
+        onAddVariable={management.variableManagement.addVariable}
+        onDragStart={handlers.onVariableDragStart}
       />
     </>
   );

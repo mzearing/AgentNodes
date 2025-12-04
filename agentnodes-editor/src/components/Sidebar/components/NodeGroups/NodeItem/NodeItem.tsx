@@ -68,7 +68,10 @@ const NodeItem: React.FC<NodeItemProps> = ({
       key={node.id}
       className={`${styles.node} ${isDisabled ? styles.disabled : ''}`}
       draggable={!isDisabled && !editingState.isEditing}
-      onDragStart={(event) => !editingState.isEditing && handlers.onDragStart(event, node, groupId)}
+      onDragStart={(event) => {
+        console.log('Node drag start:', node.name);
+        !editingState.isEditing && handlers.onDragStart(event, node, groupId);
+      }}
     >
       <div className={styles.nodeContent}>
         {editingState.isEditing ? (
@@ -86,6 +89,11 @@ const NodeItem: React.FC<NodeItemProps> = ({
           <div className={styles.nodeName}>{node.name}</div>
         )}
       </div>
+      {!isDisabled && !editingState.isEditing && (
+        <div className={styles.nodeDragIndicator} title="Drag to canvas">
+          ⋮
+        </div>
+      )}
       {activeCategory === 'Complex' && !isOnCanvas && (
         <div className={styles.nodeActions}>
           <button

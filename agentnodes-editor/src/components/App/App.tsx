@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [projectName, setProjectName] = useState<string>('');
   const [hasProjectLoaded, setHasProjectLoaded] = useState<boolean>(false);
+  const [currentProjectState, setCurrentProjectState] = useState<ProjectState | null>(null);
   const canvasRef = useRef<CanvasMethods>(null);
 
   const handleNodesChange = (newNodes: Node[]) => {
@@ -54,9 +55,18 @@ const App: React.FC = () => {
       if (success) {
         setProjectName(projectState.openedNodeName || '');
         setHasProjectLoaded(true);
+        setCurrentProjectState(projectState);
       }
     } else {
       alert('Canvas not available');
+    }
+  }, []);
+
+  const handleProjectStateChange = useCallback((newProjectState: ProjectState) => {
+    setCurrentProjectState(newProjectState);
+    // Sync the changes back to the canvas
+    if (canvasRef.current) {
+      canvasRef.current.setProjectState(newProjectState);
     }
   }, []);
 
@@ -142,6 +152,9 @@ const App: React.FC = () => {
         nodes={nodes} 
         onLoadProject={handleLoadProject}
         onRefreshFunctionReady={handleSidebarRefreshReady}
+        onNodesChange={handleNodesChange}
+        projectState={currentProjectState}
+        onProjectStateChange={handleProjectStateChange}
       />
       <div className={hasProjectLoaded ? '' : styles.hiddenCanvas}>
         <Canvas 
