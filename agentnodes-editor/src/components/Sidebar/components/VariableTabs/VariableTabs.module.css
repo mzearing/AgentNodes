@@ -1,0 +1,259 @@
+.variablesSection {
+  padding: 0 var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-border-secondary);
+  padding-top: var(--spacing-lg);
+}
+
+.variablesSectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-lg);
+  padding-left: var(--spacing-md);
+}
+
+.variablesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.variableItem {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-lg) var(--spacing-md);
+  margin: var(--spacing-xs) 0;
+  background-color: var(--color-surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 60px;
+  gap: var(--spacing-sm);
+}
+
+.variableItem:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.variableContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.variableName {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.variableNameText {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.variableNameText:hover {
+  background-color: var(--color-surface-elevated);
+}
+
+.variableNameInput {
+  background: var(--color-surface-elevated);
+  border: 2px solid var(--color-primary);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+}
+
+.variableControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.variableDraggers {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.dragger {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border-secondary);
+  background-color: inherit;
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  cursor: grab;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  user-select: none;
+  min-width: 48px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.dragger:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.dragger:active {
+  cursor: grabbing;
+  transform: translateY(0);
+}
+
+.getDragger {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.getDragger:hover {
+  background-color: var(--color-success);
+  color: white;
+  border-color: var(--color-success);
+}
+
+.setDragger {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.setDragger:hover {
+  background-color: var(--color-warning);
+  color: white;
+  border-color: var(--color-warning);
+}
+
+.variableType {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 9999;
+}
+
+.variableType .dropdownListContainer {
+  position: absolute !important;
+  right: 0 !important;
+  left: auto !important;
+  top: calc(100% + 2px) !important;
+  z-index: 9999 !important;
+}
+
+.typeDropdown {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-secondary);
+  color: var(--color-text);
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+}
+
+.typeDropdown:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.typeDropdown:focus {
+  border-color: var(--color-primary);
+}
+
+.variableActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+.dragIndicator {
+  color: currentColor;
+  font-size: 10px;
+  line-height: 1;
+  user-select: none;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.deleteButton {
+  background: transparent;
+  border: 1px solid var(--color-border-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteButton:hover {
+  background: var(--color-danger);
+  color: white;
+  border-color: var(--color-danger);
+  transform: scale(1.05);
+}
+
+.addVariableButton {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  border: 2px dashed var(--color-border-secondary);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.addVariableButton:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}

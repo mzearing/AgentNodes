@@ -15,6 +15,7 @@ export interface ProjectState {
   openedNodeId: string;
   openedNodePath: string;
   canvasStateCache: ReactFlowJsonObject<Node, Edge>;
+  variables?: Variable[];
 }
 
 export enum IOType {
@@ -45,4 +46,12 @@ export interface NodeMetadata {
   summary: NodeSummary
   dependencies: NodeSummary[]
   data: ReactFlowJsonObject<Node, Edge>;
+  variables?: Variable[];
+}
+
+export interface Variable {
+  id: string;
+  name: string;
+  type: IOType;
+  defaultValue?: string | number | boolean;
 }

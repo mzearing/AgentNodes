@@ -41,6 +41,11 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   metadataPath?: string;
   constantData?: IOType[];
   constantValues?: ConstantDataValue[];
+  // Variable-specific properties
+  variableId?: string;
+  variableName?: string;
+  isVariableNode?: boolean;
+  isGetter?: boolean;
 }
 
 const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {

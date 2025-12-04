@@ -46,6 +46,7 @@ export const useSidebarHandlers = ({
         
         let canvasState = defaultCanvasState;
         let nodeName = node.name;
+        let nodeMetadata: NodeMetadata | null = null;
         
         // Use the NodeSummary's path to load the actual node file
         if (node.path && node.path.trim() !== '') {
@@ -63,7 +64,7 @@ export const useSidebarHandlers = ({
               // Check if this is the new NodeMetadata format or old summary format
               if (parsedData.summary && parsedData.data) {
                 // New NodeMetadata format
-                const nodeMetadata = parsedData as NodeMetadata;
+                nodeMetadata = parsedData as NodeMetadata;
                 console.log('Found NodeMetadata format');
                 
                 // Update node name from metadata if available
@@ -98,7 +99,8 @@ export const useSidebarHandlers = ({
           openedNodeName: nodeName,
           openedNodeId: nodeId,
           openedNodePath: `${activeCategory.toLowerCase()}/${groupId}`,
-          canvasStateCache: canvasState
+          canvasStateCache: canvasState,
+          variables: nodeMetadata?.variables || []
         };
         onLoadProject(projectState);
       } catch (error) {
@@ -108,6 +110,7 @@ export const useSidebarHandlers = ({
   }, [activeCategory, onLoadProject]);
 
   const onDragStart = useCallback((event: React.DragEvent, node: NodeSummary, groupId: string) => {
+    console.log('Sidebar drag start handler called:', node.name);
     const dragData = {
       nodeId: node.id,
       groupId: groupId,
@@ -126,7 +129,8 @@ export const useSidebarHandlers = ({
     };
     
     event.dataTransfer.setData('application/reactflow', JSON.stringify(dragData));
-    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.effectAllowed = 'copy';
+    console.log('Drag data set:', dragData);
   }, [activeCategory]);
 
   const handleGroupDoubleClick = useCallback(async (groupId: string, groupName: string) => {
