@@ -1,4 +1,7 @@
-use crate::language::typing::{ArithmaticError, DataType};
+use crate::{
+  ai::AgentErr,
+  language::typing::{ArithmaticError, DataType},
+};
 use std::string::FromUtf8Error;
 use tokio::sync::oneshot::error::RecvError;
 use uuid::Uuid;
@@ -13,6 +16,7 @@ pub enum EvalError
   ComplexNotFound(String),
   ChannelRecvErr(RecvError),
   IoNotFound(Uuid),
+  AgentNotFound(Uuid),
   IncorrectTyping
   {
     got: Vec<DataType>,
@@ -25,6 +29,7 @@ pub enum EvalError
   PortOutOfBounds(usize),
   NodeNotFound(Uuid),
   CastError((DataType, DataType)),
+  AgentErr(AgentErr),
   NoListeningNode,
   NoEndNode,
   Closed,
@@ -63,5 +68,13 @@ impl From<FromUtf8Error> for EvalError
   fn from(value: FromUtf8Error) -> Self
   {
     Self::InvalidUtf8(value)
+  }
+}
+
+impl From<AgentErr> for EvalError
+{
+  fn from(value: AgentErr) -> Self
+  {
+    Self::AgentErr(value)
   }
 }

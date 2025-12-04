@@ -1,5 +1,8 @@
 use super::{AsyncClone, EvalError, ExecutionNode, IoObject};
-use crate::language::{nodes::Complex, typing::DataValue};
+use crate::{
+  ai::{AgentArgs, AgentType, ChatBody, DynAgent},
+  language::{nodes::Complex, typing::DataValue},
+};
 use std::{
   collections::{HashMap, VecDeque},
   sync::{atomic::AtomicBool, Arc},
@@ -99,6 +102,8 @@ pub struct Evaluator
   listen_handle: RwLock<Option<JoinHandle<()>>>,
   pub(self) closed: AtomicBool,
   io_registry: Arc<RwLock<HashMap<Uuid, IoObject>>>,
+
+  agent_registry: Arc<RwLock<HashMap<Uuid, DynAgent>>>,
 }
 
 impl AsyncClone for Evaluator
@@ -124,6 +129,7 @@ impl AsyncClone for Evaluator
       listen_handle: RwLock::new(None),
       closed: AtomicBool::new(false),
       io_registry: Arc::new(RwLock::new(HashMap::new())),
+      agent_registry: Arc::new(RwLock::new(HashMap::new())),
     }
   }
 }
@@ -172,6 +178,7 @@ impl Evaluator
       listen_handle: RwLock::new(None),
       closed: AtomicBool::new(false),
       io_registry: Arc::new(RwLock::new(HashMap::new())),
+      agent_registry: Arc::new(RwLock::new(HashMap::new())),
     }))
   }
 
@@ -315,7 +322,7 @@ impl Evaluator
     ret
   }
 
-  async fn find_registry_mut(
+  async fn find_io_registry_mut(
     self: &Arc<Self>,
     id: &Uuid,
   ) -> Result<RwLockWriteGuard<'_, HashMap<Uuid, IoObject>>, EvalError>
@@ -340,7 +347,7 @@ impl Evaluator
   pub async fn read_until(self: Arc<Self>, id: &Uuid, pattern: &[u8])
     -> Result<Vec<u8>, EvalError>
   {
-    let mut guard = self.find_registry_mut(id).await?;
+    let mut guard = self.find_io_registry_mut(id).await?;
     let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
     read_until_generic(io, pattern).await
   }
@@ -348,14 +355,14 @@ impl Evaluator
   pub async fn read_bytes(self: Arc<Self>, id: &Uuid, buf: &mut Vec<u8>)
     -> Result<usize, EvalError>
   {
-    let mut guard = self.find_registry_mut(id).await?;
+    let mut guard = self.find_io_registry_mut(id).await?;
     let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
     io.read_buf(buf).await.map_err(EvalError::from)
   }
 
   pub async fn write_bytes(self: Arc<Self>, id: &Uuid, buf: &mut Vec<u8>) -> Result<(), EvalError>
   {
-    let mut guard = self.find_registry_mut(id).await?;
+    let mut guard = self.find_io_registry_mut(id).await?;
     let io = guard.get_mut(id).ok_or(EvalError::IoNotFound(id.clone()))?;
 
     io.write_all(buf).await.map_err(EvalError::from)
@@ -368,5 +375,57 @@ impl Evaluator
       .get(&Uuid::new_v5(&self.scope_id, id.as_bytes()))
       .cloned()
       .ok_or(EvalError::NodeNotFound(id.clone()))
+  }
+
+  pub async fn register_agent(&self, agent_type: AgentType, args: AgentArgs) -> Uuid
+  {
+    let agent = agent_type.create(args);
+    let id = Uuid::new_v4();
+    self.agent_registry.write().await.insert(id.clone(), agent);
+    id
+  }
+
+  async fn find_agent_registry_mut(
+    self: &Arc<Self>,
+    id: &Uuid,
+  ) -> Result<RwLockWriteGuard<'_, HashMap<Uuid, DynAgent>>, EvalError>
+  {
+    if self.agent_registry.read().await.contains_key(id)
+    {
+      return Ok(self.agent_registry.write().await);
+    }
+
+    let mut current = &self.parent;
+    while let Some(parent) = &current
+    {
+      if parent.agent_registry.read().await.contains_key(id)
+      {
+        return Ok(parent.agent_registry.write().await);
+      }
+      current = &parent.parent;
+    }
+    Err(EvalError::AgentNotFound(id.clone()))
+  }
+  pub async fn agent_send_message(self: Arc<Self>, id: &Uuid, body: String)
+    -> Result<(), EvalError>
+  {
+    let agent = &self.find_agent_registry_mut(id).await?[id];
+
+    agent
+      .send_chat(agent.create_body(body).await)
+      .await
+      .map_err(EvalError::from)
+  }
+
+  pub async fn agent_get_last_message(
+    self: Arc<Self>,
+    id: &Uuid,
+  ) -> Result<Option<ChatBody>, EvalError>
+  {
+    Ok(
+      self.find_agent_registry_mut(id).await?[id]
+        .get_last_response()
+        .await,
+    )
   }
 }

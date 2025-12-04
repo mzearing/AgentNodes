@@ -1,3 +1,4 @@
+use crate::ai::AgentType;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -25,6 +26,7 @@ pub enum DataType
   Byte,
   Handle,
   Object,
+  Agent(AgentType),
   None,
 }
 
@@ -40,6 +42,7 @@ pub enum DataValue
   Array(Vec<DataValue>),
   Handle(Uuid),
   Object(HashMap<String, DataValue>),
+  Agent(AgentType, Uuid),
   None,
 }
 impl Display for DataType
@@ -63,6 +66,7 @@ impl Display for DataValue
       DataValue::Array(x) => write!(f, "{}", serde_json::to_string(x).unwrap()),
       DataValue::Byte(x) => write!(f, "{x:x}"),
       DataValue::Object(x) => write!(f, "{}", serde_json::to_string(x).unwrap()),
+      DataValue::Agent(t, id) => write!(f, "{t:?}:{id}"),
       DataValue::None => Ok(()),
     }
   }
@@ -274,6 +278,7 @@ impl DataValue
       DataValue::Array(_) => DataType::Array,
       DataValue::Handle(_) => DataType::Handle,
       DataValue::Object(_) => DataType::Object,
+      DataValue::Agent(t, _) => DataType::Agent(t.clone()),
       DataValue::None => DataType::None,
     }
   }

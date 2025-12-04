@@ -1,0 +1,116 @@
+{
+  "defaults": {},
+  "inputs": [],
+  "outputs": ["None"], 
+  "end_node": "7fe221d0-d15b-11f0-8395-00155d2cc0bc",
+  "instances": {
+    "5e4fce34-d159-11f0-857d-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [],
+      "outputs": ["String"],
+      "node_type":{
+        "Atomic":{
+          "Value": "gpt-4o"
+        }
+      }
+    },
+    "872716be-d159-11f0-b38d-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [],
+      "outputs": ["Boolean"],
+      "node_type":{
+        "Atomic":{
+          "Value" : true
+        }
+      }
+    },
+    "116ee2e8-d15a-11f0-95c0-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [["String", "5e4fce34-d159-11f0-857d-00155d2cc0bc", 0]],
+      "outputs": [{"Agent": "OpenAi"}],
+      "node_type":{
+        "Atomic":{
+          "AgentOp":{
+            "Create": "OpenAi"
+          }
+        }
+      }
+    },
+
+    "67363a5a-d15a-11f0-835c-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [],
+      "outputs": ["String"],
+      "node_type":{
+        "Atomic":{
+          "Io":"ConsoleInput"
+        }
+      }
+    },
+
+    "a49f4cb0-d15a-11f0-a0bd-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [[{"Agent": "OpenAi"}, "116ee2e8-d15a-11f0-95c0-00155d2cc0bc", 0], ["String", "67363a5a-d15a-11f0-835c-00155d2cc0bc", 0]],
+      "outputs": ["None"],
+      "node_type":{
+        "Atomic":
+        {
+          "AgentOp":"Send"
+        }
+      }
+    },
+    "d091d9b4-d15a-11f0-ac1f-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [["None", "a49f4cb0-d15a-11f0-a0bd-00155d2cc0bc", 0]],
+      "outputs": ["Boolean"],
+      "node_type":{
+        "Atomic":"IsNone"
+      }
+    },
+    "04ca4158-d15b-11f0-ad99-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [[{"Agent": "OpenAi"}, "116ee2e8-d15a-11f0-95c0-00155d2cc0bc", 0]],
+      "outputs": ["String"],
+      "node_type":{
+        "Atomic":
+        {
+          "AgentOp":"Recieve"
+        }
+      }
+    },
+    "2ae414c2-d15b-11f0-9239-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [["String", "04ca4158-d15b-11f0-ad99-00155d2cc0bc", 0]],
+      "outputs": ["None"],
+      "node_type":{
+        "Atomic":"Print"
+      }
+    },
+    "47ae9b90-d15b-11f0-83a2-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [["Boolean", "d091d9b4-d15a-11f0-ac1f-00155d2cc0bc", 0]],
+      "outputs": ["None"],
+      "node_type":{
+        "Atomic":
+        {
+          "Control":
+          {
+            "If": ["None", "2ae414c2-d15b-11f0-9239-00155d2cc0bc", 0]
+          }
+        }
+      }
+    },
+    "7fe221d0-d15b-11f0-8395-00155d2cc0bc":{
+      "default_overrides": {},
+      "inputs": [["Boolean","872716be-d159-11f0-b38d-00155d2cc0bc",0]],
+      "outputs": ["None"],
+      "node_type":{
+        "Atomic":{
+          "Control":{
+            "While": ["None", "47ae9b90-d15b-11f0-83a2-00155d2cc0bc", 0]
+          }
+        }
+      }
+    }
+  }
+}

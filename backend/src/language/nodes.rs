@@ -1,12 +1,14 @@
 use super::typing::{DataType, DataValue};
+use crate::ai::{Agent, AgentArgs, AgentType};
 use crate::eval::{AsyncClone, EvalError, NodeConnection};
 use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
+use openai::chat::ChatCompletionMessage;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, BitOr, BitXor, Mul};
 use std::sync::Arc;
 use std::vec;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
@@ -23,6 +25,15 @@ pub enum AtomicType
   Cast(DataType),
   IsNone,
   LogicalOp(AtomicLogic),
+  AgentOp(AgentOperation),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+pub enum AgentOperation
+{
+  Create(AgentType),
+  Send,
+  Recieve,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
@@ -32,6 +43,7 @@ pub enum ControlFlow
   End,
   WaitForInit(NodeConnection),
   While(NodeConnection),
+  If(NodeConnection),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -47,6 +59,7 @@ pub enum AtomicLogic
 #[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
 pub enum AtomicIo
 {
+  ConsoleInput,
   Open(IoType),
   Read,
   Write,
@@ -237,6 +250,7 @@ impl NodeType
         tokio::task::yield_now().await;
         Ok(vec![DataValue::Boolean(inputs[0].is_none())])
       }
+      AtomicType::AgentOp(op) => Self::eval_agent(op, inputs, node, eval).await,
     }
   }
 
@@ -329,6 +343,22 @@ impl NodeType
         {
           Ok(inputs)
         }
+      }
+      ControlFlow::If(connection) =>
+      {
+        if Some(DataValue::Boolean(true)) == inputs.get(0).cloned()
+        {
+          let end = eval.find_node(&connection.1)?;
+          let _outputs: Vec<DataValue> = end
+            .listen_all()
+            .await
+            .join_all()
+            .await
+            .into_iter()
+            .map(|x| x.unwrap_or(DataValue::None))
+            .collect();
+        }
+        Ok(vec![DataValue::None])
       }
     }
   }
@@ -467,6 +497,15 @@ impl NodeType
           })
         }
       }
+      AtomicIo::ConsoleInput =>
+      {
+        let mut buf = String::new();
+        BufReader::new(tokio::io::stdin())
+          .read_line(&mut buf)
+          .await
+          .map_err(|x| EvalError::IoError(x))?;
+        Ok(vec![DataValue::String(buf)])
+      }
     }
   }
 
@@ -485,6 +524,71 @@ impl NodeType
           outputs.push(x?);
         }
         Ok(outputs)
+      }
+    }
+  }
+
+  async fn eval_agent(
+    agent_op: AgentOperation,
+    inputs: Vec<DataValue>,
+    node: &ExecutionNode,
+    eval: Arc<Evaluator>,
+  ) -> Result<Vec<DataValue>, EvalError>
+  {
+    match agent_op
+    {
+      AgentOperation::Create(agent_type) =>
+      {
+        if let Some(agent) = node.get_stored().await
+        {
+          return Ok(vec![agent]);
+        }
+
+        if let Some(DataValue::String(model)) = inputs.get(0).cloned()
+        {
+          let ret = DataValue::Agent(
+            agent_type.clone(),
+            eval.register_agent(agent_type, AgentArgs { model }).await,
+          );
+          node.set_stored(ret.clone()).await;
+          Ok(vec![ret])
+        }
+        else
+        {
+          todo!()
+        }
+      }
+      AgentOperation::Send =>
+      {
+        let args = (inputs.get(0).cloned(), inputs.get(1).cloned());
+        if let (Some(DataValue::Agent(_, id)), Some(DataValue::String(message))) = args
+        {
+          eval.agent_send_message(&id, message).await?;
+          Ok(vec![DataValue::None])
+        }
+        else
+        {
+          Err(EvalError::IncorrectTyping {
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
+            expected: vec![DataType::Agent(AgentType::OpenAi), DataType::String],
+          })
+        }
+      }
+      AgentOperation::Recieve =>
+      {
+        if let Some(DataValue::Agent(_, id)) = inputs.get(0)
+        {
+          Ok(vec![eval
+            .agent_get_last_message(id)
+            .await?
+            .and_then(|x| x.get_content())
+            .map(|x| DataValue::String(x))
+            .unwrap_or(DataValue::None)])
+        }
+        else
+        {
+          todo!()
+        }
       }
     }
   }
@@ -559,5 +663,3 @@ impl NodeType
     }
   }
 }
-
-impl Instance {}

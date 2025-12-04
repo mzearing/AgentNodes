@@ -40,6 +40,36 @@
     "instances"
   ],
   "$defs": {
+    "AgentOperation": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Send",
+            "Recieve"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Create": {
+              "$ref": "#/$defs/AgentType"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Create"
+          ]
+        }
+      ]
+    },
+    "AgentType": {
+      "type": "string",
+      "enum": [
+        "OpenAi",
+        "OpenRouter"
+      ]
+    },
     "AtomicBinOp": {
       "type": "string",
       "enum": [
@@ -56,6 +86,7 @@
         {
           "type": "string",
           "enum": [
+            "ConsoleInput",
             "Read",
             "Write",
             "GetLine"
@@ -206,6 +237,18 @@
           "required": [
             "LogicalOp"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "AgentOp": {
+              "$ref": "#/$defs/AgentOperation"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "AgentOp"
+          ]
         }
       ]
     },
@@ -279,21 +322,65 @@
           "required": [
             "While"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "If": {
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "If"
+          ]
         }
       ]
     },
     "DataType": {
-      "type": "string",
-      "enum": [
-        "Array",
-        "String",
-        "Integer",
-        "Float",
-        "Boolean",
-        "Byte",
-        "Handle",
-        "Object",
-        "None"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Array",
+            "String",
+            "Integer",
+            "Float",
+            "Boolean",
+            "Byte",
+            "Handle",
+            "Object",
+            "None"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Agent": {
+              "$ref": "#/$defs/AgentType"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Agent"
+          ]
+        }
       ]
     },
     "DataValue": {
@@ -333,6 +420,20 @@
           "additionalProperties": {
             "$ref": "#/$defs/DataValue"
           }
+        },
+        {
+          "type": "array",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/AgentType"
+            },
+            {
+              "type": "string",
+              "format": "uuid"
+            }
+          ]
         },
         {
           "type": "null"

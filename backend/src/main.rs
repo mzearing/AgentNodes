@@ -1,3 +1,4 @@
+mod ai;
 mod cli;
 mod eval;
 mod language;
@@ -9,6 +10,7 @@ use eval::Evaluator;
 #[tokio::main]
 async fn main()
 {
+  dotenvy::dotenv().unwrap();
   let cli = Cli::parse();
 
   if cli.print_schemas
