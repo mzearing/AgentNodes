@@ -1,5 +1,6 @@
 import { Category, NodeGroup, NodeSummary, IOType } from "../types/project";
 import { canvasRefreshEmitter } from "../hooks/useSidebarData";
+import { configurationService } from "./configurationService";
 
 // Helper function to detect if types indicate multitype capability
 const detectMultitype = (types: IOType[] | IOType[][] | undefined): boolean => {
@@ -35,11 +36,14 @@ declare global {
 }
 
 export class NodeFileSystemService {
-  private nodesPath: string;
   private nodeFileTimestamps: Map<string, number> = new Map();
 
-  constructor(nodesPath = './node-definitions') {
-    this.nodesPath = nodesPath;
+  constructor() {
+    // Path is now managed by configurationService
+  }
+  
+  private get nodesPath(): string {
+    return configurationService.getNodeDefinitionsPath();
   }
   
   async loadNodeGroups(): Promise<{ complex: NodeGroup[]; atomic: NodeGroup[] }> {

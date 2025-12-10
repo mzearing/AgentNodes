@@ -1,0 +1,13 @@
+{
+  "id": "replace",
+  "name": "Replace",
+  "inputs": ["Source", "Pattern", "Replacement"],
+  "outputs": ["Result"],
+  "inputTypes": [3, 3, 3],
+  "outputTypes": [3],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "solo": false
+}

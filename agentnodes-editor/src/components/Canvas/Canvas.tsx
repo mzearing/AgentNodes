@@ -94,6 +94,29 @@ interface IDName {
 
 const initialEdges: Edge[] = [];
 
+// Helper function to check if automatic casting is supported (shared logic)
+const canAutocastTypes = (fromType: IOType, toType: IOType): boolean => {
+  // Same type - always valid
+  if (fromType === toType) return true;
+  
+  // None type compatibility rules:
+  // - Any type can be cast to None (for trigger/control flow purposes)
+  // - None can only be cast to other None inputs (control flow only)
+  if (toType === IOType.None) return true; // Any type can trigger None inputs
+  if (fromType === IOType.None) return toType === IOType.None; // None outputs only go to None inputs
+  
+  // Other supported automatic casts:
+  if (fromType === IOType.Integer && toType === IOType.Float) return true; 
+  if (fromType === IOType.Float && toType === IOType.Integer) return true;
+  
+  // Additional implicit conversions for string concatenation:
+  if (toType === IOType.String && (fromType === IOType.Integer || fromType === IOType.Float || fromType === IOType.Boolean)) {
+    return true;
+  }
+  
+  return false;
+};
+
 // Helper function to validate connections and remove invalid ones
 const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
   return edges.filter(edge => {
@@ -113,12 +136,12 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
       return false;
     }
     
-    // Type validation - only allow exact type matches
+    // Type validation - allow exact matches or auto-castable types
     const sourceType = sourceHandle.type ?? IOType.None;
     const targetType = targetHandle.type ?? IOType.None;
     
-    if (sourceType !== targetType) {
-      console.warn(`Removing edge with type mismatch: ${IOType[sourceType]} -> ${IOType[targetType]}`);
+    if (!canAutocastTypes(sourceType, targetType)) {
+      console.warn(`Removing edge with incompatible types: ${IOType[sourceType]} -> ${IOType[targetType]} (no auto-cast available)`);
       return false;
     }
     
@@ -701,6 +724,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     });
   }, [propNodes, setEdges]);
 
+
   const isValidConnection = useCallback(
     (connection: Connection) => {
       // Prevent self-connections
@@ -717,13 +741,18 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         const targetHandle = (targetNode.data as ScriptingNodeData)?.inputs?.find(input => input.id === connection.targetHandle);
         
         if (sourceHandle && targetHandle) {
-          // Only allow connections between exact same types
           const sourceType = sourceHandle.type ?? IOType.None;
           const targetType = targetHandle.type ?? IOType.None;
           
-          if (sourceType !== targetType) {
-            console.warn(`Cannot connect ${IOType[sourceType]} output to ${IOType[targetType]} input - type mismatch`);
+          // Allow connections if types match exactly or can be auto-cast
+          if (!canAutocastTypes(sourceType, targetType)) {
+            console.warn(`Cannot connect ${IOType[sourceType]} output to ${IOType[targetType]} input - no automatic cast available`);
             return false;
+          }
+          
+          // If auto-cast is needed, log it for user feedback
+          if (sourceType !== targetType) {
+            console.log(`✨ Auto-casting ${IOType[sourceType]} → ${IOType[targetType]}`);
           }
         }
       }

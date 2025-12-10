@@ -1,0 +1,200 @@
+.consoleDocked {
+  position: fixed;
+  bottom: 0;
+  right: 20px;
+  z-index: 1000;
+}
+
+.console {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid #ccc;
+  background: #1e1e1e;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #444;
+  flex-shrink: 0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.runningIndicator {
+  color: #4caf50;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.clearButton,
+.toggleButton {
+  background: #404040;
+  border: 1px solid #666;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.clearButton:hover,
+.toggleButton:hover {
+  background: #555;
+}
+
+.output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  background: #1e1e1e;
+  line-height: 1.4;
+}
+
+.output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.output::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.output::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 4px;
+}
+
+.output::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+.emptyMessage {
+  color: #888;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.outputLine {
+  display: flex;
+  margin-bottom: 2px;
+  word-break: break-all;
+}
+
+.timestamp {
+  color: #888;
+  margin-right: 8px;
+  flex-shrink: 0;
+  font-size: 11px;
+  width: 80px;
+}
+
+.content {
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.stdout {
+  color: #ffffff;
+}
+
+.stderr {
+  color: #ff6b6b;
+}
+
+.error {
+  color: #ff4757;
+  font-weight: bold;
+}
+
+.exit {
+  color: #ffa502;
+}
+
+.inputContainer {
+  display: flex;
+  border-top: 1px solid #444;
+  background: #2d2d2d;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  padding: 8px 12px;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.input:disabled {
+  color: #666;
+}
+
+.input::placeholder {
+  color: #888;
+}
+
+.submitButton {
+  background: #007acc;
+  border: none;
+  color: #ffffff;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #005a9e;
+}
+
+.submitButton:disabled {
+  background: #555;
+  color: #888;
+  cursor: not-allowed;
+}
+
+/* Docked console button */
+.consoleDocked .toggleButton {
+  background: #007acc;
+  border: 1px solid #005a9e;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
+}
+
+.consoleDocked .toggleButton:hover {
+  background: #005a9e;
+}

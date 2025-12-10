@@ -1,0 +1,14 @@
+{
+  "id": "while-loop",
+  "name": "While Loop",
+  "inputs": ["Condition"],
+  "outputs": ["None"],
+  "inputTypes": [4],
+  "outputTypes": [0],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "constantData": [3, 3, 1],
+  "solo": false
+}

@@ -105,8 +105,8 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         const scriptingNodeData: ScriptingNodeData = {
           nodeId: `variable_${nodeType}_${variableId}`,
           label: `${isGetter ? 'Get' : 'Set'} ${variableName}`,
-          inputs: isGetter ? [] : [{ id: `input-${Date.now()}`, name: 'value', type: variableType }],
-          outputs: isGetter ? [{ id: `output-${Date.now()}`, name: variableName, type: variableType }] : [],
+          inputs: isGetter ? [{ id: `input-${Date.now()}`, name: 'trigger', type: 0 }] : [{ id: `input-${Date.now()}`, name: 'value', type: variableType }],
+          outputs: [{ id: `output-${Date.now()}`, name: isGetter ? variableName : 'value', type: variableType }],
           variadicInputs: false,
           variadicOutputs: false,
           multitypeInputs: false,

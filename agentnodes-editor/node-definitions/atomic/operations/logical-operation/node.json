@@ -1,0 +1,14 @@
+{
+  "id": "logical-operation",
+  "name": "Logical Operation",
+  "inputs": ["Left", "Right"],
+  "outputs": ["Result"],
+  "inputTypes": [[4], [4]],
+  "outputTypes": [4],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "constantData": [3],
+  "solo": false
+}
