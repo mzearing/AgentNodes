@@ -22,16 +22,20 @@ export const useVariableNodeSync = (
             ...data,
             label: `${isGetter ? 'Get' : 'Set'} ${variable.name}`,
             variableName: variable.name,
-            inputs: isGetter ? [] : [{
+            inputs: isGetter ? [{
+              id: data.inputs[0]?.id || `input-${Date.now()}`,
+              name: 'trigger',
+              type: 0 // None type for trigger
+            }] : [{
               id: data.inputs[0]?.id || `input-${Date.now()}`,
               name: 'value',
               type: variable.type
             }],
-            outputs: isGetter ? [{
+            outputs: [{
               id: data.outputs[0]?.id || `output-${Date.now()}`,
-              name: variable.name,
+              name: isGetter ? variable.name : 'value',
               type: variable.type
-            }] : []
+            }]
           }
         };
       }

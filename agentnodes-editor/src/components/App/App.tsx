@@ -4,10 +4,13 @@ import styles from './App.module.css';
 import Header from '../Header/Header';
 import Canvas, { CanvasMethods } from '../Canvas/Canvas';
 import Sidebar from '../Sidebar/Sidebar';
+import Console from '../Console/Console';
 import { ProjectState } from '../../types/project';
 import { sidebarRefreshEmitter, canvasRefreshEmitter } from '../../hooks/useSidebarData';
 import { compilationService } from '../../services/compilationService';
 import { nodeCompilationStatusService } from '../../services/nodeCompilationStatus';
+import { configurationService } from '../../services/configurationService';
+import { processManagerService } from '../../services/processManagerService';
 
 
 const App: React.FC = () => {
@@ -15,6 +18,10 @@ const App: React.FC = () => {
   const [projectName, setProjectName] = useState<string>('');
   const [hasProjectLoaded, setHasProjectLoaded] = useState<boolean>(false);
   const [currentProjectState, setCurrentProjectState] = useState<ProjectState | null>(null);
+  const [nodePath, setNodePath] = useState<string>(configurationService.getNodeDefinitionsPath());
+  const [executablePath, setExecutablePath] = useState<string>(configurationService.getExecutablePath());
+  const [isConsoleVisible, setIsConsoleVisible] = useState<boolean>(false);
+  const [isProcessRunning, setIsProcessRunning] = useState<boolean>(false);
   const canvasRef = useRef<CanvasMethods>(null);
 
   const handleNodesChange = (newNodes: Node[]) => {
@@ -84,7 +91,7 @@ const App: React.FC = () => {
           try {
             // Save compiled.json to the specific node's folder
             const dataStr = JSON.stringify(result.data, null, 2);
-            const compiledFilePath = `./node-definitions/${projectState.openedNodePath}/${projectState.openedNodeId}/compiled.json`;
+            const compiledFilePath = configurationService.getCompilationPath(projectState.openedNodePath, projectState.openedNodeId);
             
             if (window.electronAPI?.writeFile) {
               await window.electronAPI.writeFile(compiledFilePath, dataStr);
@@ -112,7 +119,15 @@ const App: React.FC = () => {
           }
         } else {
           const errorMessage = result.errors?.join('\n') || 'Unknown compilation error';
+          console.error('Compilation failed:', result.errors);
           alert(`Compilation failed:\n${errorMessage}`);
+          
+          // Log errors to console for debugging
+          if (result.errors) {
+            result.errors.forEach(error => {
+              processManagerService.addCompilationError(error);
+            });
+          }
         }
       } else {
         alert('No canvas data or project state available. Please load a project first.');
@@ -127,6 +142,89 @@ const App: React.FC = () => {
     // No-op: refresh function not needed in this component
   }, []);
 
+  const handlePathChange = useCallback(async (newPath: string) => {
+    await configurationService.setNodeDefinitionsPath(newPath);
+    setNodePath(newPath);
+    console.log('Node definitions path changed to:', newPath);
+    
+    // Refresh sidebar to load nodes from new path
+    sidebarRefreshEmitter.emit();
+  }, []);
+
+  const handleExecutablePathChange = useCallback(async (newPath: string) => {
+    await configurationService.setExecutablePath(newPath);
+    setExecutablePath(newPath);
+    console.log('Executable path changed to:', newPath);
+  }, []);
+
+  const handleRunProcess = useCallback(async () => {
+    if (isProcessRunning) {
+      console.log('Process already running');
+      return;
+    }
+
+    const executablePath = configurationService.getExecutablePath();
+    if (!executablePath) {
+      alert('No executable path configured. Please set it in Settings.');
+      return;
+    }
+
+    // Get current project state to find compiled.json file
+    if (!canvasRef.current) {
+      alert('Canvas not available');
+      return;
+    }
+
+    const projectState = canvasRef.current.getProjectState();
+    if (!projectState || !projectState.openedNodePath || !projectState.openedNodeId) {
+      alert('No project loaded. Please load a project and compile it first.');
+      return;
+    }
+
+    const compiledFilePath = configurationService.getCompilationPath(
+      projectState.openedNodePath, 
+      projectState.openedNodeId
+    );
+
+    // Check if compiled file exists
+    try {
+      if (window.electronAPI?.readFile) {
+        await window.electronAPI.readFile(compiledFilePath);
+      } else {
+        alert('Compiled file verification not available. Make sure to compile before running.');
+        return;
+      }
+    } catch (error) {
+      alert('Compiled file not found. Please compile the project first.');
+      return;
+    }
+
+    setIsConsoleVisible(true);
+    const success = await processManagerService.startProcess(executablePath, [
+      compiledFilePath,
+      '--print-output'
+    ]);
+    if (success) {
+      setIsProcessRunning(true);
+    }
+  }, [isProcessRunning]);
+
+  const handleStopProcess = useCallback(async () => {
+    if (!isProcessRunning) {
+      console.log('No process running');
+      return;
+    }
+
+    const success = await processManagerService.stopProcess();
+    if (success) {
+      setIsProcessRunning(false);
+    }
+  }, [isProcessRunning]);
+
+  const handleToggleConsole = useCallback(() => {
+    setIsConsoleVisible(prev => !prev);
+  }, []);
+
   // Listen for canvas refresh events to reload the current project when dependencies change
   useEffect(() => {
     const unsubscribe = canvasRefreshEmitter.subscribe(async () => {
@@ -139,14 +237,70 @@ const App: React.FC = () => {
     return unsubscribe;
   }, [hasProjectLoaded]);
 
+  // Listen for path configuration changes
+  useEffect(() => {
+    const unsubscribeNodePath = configurationService.onNodePathChange((newPath) => {
+      setNodePath(newPath);
+      // Refresh sidebar when path changes
+      sidebarRefreshEmitter.emit();
+    });
+
+    const unsubscribeExecutablePath = configurationService.onExecutablePathChange((newPath) => {
+      setExecutablePath(newPath);
+    });
+
+    return () => {
+      unsubscribeNodePath();
+      unsubscribeExecutablePath();
+    };
+  }, []);
+
+  // Initialize configuration on startup
+  useEffect(() => {
+    const initializeConfig = async () => {
+      await configurationService.ensureInitialized();
+      const currentPath = configurationService.getNodeDefinitionsPath();
+      const currentExecutablePath = configurationService.getExecutablePath();
+      setNodePath(currentPath);
+      setExecutablePath(currentExecutablePath);
+      
+      // Initial sidebar refresh to load nodes from configured path
+      sidebarRefreshEmitter.emit();
+    };
+
+    initializeConfig();
+  }, []);
+
+  // Monitor process state changes
+  useEffect(() => {
+    setIsProcessRunning(processManagerService.isProcessRunning());
+
+    const unsubscribe = processManagerService.onOutput((output) => {
+      if (output.type === 'exit' || output.type === 'error') {
+        setIsProcessRunning(false);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
   return (
-    <div className={styles.app}>
+    <div className={isConsoleVisible ? styles.app : styles.appWithoutConsole}>
       <Header 
         projectName={projectName}
         onProjectNameChange={handleProjectNameChange}
         onSaveProject={handleSaveProject}
         canvasData={canvasRef.current?.getCanvasData()}
         onCompile={handleCompile}
+        currentPath={nodePath}
+        currentExecutablePath={executablePath}
+        onPathChange={handlePathChange}
+        onExecutablePathChange={handleExecutablePathChange}
+        onRunProcess={handleRunProcess}
+        onStopProcess={handleStopProcess}
+        onToggleConsole={handleToggleConsole}
+        isProcessRunning={isProcessRunning}
+        isConsoleVisible={isConsoleVisible}
       />
       <Sidebar 
         nodes={nodes} 
@@ -167,6 +321,14 @@ const App: React.FC = () => {
       {!hasProjectLoaded && (
         <div className={styles.noProjectMessage}>
           No project loaded. Select a node from the sidebar to start editing.
+        </div>
+      )}
+      {isConsoleVisible && (
+        <div className={styles.consoleArea}>
+          <Console 
+            isVisible={isConsoleVisible}
+            onToggle={handleToggleConsole}
+          />
         </div>
       )}
     </div>

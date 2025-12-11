@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Node, Edge } from '@xyflow/react';
 import { Category, ProjectState, NodeMetadata, NodeSummary } from "../types/project";
 import { nodeFileSystem } from '../services/nodeFileSystem';
+import { configurationService } from '../services/configurationService';
 
 interface SidebarHandlersProps {
   activeCategory: Category;
@@ -50,7 +51,7 @@ export const useSidebarHandlers = ({
         
         // Use the NodeSummary's path to load the actual node file
         if (node.path && node.path.trim() !== '') {
-          const nodeFilePath = `node-definitions/${node.path}/node.json`;
+          const nodeFilePath = `${configurationService.getNodeDefinitionsPath()}/${node.path}/node.json`;
           console.log('Loading node from path:', nodeFilePath);
           try {
             // Read the actual node file using the path from NodeSummary

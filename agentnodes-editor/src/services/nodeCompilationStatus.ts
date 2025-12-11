@@ -1,4 +1,5 @@
 import { NodeSummary, Category } from '../types/project';
+import { configurationService } from './configurationService';
 
 /**
  * Service to check compilation status of complex nodes
@@ -25,8 +26,8 @@ export class NodeCompilationStatusService {
     }
 
     try {
-      // Check if compiled.json exists
-      const compiledFilePath = `./node-definitions/${node.path}/compiled.json`;
+      // Check if compiled.json exists  
+      const compiledFilePath = `${configurationService.getNodeDefinitionsPath()}/${node.path}/compiled.json`;
       console.log("testing ", compiledFilePath);
       if (window.electronAPI?.getStats) {
         try {

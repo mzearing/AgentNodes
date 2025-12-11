@@ -120,6 +120,26 @@ const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | nul
   }
 };
 
+// Process output event listeners
+interface ProcessOutput {
+  type: 'stdout' | 'stderr' | 'exit' | 'error';
+  data: string | number;
+  timestamp: Date;
+}
+
+let processOutputListeners: Array<(output: ProcessOutput) => void> = [];
+
+// Listen for process output events from main process
+ipcRenderer.on('process:output', (_event, output: ProcessOutput) => {
+  processOutputListeners.forEach(listener => {
+    try {
+      listener(output);
+    } catch (error) {
+      console.error('Error in process output listener:', error);
+    }
+  });
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   readFile: async (filePath: string): Promise<string> => {
     try {
@@ -135,6 +155,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
       await fsAsync.writeFile(filePath, content, 'utf-8');
     } catch (error) {
       throw new Error(`Failed to write file: ${error}`);
+    }
+  },
+
+  openDirectoryDialog: async (defaultPath?: string): Promise<string | null> => {
+    try {
+      const result = await ipcRenderer.invoke('dialog:openDirectory', defaultPath);
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to open directory dialog: ${error}`);
+    }
+  },
+
+  getAppDirectory: async (): Promise<string> => {
+    try {
+      const result = await ipcRenderer.invoke('app:getDirectory');
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to get app directory: ${error}`);
     }
   },
 
@@ -312,6 +350,64 @@ contextBridge.exposeInMainWorld('electronAPI', {
       } catch (error) {
         throw new Error(`Failed to write node: ${error}`);
       }
+    }
+  },
+
+  process: {
+    spawn: async (command: string, args: string[] = []): Promise<{
+      success: boolean;
+      pid?: number;
+      command?: string;
+      args?: string[];
+      error?: string;
+    }> => {
+      try {
+        return await ipcRenderer.invoke('process:spawn', command, args);
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to spawn process: ${error}`
+        };
+      }
+    },
+
+    kill: async (pid: number): Promise<{
+      success: boolean;
+      error?: string;
+    }> => {
+      try {
+        return await ipcRenderer.invoke('process:kill', pid);
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to kill process: ${error}`
+        };
+      }
+    },
+
+    sendInput: async (pid: number, input: string): Promise<{
+      success: boolean;
+      error?: string;
+    }> => {
+      try {
+        return await ipcRenderer.invoke('process:sendInput', pid, input);
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to send input: ${error}`
+        };
+      }
+    },
+
+    onOutput: (listener: (output: ProcessOutput) => void): (() => void) => {
+      processOutputListeners.push(listener);
+      
+      return () => {
+        const index = processOutputListeners.indexOf(listener);
+        if (index > -1) {
+          processOutputListeners.splice(index, 1);
+        }
+      };
     }
   }
 });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styles from './Header.module.css';
 import { ReactFlowJsonObject, Node, Edge } from '@xyflow/react';
+import SettingsMenu from '../SettingsMenu/SettingsMenu';
 
 interface HeaderProps {
   projectName: string;
@@ -8,6 +9,15 @@ interface HeaderProps {
   onSaveProject: () => void;
   canvasData?: ReactFlowJsonObject<Node, Edge>;
   onCompile?: () => void;
+  currentPath?: string;
+  currentExecutablePath?: string;
+  onPathChange?: (newPath: string) => void;
+  onExecutablePathChange?: (newPath: string) => void;
+  onRunProcess?: () => void;
+  onStopProcess?: () => void;
+  onToggleConsole?: () => void;
+  isProcessRunning?: boolean;
+  isConsoleVisible?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -15,7 +25,16 @@ const Header: React.FC<HeaderProps> = ({
   onProjectNameChange,
   onSaveProject,
   canvasData,
-  onCompile
+  onCompile,
+  currentPath,
+  currentExecutablePath,
+  onPathChange,
+  onExecutablePathChange,
+  onRunProcess,
+  onStopProcess,
+  onToggleConsole,
+  isProcessRunning = false,
+  isConsoleVisible = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState(projectName);
@@ -85,19 +104,34 @@ const Header: React.FC<HeaderProps> = ({
           Compile
         </button>
         <button
-          className={styles.runButton}
-          onClick={() => console.log("Run!")}
-          title="Run the project"
+          className={`${styles.runButton} ${isProcessRunning ? styles.runButtonDisabled : ''}`}
+          onClick={onRunProcess}
+          disabled={isProcessRunning}
+          title={isProcessRunning ? "Process is running" : "Run the backend process"}
         >
           Run
         </button>
         <button
-          className={styles.runButton}
-          onClick={() => console.log("Stop!")}
-          title="Stop a project"
+          className={`${styles.stopButton} ${!isProcessRunning ? styles.stopButtonDisabled : ''}`}
+          onClick={onStopProcess}
+          disabled={!isProcessRunning}
+          title={!isProcessRunning ? "No process running" : "Stop the backend process"}
         >
           Stop
         </button>
+        <button
+          className={`${styles.consoleButton} ${isConsoleVisible ? styles.consoleButtonActive : ''}`}
+          onClick={onToggleConsole}
+          title={isConsoleVisible ? "Hide console" : "Show console"}
+        >
+          Console
+        </button>
+        <SettingsMenu
+          currentPath={currentPath}
+          currentExecutablePath={currentExecutablePath}
+          onPathChange={onPathChange || (() => {})}
+          onExecutablePathChange={onExecutablePathChange || (() => {})}
+        />
       </div>
     </div>
   );

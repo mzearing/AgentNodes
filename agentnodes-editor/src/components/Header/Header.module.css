@@ -82,6 +82,58 @@
 .runButton {
     padding: var(--spacing-md) var(--spacing-lg);
     border: 1px solid var(--color-border-secondary);
+    background-color: #28a745;
+    color: white;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.runButton:hover:not(:disabled) {
+    background-color: #218838;
+}
+
+.runButton:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+
+.runButtonDisabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.stopButton {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: 1px solid var(--color-border-secondary);
+    background-color: #dc3545;
+    color: white;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.stopButton:hover:not(:disabled) {
+    background-color: #c82333;
+}
+
+.stopButton:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+
+.stopButtonDisabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.consoleButton {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: 1px solid var(--color-border-secondary);
     background-color: var(--color-surface);
     color: var(--color-text-secondary);
     border-radius: var(--radius-md);
@@ -91,12 +143,18 @@
     font-weight: 500;
 }
 
-.runButton:hover {
+.consoleButton:hover {
     background-color: var(--color-surface-hover);
     border-color: var(--color-border-hover);
 }
 
-.runButton:focus {
+.consoleButton:focus {
     outline: 2px solid var(--color-primary);
     outline-offset: -2px;
+}
+
+.consoleButtonActive {
+    background-color: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
 }

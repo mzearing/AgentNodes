@@ -9,17 +9,27 @@
       "Output 3"
     ],
     "inputTypes": [
-      2,
-      4,
-      1
+      [
+        2
+      ],
+      [
+        4
+      ],
+      [
+        1
+      ]
     ],
     "outputs": [
       "Input",
       "Input 2"
     ],
     "outputTypes": [
-      2,
-      0
+      [
+        2
+      ],
+      [
+        0
+      ]
     ],
     "variadicOutputs": false,
     "variadicInputs": false,
@@ -33,14 +43,8 @@
       "name": "gghgg",
       "inputs": [],
       "inputTypes": [],
-      "outputs": [
-        "Input"
-      ],
-      "outputTypes": [
-        [
-          1
-        ]
-      ],
+      "outputs": [],
+      "outputTypes": [],
       "variadicOutputs": false,
       "variadicInputs": false,
       "constantData": [],
@@ -135,22 +139,14 @@
           "nodeId": "node-1760638508261",
           "label": "gghgg",
           "inputs": [],
-          "outputs": [
-            {
-              "id": "output-1761845181504-0-u840ej779",
-              "name": "Input",
-              "type": [
-                1
-              ]
-            }
-          ],
+          "outputs": [],
           "variadicInputs": false,
           "variadicOutputs": false,
           "solo": false,
           "metadataPath": "complex/group-1760638366900"
         },
         "measured": {
-          "width": 104,
+          "width": 94,
           "height": 84
         },
         "selected": false,
@@ -159,9 +155,10 @@
     ],
     "edges": [],
     "viewport": {
-      "x": 412.8979946010488,
-      "y": 350.8494278925451,
-      "zoom": 0.6131573973961064
+      "x": 374.5537756300839,
+      "y": 710.7276804214571,
+      "zoom": 0.8623792563299615
     }
-  }
+  },
+  "variables": []
 }

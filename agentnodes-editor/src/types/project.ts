@@ -23,7 +23,11 @@ export enum IOType {
   Integer,
   Float,
   String,
-  Boolean
+  Boolean,
+  Handle,
+  Array,
+  Byte,
+  Object
 }
 
 export interface NodeSummary {

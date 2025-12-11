@@ -1,6 +1,0 @@
-{
-  "id": "transform",
-  "name": "Transform",
-  "inputs": ["Data"],
-  "outputs": ["Output"]
-}

@@ -1,0 +1,13 @@
+{
+  "id": "read",
+  "name": "Read",
+  "inputs": ["Handle"],
+  "outputs": ["Data"],
+  "inputTypes": [5],
+  "outputTypes": [3],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "solo": false
+}

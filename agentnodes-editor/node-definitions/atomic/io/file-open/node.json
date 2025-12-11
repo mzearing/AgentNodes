@@ -1,0 +1,13 @@
+{
+  "id": "file-open",
+  "name": "File Open",
+  "inputs": ["Path"],
+  "outputs": ["Handle"],
+  "inputTypes": [3],
+  "outputTypes": [5],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "solo": false
+}

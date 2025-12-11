@@ -1,0 +1,14 @@
+{
+  "id": "wait-for-init",
+  "name": "Wait For Init",
+  "inputs": [],
+  "outputs": ["None"],
+  "inputTypes": [],
+  "outputTypes": [0],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "constantData": [3, 3, 1],
+  "solo": false
+}

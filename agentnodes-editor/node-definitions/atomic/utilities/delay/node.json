@@ -1,6 +1,0 @@
-{
-  "id": "delay",
-  "name": "Delay",
-  "inputs": ["Input", "Duration"],
-  "outputs": ["Output"]
-}
