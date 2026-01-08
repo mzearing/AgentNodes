@@ -1,0 +1,135 @@
+{
+  "summary": {
+    "path": "complex/group-1760638501429/node-1765413642412",
+    "id": "node-1765413642412",
+    "name": "Test",
+    "inputs": [],
+    "inputTypes": [],
+    "outputs": [],
+    "outputTypes": [],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "constantData": [],
+    "solo": false
+  },
+  "dependencies": [
+    {
+      "path": "complex/group-1760638501429/node-1761080916287",
+      "id": "node-1761080916287",
+      "name": "Super Cool Print",
+      "inputs": [],
+      "inputTypes": [],
+      "outputs": [],
+      "outputTypes": [],
+      "variadicOutputs": false,
+      "variadicInputs": false,
+      "constantData": [],
+      "solo": false
+    }
+  ],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 376.621039600761,
+          "y": 68.94642200002126
+        },
+        "data": {
+          "nodeId": "node-1761080916287",
+          "label": "Super Cool Print",
+          "inputs": [],
+          "outputs": [],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "availableInputTypes": [
+            [
+              3
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              3
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "complex/group-1760638501429",
+          "constantData": []
+        },
+        "measured": {
+          "width": 202,
+          "height": 92
+        }
+      },
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 817.48700945938,
+          "y": 22.726602579359575
+        },
+        "data": {
+          "nodeId": "print",
+          "label": "Print",
+          "inputs": [
+            {
+              "id": "input-1765413660611-0-lc8o937ri",
+              "name": "Value",
+              "type": 3
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1765413660611-0-nbvw590gh",
+              "name": "Result",
+              "type": 0
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              0
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/io",
+          "constantData": []
+        },
+        "measured": {
+          "width": 200,
+          "height": 92
+        },
+        "selected": true
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_2",
+        "sourceHandle": "output-1765413657804-0-hzg2rgfbx",
+        "target": "node_3",
+        "targetHandle": "input-1765413660611-0-lc8o937ri",
+        "id": "xy-edge__node_2output-1765413657804-0-hzg2rgfbx-node_3input-1765413660611-0-lc8o937ri"
+      }
+    ],
+    "viewport": {
+      "x": -1.720696115155988,
+      "y": 247.43124293994094,
+      "zoom": 1.1250584846888088
+    },
+    "_dependencyChangesApplied": true
+  },
+  "variables": []
+}

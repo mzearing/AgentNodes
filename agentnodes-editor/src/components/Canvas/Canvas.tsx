@@ -96,6 +96,9 @@ const initialEdges: Edge[] = [];
 
 // Helper function to check if automatic casting is supported (shared logic)
 const canAutocastTypes = (fromType: IOType, toType: IOType): boolean => {
+  // Debug logging for Agent types
+  // Debug logging removed for Agent types
+  
   // Same type - always valid
   if (fromType === toType) return true;
   
@@ -124,7 +127,6 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
     const targetNode = nodes.find(node => node.id === edge.target);
     
     if (!sourceNode || !targetNode) {
-      console.warn(`Removing edge with missing node: ${edge.source} -> ${edge.target}`);
       return false;
     }
     
@@ -132,16 +134,14 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
     const targetHandle = (targetNode.data as ScriptingNodeData)?.inputs?.find(input => input.id === edge.targetHandle);
     
     if (!sourceHandle || !targetHandle) {
-      console.warn(`Removing edge with missing handle: ${edge.sourceHandle} -> ${edge.targetHandle}`);
       return false;
     }
     
     // Type validation - allow exact matches or auto-castable types
-    const sourceType = sourceHandle.type ?? IOType.None;
-    const targetType = targetHandle.type ?? IOType.None;
+    const sourceType = Array.isArray(sourceHandle.type) ? sourceHandle.type[0] : (sourceHandle.type ?? IOType.None);
+    const targetType = Array.isArray(targetHandle.type) ? targetHandle.type[0] : (targetHandle.type ?? IOType.None);
     
     if (!canAutocastTypes(sourceType, targetType)) {
-      console.warn(`Removing edge with incompatible types: ${IOType[sourceType]} -> ${IOType[targetType]} (no auto-cast available)`);
       return false;
     }
     
@@ -186,7 +186,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       // Log if any connections were removed
       const removedCount = currentEdges.length - validatedEdges.length;
       if (removedCount > 0) {
-        console.log(`Removed ${removedCount} invalid connection(s) before saving`);
+        // Connections were removed during validation
       }
       
       const currentState = {
@@ -213,7 +213,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
           previousDependencies = existingData.dependencies || [];
         }
       } catch (error) {
-        console.log('No previous metadata found or failed to read:', error);
+        // Error loading metadata handled silently
       }
 
       // Collect dependencies from current canvas
@@ -228,13 +228,11 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         
         // Check if node has metadataPath (complex node)
         const metadataPath = node.data?.["metadataPath"];
-        console.log("Got metadata ", metadataPath);
         if (metadataPath && typeof metadataPath === 'string') {
           try {
             // Extract category and groupId from metadataPath
             const metadataPathParts = metadataPath.split('/');
             if (metadataPathParts.length >= 2) {
-              console.log(metadataPathParts);
               const nodeCategory = metadataPathParts[0] === 'complex' ? 'Complex' : 'Atomic';
               const nodeGroupId = metadataPathParts[1];
               const nodeIdFromPath = node.data?.["nodeId"];
@@ -249,7 +247,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
                 
                 if (nodeMetadata && typeof nodeMetadata === 'object' && 'summary' in nodeMetadata) {
                   const metadata = nodeMetadata as unknown as NodeMetadata;
-                  console.log("metadata: ", metadata)
                   if (metadata.summary) {
                     dependencies.push(metadata.summary);
                   }
@@ -257,7 +254,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
               }
             }
           } catch (error) {
-            console.warn(`Failed to read dependency node ${metadataPath}:`, error);
+            // Error reading dependency node handled silently
           }
         }
       }
@@ -357,7 +354,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
           }
           
           // Update the live canvas with the changes and don't save
-          console.log('Applying dependency updates to live canvas without saving...');
           propOnNodesChange(currentState.nodes);
           return false;
         }
@@ -366,9 +362,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       
       // Handle name-only changes silently
       if (nameOnlyChanges.length > 0) {
-        console.log('Updating node names silently:', nameOnlyChanges.map(change => 
-          `${change.oldSummary.name} -> ${change.newSummary.name}`
-        ));
         
         // Update node labels in the current canvas state
         for (const change of nameOnlyChanges) {
@@ -416,8 +409,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         }
       });
 
-      console.log("found input node: ", inputNode)
-      console.log("found output node: ", outputNode)
 
       const mySummary: NodeSummary = {
         path: `${path}/${loadedId}`,
@@ -438,7 +429,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
 
       // Apply the updated canvas state to the live canvas immediately
       if (updatedCanvasState && updatedCanvasState._dependencyChangesApplied) {
-        console.log('Applying updated canvas state to live canvas...');
         // Validate connections when applying dependency changes
         const validatedEdges = validateAndCleanConnections(updatedCanvasState.nodes, updatedCanvasState.edges);
         propOnNodesChange(updatedCanvasState.nodes);
@@ -454,14 +444,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         variables: projectState.variables || []
       };
 
-      // Save the node data
-      console.log('Saving node with params:', {
-        groupId,
-        loadedId,
-        category,
-        path,
-        dataStructure: finalSaveData
-      });
       
       const success = await nodeFileSystem.writeNode(
         groupId, 
@@ -470,7 +452,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         category as 'Complex' | 'Atomic'
       );
       
-      console.log('Save result:', success);
       
       if (success) {
         // Note: Recursive dependency updates are handled automatically by the canvasRefreshEmitter
@@ -481,7 +462,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         return false;
       }
     } catch (error) {
-      console.error('Failed to save project:', error);
       alert('Failed to save project');
       return false;
     }
@@ -489,7 +469,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
 
   // Update canvas nodes based on dependency changes
   const updateCanvasForDependencyChanges = useCallback(async (canvasState: {nodes: Node[], edges: Edge[], viewport: Viewport}, dependencies: NodeSummary[]) => {
-    console.log('Updating canvas for dependency changes...');
     
     // Create a deep copy of the canvas state to avoid mutating the original
     const updatedState = JSON.parse(JSON.stringify(canvasState));
@@ -508,7 +487,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       });
 
       if (matchingDependency) {
-        console.log(`Updating canvas node ${canvasNode.id} (${canvasNode.data?.nodeId}) with dependency data`);
         
         // Check if there are actual changes before updating
         const currentInputs = JSON.stringify(canvasNode.data.inputs || []);
@@ -544,7 +522,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         const newOutputsStr = JSON.stringify(newOutputs);
         if (currentInputs !== newInputsStr || currentOutputs !== newOutputsStr || currentLabel !== matchingDependency.name) {
           hasChanges = true;
-          console.log(`Updated canvas node with ${newInputs.length} inputs and ${newOutputs.length} outputs`);
         }
       }
     }
@@ -599,7 +576,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         // Log if any connections were removed
         const removedCount = newProjectState.canvasStateCache.edges.length - validatedEdges.length;
         if (removedCount > 0) {
-          console.log(`Removed ${removedCount} invalid connection(s) during project load`);
+          // Connections were removed during project load
         }
         
         // Load the canvas state from the saved data
@@ -616,7 +593,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         return false;
       }
     } catch (error) {
-      console.error('Failed to load project:', error);
       alert('Failed to load project');
       return false;
     }
@@ -635,7 +611,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   // Reload current project from filesystem (used when dependencies change)
   const reloadCurrentProject = useCallback(async (): Promise<boolean> => {
     if (!projectState.hasNodeLoaded) {
-      console.log('No project loaded to reload');
       return false;
     }
 
@@ -643,25 +618,21 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       const category = projectState.openedNodePath.startsWith('complex/') ? 'Complex' : 'Atomic';
       const pathParts = projectState.openedNodePath.split('/');
       if (pathParts.length < 2) {
-        console.error('Invalid project path for reload');
         return false;
       }
 
       const groupId = pathParts[1];
       const nodeId = projectState.openedNodeId;
 
-      console.log(`Reloading project from filesystem: ${category}/${groupId}/${nodeId}`);
 
       // Read the updated node data from filesystem
       const nodeData = await nodeFileSystem.readNode(groupId, nodeId, category as 'Complex' | 'Atomic');
       if (!nodeData || typeof nodeData !== 'object' || !('data' in nodeData)) {
-        console.error('Failed to read updated node data for reload');
         return false;
       }
 
       const metadata = nodeData as unknown as NodeMetadata;
       if (!metadata.data) {
-        console.error('No canvas data found in node metadata');
         return false;
       }
 
@@ -674,11 +645,10 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       // Load the fresh project state
       const success = await loadProject(updatedProjectState);
       if (success) {
-        console.log('Successfully reloaded project with updated dependencies');
+        // Project reloaded successfully
       }
       return success;
     } catch (error) {
-      console.error('Failed to reload current project:', error);
       return false;
     }
   }, [projectState, loadProject]);
@@ -717,7 +687,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     setEdges(currentEdges => {
       const validatedEdges = validateAndCleanConnections(propNodes, currentEdges);
       if (validatedEdges.length !== currentEdges.length) {
-        console.log(`Removed ${currentEdges.length - validatedEdges.length} invalid connection(s) from canvas`);
         return validatedEdges;
       }
       return currentEdges;
@@ -741,18 +710,18 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         const targetHandle = (targetNode.data as ScriptingNodeData)?.inputs?.find(input => input.id === connection.targetHandle);
         
         if (sourceHandle && targetHandle) {
-          const sourceType = sourceHandle.type ?? IOType.None;
-          const targetType = targetHandle.type ?? IOType.None;
+          // Handle cases where type might be an array or a single value
+          const sourceType = Array.isArray(sourceHandle.type) ? sourceHandle.type[0] : (sourceHandle.type ?? IOType.None);
+          const targetType = Array.isArray(targetHandle.type) ? targetHandle.type[0] : (targetHandle.type ?? IOType.None);
           
           // Allow connections if types match exactly or can be auto-cast
           if (!canAutocastTypes(sourceType, targetType)) {
-            console.warn(`Cannot connect ${IOType[sourceType]} output to ${IOType[targetType]} input - no automatic cast available`);
             return false;
           }
           
           // If auto-cast is needed, log it for user feedback
           if (sourceType !== targetType) {
-            console.log(`✨ Auto-casting ${IOType[sourceType]} → ${IOType[targetType]}`);
+            // Type conversion will happen automatically
           }
         }
       }

@@ -1,0 +1,34 @@
+{
+  "inputs": [],
+  "outputs": [],
+  "defaults": {},
+  "instances": {
+    "d4f473a9-8d4e-439e-ae4d-f3bca618e2a8": {
+      "node_type": {
+        "Complex": "./node-definitions/complex/group-1760638501429/node-1761080916287/compiled.json"
+      },
+      "default_overrides": {},
+      "outputs": [
+        "String"
+      ],
+      "inputs": []
+    },
+    "c1e33618-12f7-433e-a38c-0aa5656212c7": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [
+        "None"
+      ],
+      "inputs": [
+        [
+          "String",
+          "d4f473a9-8d4e-439e-ae4d-f3bca618e2a8",
+          0
+        ]
+      ]
+    }
+  },
+  "end_node": "c1e33618-12f7-433e-a38c-0aa5656212c7"
+}

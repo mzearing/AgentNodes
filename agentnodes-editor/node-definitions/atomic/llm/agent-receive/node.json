@@ -1,0 +1,13 @@
+{
+  "id": "agent-receive",
+  "name": "Get Response",
+  "inputs": ["Agent"],
+  "outputs": ["Response"],
+  "inputTypes": [9],
+  "outputTypes": [3],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "solo": false
+}

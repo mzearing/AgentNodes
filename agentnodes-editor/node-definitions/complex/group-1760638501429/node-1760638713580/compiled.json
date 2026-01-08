@@ -1,0 +1,104 @@
+{
+  "inputs": [
+    "String",
+    "String"
+  ],
+  "outputs": [
+    {
+      "Agent": "OpenAi"
+    },
+    "None"
+  ],
+  "defaults": {},
+  "instances": {
+    "0274e72d-8756-4ac7-9406-a0c5c120e723": {
+      "node_type": {
+        "Atomic": {
+          "AgentOp": {
+            "Create": "OpenAi"
+          }
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        {
+          "Agent": "OpenAi"
+        }
+      ],
+      "inputs": [
+        [
+          "String",
+          "24d1049a-c185-4347-9dc7-35aadfba1d93",
+          0
+        ]
+      ]
+    },
+    "24d1049a-c185-4347-9dc7-35aadfba1d93": {
+      "node_type": {
+        "Atomic": {
+          "Control": "Start"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "String",
+        "String"
+      ],
+      "inputs": []
+    },
+    "6cbe32a4-d2d1-475e-ae21-ff2bdc17e912": {
+      "node_type": {
+        "Atomic": {
+          "AgentOp": "Send"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "None"
+      ],
+      "inputs": [
+        [
+          {
+            "Agent": "OpenAi"
+          },
+          "0274e72d-8756-4ac7-9406-a0c5c120e723",
+          0
+        ],
+        [
+          "String",
+          "24d1049a-c185-4347-9dc7-35aadfba1d93",
+          0
+        ]
+      ]
+    },
+    "08bc780e-aa02-402e-8beb-407906b3b654": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        {
+          "Agent": "OpenAi"
+        },
+        "None"
+      ],
+      "inputs": [
+        [
+          {
+            "Agent": "OpenAi"
+          },
+          "0274e72d-8756-4ac7-9406-a0c5c120e723",
+          0
+        ],
+        [
+          "None",
+          "6cbe32a4-d2d1-475e-ae21-ff2bdc17e912",
+          0
+        ]
+      ]
+    }
+  },
+  "end_node": "08bc780e-aa02-402e-8beb-407906b3b654"
+}

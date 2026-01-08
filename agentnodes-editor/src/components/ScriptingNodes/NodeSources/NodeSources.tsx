@@ -38,6 +38,7 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
         'Float': IOType.Float,
         'String': IOType.String,
         'Boolean': IOType.Boolean,
+        'Agent': IOType.Agent,
       };
       const newType = typeMap[typeName] || IOType.None;
       const newOutputs = [...outputs];
@@ -73,12 +74,12 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
   };
 
   const handleDragStart = (e: DragEvent, index: number) => {
-    // Check if mouse is near the handle area (right side, within 30px from right edge)
+    // Check if mouse is near the handle area (bottom side, within 30px from bottom edge)
     const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const boxWidth = rect.width;
+    const mouseY = e.clientY - rect.top;
+    const boxHeight = rect.height;
     
-    if (mouseX > boxWidth - 32) {
+    if (mouseY > boxHeight - 32) {
       // Mouse is near the handle, prevent dragging
       e.preventDefault();
       return;
@@ -143,6 +144,7 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
     { value: 'Float', label: 'F', color: '#C6F6D5', bgColor: '#C6F6D5', textColor: '#000000' },
     { value: 'String', label: 'S', color: '#FF8C00', bgColor: '#FF8C00', textColor: '#FFFFFF' },
     { value: 'Boolean', label: 'B', color: '#E6E6FA', bgColor: '#E6E6FA', textColor: '#000000' },
+    { value: 'Agent', label: 'A', color: '#FF69B4', bgColor: '#FF69B4', textColor: '#FFFFFF' },
   ];
 
   // Function to get available type options for specific outputs based on type arrays
@@ -158,7 +160,7 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
     
     // Filter type options to only show available ones
     return allTypeOptions.filter(option => {
-      const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+      const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
       const typeIndex = typeNames.indexOf(option.value);
       return availableTypesForOutput.includes(typeIndex as IOType);
     });
@@ -199,17 +201,17 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
           }}
           style={{
             '--handle-color': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
               const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
               return selectedType.color;
             })(),
             '--handle-shadow': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
               const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
               return hexToRgba(selectedType.color, 0.4);
             })(),
             '--handle-text-color': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
               const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
               return selectedType.textColor;
             })()
@@ -234,70 +236,70 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
             />
           ) : (
             <>
-              {variadic && (
-                <button
-                  className={styles.removeButton}
-                  onClick={() => handleRemove(index)}
-                  title="Remove output"
-                >
-                  ×
-                </button>
-              )}
-              {variadic && (
-                <button
-                  className={styles.editButton}
-                  onClick={() => startEditing(index)}
-                  title="Edit output name"
-                >
-                  ✎
-                </button>
-              )}
-              <span 
-                className={styles.outputLabel}
-              >
-                {output.name}
-              </span>
               <TypeDropdown
                 key={`${output.id}-${output.type}-${updateKey}`}
                 options={getAvailableTypeOptions(index)}
                 value={(() => {
                   const availableOptions = getAvailableTypeOptions(index);
-                  const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                  const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                   return availableOptions.find(opt => opt.value === typeNames[output.type]) || availableOptions[0];
                 })()}
                 onChange={(option) => handleTypeChange(index, option.value)}
                 isLocked={!multitype}
               />
+              <span 
+                className={styles.outputLabel}
+              >
+                {output.name}
+              </span>
+              {variadic && (
+                <div className={styles.buttonStack}>
+                  <button
+                    className={styles.removeButton}
+                    onClick={() => handleRemove(index)}
+                    title="Remove output"
+                  >
+                    ×
+                  </button>
+                  <button
+                    className={styles.editButton}
+                    onClick={() => startEditing(index)}
+                    title="Edit output name"
+                  >
+                    ✎
+                  </button>
+                </div>
+              )}
             </>
           )}
           <HandleComponent 
             id={output.id} 
             type="source"
-            position={Position.Right}
+            position={Position.Bottom}
             className={styles.outputHandle}
             style={{
               backgroundColor: (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               borderColor: (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-color': (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-shadow': (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.4);
               })(),
               '--handle-shadow-strong': (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.6);
               })()

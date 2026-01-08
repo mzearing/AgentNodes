@@ -27,7 +27,8 @@ export enum IOType {
   Handle,
   Array,
   Byte,
-  Object
+  Object,
+  Agent
 }
 
 export interface NodeSummary {

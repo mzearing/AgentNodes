@@ -1,0 +1,349 @@
+{
+  "summary": {
+    "path": "complex/group-1760638501429/node-1765409691036",
+    "id": "node-1765409691036",
+    "name": "Run",
+    "inputs": [],
+    "inputTypes": [],
+    "outputs": [
+      "Input"
+    ],
+    "outputTypes": [
+      [
+        3
+      ]
+    ],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "constantData": [],
+    "solo": false
+  },
+  "dependencies": [
+    {
+      "path": "complex/group-1760638501429/node-1760638713580",
+      "id": "node-1760638713580",
+      "name": "LLMOneshot",
+      "inputs": [
+        "Model",
+        "Prompt"
+      ],
+      "inputTypes": [
+        [
+          3
+        ],
+        [
+          3
+        ]
+      ],
+      "outputs": [
+        "Agent",
+        "Trigger"
+      ],
+      "outputTypes": [
+        [
+          9
+        ],
+        [
+          0
+        ]
+      ],
+      "variadicOutputs": false,
+      "variadicInputs": false,
+      "constantData": [],
+      "solo": false
+    }
+  ],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_1",
+        "type": "scripting-node",
+        "position": {
+          "x": 120.86649715021697,
+          "y": -12.06323278837805
+        },
+        "data": {
+          "nodeId": "string-constant",
+          "label": "String Constant",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1765409701655-0-6qynqdsr5",
+              "name": "Value",
+              "type": 3
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "availableOutputTypes": [
+            [
+              3
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/constants",
+          "constantData": [
+            3
+          ],
+          "constantValues": [
+            {
+              "type": 3,
+              "value": "Hello!"
+            }
+          ]
+        },
+        "measured": {
+          "width": 166,
+          "height": 150
+        },
+        "selected": false
+      },
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 143.06581067291373,
+          "y": -192.4529039139478
+        },
+        "data": {
+          "nodeId": "string-constant",
+          "label": "String Constant",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1765409706301-0-aml256zpx",
+              "name": "Value",
+              "type": 3
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "availableOutputTypes": [
+            [
+              3
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/constants",
+          "constantData": [
+            3
+          ],
+          "constantValues": [
+            {
+              "type": 3,
+              "value": "gpt-4o"
+            }
+          ]
+        },
+        "measured": {
+          "width": 166,
+          "height": 150
+        },
+        "dragging": false,
+        "selected": false
+      },
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 472.66956188774304,
+          "y": -86.38361163470752
+        },
+        "data": {
+          "nodeId": "node-1760638713580",
+          "label": "LLMOneshot",
+          "inputs": [
+            {
+              "id": "input-1765409713407-0-xe3e1itwx",
+              "name": "Model",
+              "type": [
+                3
+              ]
+            },
+            {
+              "id": "input-1765409713407-1-hbpk9ndi1",
+              "name": "Prompt",
+              "type": [
+                3
+              ]
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1765409713407-0-dml6hzibw",
+              "name": "Agent",
+              "type": [
+                9
+              ]
+            },
+            {
+              "id": "output-1765409713407-1-p0jcvhe8i",
+              "name": "Trigger",
+              "type": [
+                0
+              ]
+            }
+          ],
+          "availableInputTypes": [
+            [
+              3
+            ],
+            [
+              3
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              9
+            ],
+            [
+              0
+            ]
+          ],
+          "metadataPath": "complex/group-1760638501429",
+          "constantData": [],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "solo": false
+        },
+        "measured": {
+          "width": 216,
+          "height": 130
+        },
+        "selected": false
+      },
+      {
+        "id": "node_4",
+        "type": "scripting-node",
+        "position": {
+          "x": 755.8132098728225,
+          "y": -86.3836116347075
+        },
+        "data": {
+          "nodeId": "agent-receive",
+          "label": "Get Response",
+          "inputs": [
+            {
+              "id": "input-1765409750408-0-9iqwx2h0t",
+              "name": "Agent",
+              "type": 9
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1765409750408-0-lts22tk15",
+              "name": "Response",
+              "type": 3
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": false,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              9
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              3
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/llm",
+          "constantData": []
+        },
+        "measured": {
+          "width": 223,
+          "height": 92
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_6",
+        "type": "scripting-node",
+        "position": {
+          "x": 1051.0736282536916,
+          "y": -98.06248341470278
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [
+            {
+              "id": "input-1765409781414-0-p6aoeok5p",
+              "name": "Input",
+              "type": 3
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": []
+        },
+        "measured": {
+          "width": 163,
+          "height": 127
+        },
+        "selected": false,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_4",
+        "sourceHandle": "output-1765409750408-0-lts22tk15",
+        "target": "node_6",
+        "targetHandle": "input-1765409781414-0-p6aoeok5p",
+        "id": "xy-edge__node_4output-1765409750408-0-lts22tk15-node_6input-1765409781414-0-p6aoeok5p"
+      },
+      {
+        "source": "node_1",
+        "sourceHandle": "output-1765409701655-0-6qynqdsr5",
+        "target": "node_3",
+        "targetHandle": "input-1765409713407-1-hbpk9ndi1",
+        "id": "xy-edge__node_1output-1765409701655-0-6qynqdsr5-node_3input-1765409713407-1-hbpk9ndi1"
+      },
+      {
+        "source": "node_2",
+        "sourceHandle": "output-1765409706301-0-aml256zpx",
+        "target": "node_3",
+        "targetHandle": "input-1765409713407-0-xe3e1itwx",
+        "id": "xy-edge__node_2output-1765409706301-0-aml256zpx-node_3input-1765409713407-0-xe3e1itwx"
+      },
+      {
+        "source": "node_3",
+        "sourceHandle": "output-1765409713407-0-dml6hzibw",
+        "target": "node_4",
+        "targetHandle": "input-1765409750408-0-9iqwx2h0t",
+        "id": "xy-edge__node_3output-1765409713407-0-dml6hzibw-node_4input-1765409750408-0-9iqwx2h0t"
+      }
+    ],
+    "viewport": {
+      "x": 82.05948275892246,
+      "y": 369.0235568722723,
+      "zoom": 0.8962666995694051
+    }
+  },
+  "variables": []
+}

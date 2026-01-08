@@ -1,9 +1,0 @@
-{
-  "id": "script",
-  "name": "Script",
-  "inputs": ["A", "B", "C", "D", "E", "F", "G"],
-  "outputs": ["A", "B"],
-  "variadicInputs": false,
-  "variadicOutputs": false,
-  "solo": false
-}

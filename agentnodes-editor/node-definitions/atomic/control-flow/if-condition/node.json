@@ -1,6 +1,6 @@
 {
-  "id": "while-loop",
-  "name": "While Loop",
+  "id": "if-condition",
+  "name": "If Condition",
   "inputs": ["Condition"],
   "outputs": ["None"],
   "inputTypes": [4],

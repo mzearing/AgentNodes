@@ -38,6 +38,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
         'Float': IOType.Float,
         'String': IOType.String,
         'Boolean': IOType.Boolean,
+        'Agent': IOType.Agent,
       };
       const newType = typeMap[typeName] || IOType.None;
       const newInputs = [...inputs];
@@ -74,9 +75,9 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
 
   const handleDragStart = (e: DragEvent, index: number) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
     
-    if (mouseX < 32) {
+    if (mouseY < 32) {
       // Mouse is near the handle, prevent dragging
       e.preventDefault();
       return;
@@ -145,6 +146,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
     { value: 'Float', label: 'F', color: '#C6F6D5', bgColor: '#C6F6D5', textColor: '#000000' },
     { value: 'String', label: 'S', color: '#FF8C00', bgColor: '#FF8C00', textColor: '#FFFFFF' },
     { value: 'Boolean', label: 'B', color: '#E6E6FA', bgColor: '#E6E6FA', textColor: '#000000' },
+    { value: 'Agent', label: 'A', color: '#FF69B4', bgColor: '#FF69B4', textColor: '#FFFFFF' },
   ];
 
   // Function to get available type options for specific inputs based on type arrays
@@ -160,7 +162,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
     
     // Filter type options to only show available ones
     return allTypeOptions.filter(option => {
-      const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+      const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
       const typeIndex = typeNames.indexOf(option.value);
       return availableTypesForInput.includes(typeIndex as IOType);
     });
@@ -201,17 +203,17 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
           }}
           style={{
             '--handle-color': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
               const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
               return selectedType.color;
             })(),
             '--handle-shadow': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
               const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
               return hexToRgba(selectedType.color, 0.4);
             })(),
             '--handle-text-color': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
               const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
               return selectedType.textColor;
             })()
@@ -241,7 +243,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
                 options={getAvailableTypeOptions(index)}
                 value={(() => {
                   const availableOptions = getAvailableTypeOptions(index);
-                  const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                  const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                   return availableOptions.find(opt => opt.value === typeNames[input.type]) || availableOptions[0];
                 })()}
                 onChange={(option) => handleTypeChange(index, option.value)}
@@ -253,53 +255,53 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
                 {input.name}
               </span>
               {variadic && (
-                <button
-                  className={styles.editButton}
-                  onClick={() => startEditing(index)}
-                  title="Edit input name"
-                >
-                  ✎
-                </button>
+                <div className={styles.buttonStack}>
+                  <button
+                    className={styles.removeButton}
+                    onClick={() => handleRemove(index)}
+                    title="Remove input"
+                  >
+                    ×
+                  </button>
+                  <button
+                    className={styles.editButton}
+                    onClick={() => startEditing(index)}
+                    title="Edit input name"
+                  >
+                    ✎
+                  </button>
+                </div>
               )}
             </>
-          )}
-          {variadic && (
-            <button
-              className={styles.removeButton}
-              onClick={() => handleRemove(index)}
-              title="Remove input"
-            >
-              ×
-            </button>
           )}
           <HandleComponent 
             id={input.id} 
             type="target"
-            position={Position.Left}
+            position={Position.Top}
             className={styles.inputHandle}
             style={{
               backgroundColor: (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               borderColor: (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-color': (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return selectedType.color;
               })(),
               '--handle-shadow': (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.4);
               })(),
               '--handle-shadow-strong': (() => {
-                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean'];
+                const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
                 const selectedType = allTypeOptions.find(opt => opt.value === typeNames[input.type]) || allTypeOptions[0];
                 return hexToRgba(selectedType.color, 0.6);
               })()

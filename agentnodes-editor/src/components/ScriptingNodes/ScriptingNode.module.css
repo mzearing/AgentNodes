@@ -1,3 +1,21 @@
+.scriptingNodeWrapper {
+  display: inline-flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.inputSpacer {
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+}
+
+.outputSpacer {
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+}
+
 .scriptingNode {
   background: var(--color-surface);
   border: 2px solid var(--color-border);
@@ -5,28 +23,19 @@
   padding: 0;
   box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: 50px auto 1fr;
-  grid-template-areas:
-    'nodeHeader nodeHeader nodeHeader'
-    'nodeConstants nodeConstants nodeConstants'
-    'nodeTargets nodePlaceholder nodeSources';
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 80px;
 }
 
-.scriptingNode.selected {
+.scriptingNodeWrapper.selected .scriptingNode {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus);
 }
 
-.scriptingNode.noConstants {
-  grid-template-rows: 50px 1fr;
-  grid-template-areas:
-    'nodeHeader nodeHeader nodeHeader'
-    'nodeTargets nodePlaceholder nodeSources';
-}
 
-.scriptingNode:hover {
+.scriptingNodeWrapper:hover .scriptingNode {
   box-shadow: var(--shadow-md);
 }
 

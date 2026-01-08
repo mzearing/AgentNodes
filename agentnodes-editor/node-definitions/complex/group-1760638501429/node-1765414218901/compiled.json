@@ -1,0 +1,127 @@
+{
+  "inputs": [],
+  "outputs": [
+    "Float"
+  ],
+  "defaults": {},
+  "instances": {
+    "e6566a8f-6dec-45f4-8a7e-b85628a40caf": {
+      "node_type": {
+        "Atomic": {
+          "Value": 2.16
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Float"
+      ],
+      "inputs": []
+    },
+    "32d01104-3891-4070-bf93-3ab8011447ee": {
+      "node_type": {
+        "Atomic": {
+          "Value": 12
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": []
+    },
+    "9c1100f7-6078-425b-9449-1922a22f4a4f": {
+      "node_type": {
+        "Atomic": {
+          "BinOp": "Add"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Float"
+      ],
+      "inputs": [
+        [
+          "Float",
+          "e6566a8f-6dec-45f4-8a7e-b85628a40caf",
+          0
+        ],
+        [
+          "Float",
+          "4bd9eee3-ef51-4523-8765-d9387dec715c",
+          0
+        ]
+      ]
+    },
+    "5d541f27-7bea-4e5f-bc5a-b2339020fae0": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [
+        "None"
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "c9304144-3115-4937-acd5-057871a8c07e",
+          0
+        ]
+      ]
+    },
+    "fdb57d09-4d10-43fe-83b2-6dd395121fd7": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Float"
+      ],
+      "inputs": [
+        [
+          "Float",
+          "9c1100f7-6078-425b-9449-1922a22f4a4f",
+          0
+        ]
+      ]
+    },
+    "4bd9eee3-ef51-4523-8765-d9387dec715c": {
+      "node_type": {
+        "Atomic": {
+          "Cast": "Float"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Float"
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "32d01104-3891-4070-bf93-3ab8011447ee",
+          0
+        ]
+      ]
+    },
+    "c9304144-3115-4937-acd5-057871a8c07e": {
+      "node_type": {
+        "Atomic": {
+          "Cast": "Integer"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": [
+        [
+          "Float",
+          "9c1100f7-6078-425b-9449-1922a22f4a4f",
+          0
+        ]
+      ]
+    }
+  },
+  "end_node": "fdb57d09-4d10-43fe-83b2-6dd395121fd7"
+}

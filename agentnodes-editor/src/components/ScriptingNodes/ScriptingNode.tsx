@@ -67,26 +67,52 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
   }, [nodeHandles]);
 
   const hasConstants = scriptNodeData.constantData && scriptNodeData.constantData.length > 0 && scriptNodeData.constantData.some(type => type !== IOType.None);
+  const hasInputs = scriptNodeData.inputs && scriptNodeData.inputs.length > 0;
 
   return (
-    <div className={`${styles.scriptingNode} ${selected ? styles.selected : ''} ${!hasConstants ? styles.noConstants : ''}`}>
-      <NodeHeader 
-        label={scriptNodeData.label}
-      />
-      <NodeTargets 
-        inputs={scriptNodeData.inputs} 
-        variadic={scriptNodeData.variadicInputs || false}
-        multitype={scriptNodeData.multitypeInputs || false}
-        availableTypes={scriptNodeData.availableInputTypes}
-        onInputsChange={handleInputsChange}
-      />
-      {hasConstants && (
-        <NodeData 
-          constantData={scriptNodeData.constantData}
-          constantValues={scriptNodeData.constantValues}
-          onConstantValuesChange={handleConstantValuesChange}
-        />
+    <div className={`${styles.scriptingNodeWrapper} ${selected ? styles.selected : ''}`}>
+      {hasInputs && (
+        <>
+          <div className={styles.inputSpacer}>
+            <NodeTargets 
+              inputs={scriptNodeData.inputs} 
+              variadic={scriptNodeData.variadicInputs || false}
+              multitype={scriptNodeData.multitypeInputs || false}
+              availableTypes={scriptNodeData.availableInputTypes}
+              onInputsChange={handleInputsChange}
+            />
+          </div>
+          <NodeTargets 
+            inputs={scriptNodeData.inputs} 
+            variadic={scriptNodeData.variadicInputs || false}
+            multitype={scriptNodeData.multitypeInputs || false}
+            availableTypes={scriptNodeData.availableInputTypes}
+            onInputsChange={handleInputsChange}
+          />
+        </>
       )}
+      <div className={styles.scriptingNode}>
+        <NodeHeader 
+          label={scriptNodeData.label}
+        >
+          {hasConstants && (
+            <NodeData 
+              constantData={scriptNodeData.constantData}
+              constantValues={scriptNodeData.constantValues}
+              onConstantValuesChange={handleConstantValuesChange}
+            />
+          )}
+        </NodeHeader>
+      </div>
+      <div className={styles.outputSpacer}>
+        <NodeSources 
+          outputs={scriptNodeData.outputs}
+          variadic={scriptNodeData.variadicOutputs || false}
+          multitype={scriptNodeData.multitypeOutputs || false}
+          availableTypes={scriptNodeData.availableOutputTypes}
+          onOutputsChange={handleOutputsChange}
+        />
+      </div>
       <NodeSources 
         outputs={scriptNodeData.outputs}
         variadic={scriptNodeData.variadicOutputs || false}
@@ -94,7 +120,6 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
         availableTypes={scriptNodeData.availableOutputTypes}
         onOutputsChange={handleOutputsChange}
       />
-      
     </div>
   );
 };
