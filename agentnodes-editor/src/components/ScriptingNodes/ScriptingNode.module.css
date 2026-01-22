@@ -18,7 +18,7 @@
 
 .scriptingNode {
   background: var(--color-surface);
-  border: 2px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-lg);
   padding: 0;
   box-shadow: var(--shadow-sm);
@@ -29,14 +29,29 @@
   min-height: 80px;
 }
 
-.scriptingNodeWrapper.selected .scriptingNode {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus);
-}
-
-
 .scriptingNodeWrapper:hover .scriptingNode {
   box-shadow: var(--shadow-md);
+}
+
+.scriptingNodeWrapper.selected .scriptingNode {
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.scriptingNodeWrapper.selected:hover .scriptingNode {
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-md);
+}
+
+/* Override NodeHeader background when selected */
+.scriptingNodeWrapper.selected .scriptingNode > div:first-child {
+  background-color: transparent !important;
+}
+
+/* Light up input/output boxes when node is selected */
+.scriptingNodeWrapper.selected [class*="inputBox"],
+.scriptingNodeWrapper.selected [class*="outputBox"] {
+  background-color: var(--color-surface-hover) !important;
 }
 
 

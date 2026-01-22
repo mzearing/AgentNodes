@@ -1,11 +1,25 @@
 {
   "inputs": [],
-  "outputs": [
-    "Float"
-  ],
+  "outputs": [],
   "defaults": {},
   "instances": {
-    "e6566a8f-6dec-45f4-8a7e-b85628a40caf": {
+    "a838fe63-bab3-4312-a2a8-369eb6f07284": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [
+        "None"
+      ],
+      "inputs": [
+        [
+          "Float",
+          "802bd258-497c-471c-a478-5859d278489b",
+          0
+        ]
+      ]
+    },
+    "7f91706f-167b-4638-b89f-07c65bca9a6d": {
       "node_type": {
         "Atomic": {
           "Value": 2.16
@@ -17,7 +31,7 @@
       ],
       "inputs": []
     },
-    "32d01104-3891-4070-bf93-3ab8011447ee": {
+    "2b6a446a-b1b2-49b3-a8c0-cc84bd35947b": {
       "node_type": {
         "Atomic": {
           "Value": 12
@@ -29,7 +43,7 @@
       ],
       "inputs": []
     },
-    "9c1100f7-6078-425b-9449-1922a22f4a4f": {
+    "802bd258-497c-471c-a478-5859d278489b": {
       "node_type": {
         "Atomic": {
           "BinOp": "Add"
@@ -42,51 +56,17 @@
       "inputs": [
         [
           "Float",
-          "e6566a8f-6dec-45f4-8a7e-b85628a40caf",
+          "7f91706f-167b-4638-b89f-07c65bca9a6d",
           0
         ],
         [
           "Float",
-          "4bd9eee3-ef51-4523-8765-d9387dec715c",
+          "ca167f8a-64dd-4f7a-9bce-d1e290aa507d",
           0
         ]
       ]
     },
-    "5d541f27-7bea-4e5f-bc5a-b2339020fae0": {
-      "node_type": {
-        "Atomic": "Print"
-      },
-      "default_overrides": {},
-      "outputs": [
-        "None"
-      ],
-      "inputs": [
-        [
-          "Integer",
-          "c9304144-3115-4937-acd5-057871a8c07e",
-          0
-        ]
-      ]
-    },
-    "fdb57d09-4d10-43fe-83b2-6dd395121fd7": {
-      "node_type": {
-        "Atomic": {
-          "Control": "End"
-        }
-      },
-      "default_overrides": {},
-      "outputs": [
-        "Float"
-      ],
-      "inputs": [
-        [
-          "Float",
-          "9c1100f7-6078-425b-9449-1922a22f4a4f",
-          0
-        ]
-      ]
-    },
-    "4bd9eee3-ef51-4523-8765-d9387dec715c": {
+    "ca167f8a-64dd-4f7a-9bce-d1e290aa507d": {
       "node_type": {
         "Atomic": {
           "Cast": "Float"
@@ -99,29 +79,11 @@
       "inputs": [
         [
           "Integer",
-          "32d01104-3891-4070-bf93-3ab8011447ee",
-          0
-        ]
-      ]
-    },
-    "c9304144-3115-4937-acd5-057871a8c07e": {
-      "node_type": {
-        "Atomic": {
-          "Cast": "Integer"
-        }
-      },
-      "default_overrides": {},
-      "outputs": [
-        "Integer"
-      ],
-      "inputs": [
-        [
-          "Float",
-          "9c1100f7-6078-425b-9449-1922a22f4a4f",
+          "2b6a446a-b1b2-49b3-a8c0-cc84bd35947b",
           0
         ]
       ]
     }
   },
-  "end_node": "fdb57d09-4d10-43fe-83b2-6dd395121fd7"
+  "end_node": "a838fe63-bab3-4312-a2a8-369eb6f07284"
 }

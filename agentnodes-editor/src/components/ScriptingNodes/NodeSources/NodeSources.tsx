@@ -11,9 +11,11 @@ interface NodeSourcesProps {
   multitype?: boolean;
   availableTypes?: (IOType[] | undefined)[];
   onOutputsChange?: (outputs: OutputHandle[]) => void;
+  isStartingPoint?: boolean;
+  connectedOutputs?: string[];
 }
 
-const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, multitype = false, availableTypes, onOutputsChange }) => {
+const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, multitype = false, availableTypes, onOutputsChange, isStartingPoint = false, connectedOutputs = [] }) => {
   const [updateKey, setUpdateKey] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
@@ -175,7 +177,13 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
 
   return (
     <div className={`${styles.nodeSources} nodrag`}>
-      {outputs.map((output, index) => (
+      {outputs.map((output, index) => {
+        const isOutputConnected = connectedOutputs.includes(output.id);
+        const shouldShowChevron = isStartingPoint && isOutputConnected;
+        const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
+        const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
+        
+        return (
         <div 
           key={output.id} 
           className={`${styles.outputBox} ${draggedIndex === index ? styles.dragging : ''} ${dragOverIndex === index ? styles.dragOver : ''} nodrag`}
@@ -200,23 +208,18 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
             }
           }}
           style={{
-            '--handle-color': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
-              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
-              return selectedType.color;
-            })(),
-            '--handle-shadow': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
-              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
-              return hexToRgba(selectedType.color, 0.4);
-            })(),
-            '--handle-text-color': (() => {
-              const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
-              const selectedType = allTypeOptions.find(opt => opt.value === typeNames[output.type]) || allTypeOptions[0];
-              return selectedType.textColor;
-            })()
+            '--handle-color': selectedType.color,
+            '--handle-shadow': hexToRgba(selectedType.color, 0.4),
+            '--handle-text-color': selectedType.textColor
           } as React.CSSProperties}
         >
+          {shouldShowChevron && (
+            <div className={styles.outputChevron}>
+              <svg width="12" height="8" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 8 L0 0 L12 0 Z" fill={selectedType.color} />
+              </svg>
+            </div>
+          )}
           {editingIndex === index ? (
             <input
               type="text"
@@ -306,7 +309,8 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
             } as React.CSSProperties}
           />
         </div>
-      ))}
+      );
+      })}
       {variadic && (
         <div className={styles.addOutputBox}>
           <button

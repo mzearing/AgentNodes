@@ -1,0 +1,52 @@
+{
+  "inputs": [],
+  "outputs": [],
+  "defaults": {},
+  "instances": {
+    "01b35164-6f45-47a3-9ad3-f2d09ef8f187": {
+      "node_type": {
+        "Atomic": {
+          "Value": 5
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": []
+    },
+    "8e5e2e76-e8de-401f-aac4-a03badee3d43": {
+      "node_type": {
+        "Atomic": {
+          "Variable": [
+            "Integer",
+            "01b35164-6f45-47a3-9ad3-f2d09ef8f187",
+            0
+          ]
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "Integer"
+      ],
+      "inputs": []
+    },
+    "e112788e-fc42-4907-9075-ab6113553732": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [
+        "None"
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "8e5e2e76-e8de-401f-aac4-a03badee3d43",
+          0
+        ]
+      ]
+    }
+  },
+  "end_node": "e112788e-fc42-4907-9075-ab6113553732"
+}

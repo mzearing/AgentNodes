@@ -1,0 +1,242 @@
+{
+  "summary": {
+    "path": "complex/group-1760638501429/node-1768343674047",
+    "id": "node-1768343674047",
+    "name": "VariableTest",
+    "inputs": [],
+    "inputTypes": [],
+    "outputs": [],
+    "outputTypes": [],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "constantData": [],
+    "solo": false
+  },
+  "dependencies": [],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 284.80754213163016,
+          "y": 23.999446025587325
+        },
+        "data": {
+          "nodeId": "integer-constant",
+          "label": "Integer Constant",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1768343742040-0-4eouuh1z1",
+              "name": "Value",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "availableOutputTypes": [
+            [
+              1
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/constants",
+          "constantData": [
+            1
+          ],
+          "constantValues": [
+            {
+              "type": 1,
+              "value": 5
+            }
+          ],
+          "isStartingPoint": true,
+          "connectedOutputs": [
+            "output-1768343742040-0-4eouuh1z1"
+          ]
+        },
+        "measured": {
+          "width": 178,
+          "height": 137
+        },
+        "selected": false
+      },
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 310.51354745528323,
+          "y": 237.90188480562819
+        },
+        "data": {
+          "nodeId": "variable_set_var_1768343697524",
+          "label": "Set Value",
+          "inputs": [
+            {
+              "id": "input-1768343746861",
+              "name": "value",
+              "type": 1
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1768343746861",
+              "name": "value",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": false,
+          "multitypeOutputs": false,
+          "solo": false,
+          "constantData": [],
+          "variableId": "var_1768343697524",
+          "variableName": "Value",
+          "isVariableNode": true,
+          "isGetter": false,
+          "isStartingPoint": false,
+          "connectedOutputs": [
+            "output-1768343746861"
+          ]
+        },
+        "measured": {
+          "width": 95,
+          "height": 168
+        },
+        "dragging": false,
+        "selected": false
+      },
+      {
+        "id": "node_4",
+        "type": "scripting-node",
+        "position": {
+          "x": 318.7674720793889,
+          "y": 463.1161138347961
+        },
+        "data": {
+          "nodeId": "variable_get_var_1768343697524",
+          "label": "Get Value",
+          "inputs": [
+            {
+              "id": "input-1768343750577",
+              "name": "trigger",
+              "type": 0
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1768343750577",
+              "name": "Value",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": false,
+          "multitypeOutputs": false,
+          "solo": false,
+          "constantData": [],
+          "variableId": "var_1768343697524",
+          "variableName": "Value",
+          "isVariableNode": true,
+          "isGetter": true,
+          "isStartingPoint": false,
+          "connectedOutputs": []
+        },
+        "measured": {
+          "width": 100,
+          "height": 168
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_5",
+        "type": "scripting-node",
+        "position": {
+          "x": 312.8718116335991,
+          "y": 671.8224936157529
+        },
+        "data": {
+          "nodeId": "print",
+          "label": "Print",
+          "inputs": [
+            {
+              "id": "input-1768343755139-0-ie11ayrei",
+              "name": "Value",
+              "type": 1
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1768343755139-0-nzlds6jp3",
+              "name": "Result",
+              "type": 0
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              0
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/io",
+          "constantData": [],
+          "isStartingPoint": false,
+          "connectedOutputs": []
+        },
+        "measured": {
+          "width": 100,
+          "height": 168
+        },
+        "selected": true,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_2",
+        "sourceHandle": "output-1768343742040-0-4eouuh1z1",
+        "target": "node_3",
+        "targetHandle": "input-1768343746861",
+        "id": "xy-edge__node_2output-1768343742040-0-4eouuh1z1-node_3input-1768343746861",
+        "selected": false
+      },
+      {
+        "source": "node_3",
+        "sourceHandle": "output-1768343746861",
+        "target": "node_4",
+        "targetHandle": "input-1768343750577",
+        "id": "xy-edge__node_3output-1768343746861-node_4input-1768343750577"
+      },
+      {
+        "source": "node_4",
+        "sourceHandle": "output-1768343750577",
+        "target": "node_5",
+        "targetHandle": "input-1768343755139-0-ie11ayrei",
+        "id": "xy-edge__node_4output-1768343750577-node_5input-1768343755139-0-ie11ayrei"
+      }
+    ],
+    "viewport": {
+      "x": 73.65923410071059,
+      "y": 92.23983505060852,
+      "zoom": 0.8480814059721916
+    }
+  },
+  "variables": []
+}

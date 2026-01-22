@@ -1,5 +1,6 @@
 :root {
   --color-primary: #63b3ed;
+  --color-primary-rgb: 99, 179, 237;
   --color-primary-hover: #4299e1;
   --color-primary-alpha: rgba(99, 179, 237, 0.2);
   
@@ -46,6 +47,7 @@
 
 [data-theme="light"] {
   --color-primary: #4299e1;
+  --color-primary-rgb: 66, 153, 225;
   --color-primary-hover: #3182ce;
   --color-primary-alpha: rgba(66, 153, 225, 0.2);
   

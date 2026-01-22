@@ -46,11 +46,18 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   variableName?: string;
   isVariableNode?: boolean;
   isGetter?: boolean;
+  // Starting point indicator
+  isStartingPoint?: boolean;
+  connectedOutputs?: string[];
 }
 
 const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
   const scriptNodeData = data as unknown as ScriptingNodeData;
   const nodeHandles = useNodeHandles(id);
+  
+  // Check if this node is a starting point
+  const isStartingPoint = scriptNodeData.isStartingPoint || false;
+  const connectedOutputs = scriptNodeData.connectedOutputs || [];
 
   const handleInputsChange = useCallback((newInputs: InputHandle[]) => {
     const currentInputs = scriptNodeData.inputs;
@@ -111,6 +118,8 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
           multitype={scriptNodeData.multitypeOutputs || false}
           availableTypes={scriptNodeData.availableOutputTypes}
           onOutputsChange={handleOutputsChange}
+          isStartingPoint={isStartingPoint}
+          connectedOutputs={connectedOutputs}
         />
       </div>
       <NodeSources 
@@ -119,6 +128,8 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
         multitype={scriptNodeData.multitypeOutputs || false}
         availableTypes={scriptNodeData.availableOutputTypes}
         onOutputsChange={handleOutputsChange}
+        isStartingPoint={isStartingPoint}
+        connectedOutputs={connectedOutputs}
       />
     </div>
   );

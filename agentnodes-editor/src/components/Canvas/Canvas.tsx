@@ -386,9 +386,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       const category = pathParts[0] === 'complex' ? 'Complex' : 'Atomic';
       const groupId = pathParts[1];
       
-      // Find input and output nodes in current canvas state
-      let inputNode: Node | null = null;
-      let outputNode: Node | null = null;
       const inputArray: string[] = [];
       const outputArray: string[] = [];
       const inputTypesArray: IOType[] = [];
@@ -399,13 +396,11 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
             inputArray.push(element.name);
             inputTypesArray.push(element.type || IOType.None);
           });
-          inputNode = node;
         } else if (node.data?.["nodeId"] === "finish") {
           (node.data?.["inputs"] as IDName[]).forEach(element => {
             outputArray.push(element.name);
             outputTypesArray.push(element.type || IOType.None);
           });
-          outputNode = node;
         }
       });
 
@@ -692,6 +687,53 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       return currentEdges;
     });
   }, [propNodes, setEdges]);
+
+  // Add effect to mark starting point nodes
+  React.useEffect(() => {
+    // Identify nodes that are starting points:
+    // - Have no incoming edges (no edges where node is target)
+    // - Have at least one output that is connected to another node
+    const updatedNodes = propNodes.map(node => {
+      // Check if node has any incoming edges
+      const hasIncomingEdges = edges.some(edge => edge.target === node.id);
+      
+      // Get all connected output handles for this node
+      const connectedOutputs = edges
+        .filter(edge => edge.source === node.id)
+        .map(edge => edge.sourceHandle)
+        .filter(Boolean) as string[];
+      
+      // Node is a starting point if it has no incoming edges but has outgoing edges
+      const isStartingPoint = !hasIncomingEdges && connectedOutputs.length > 0;
+      
+      // Update node data if starting point status or connected outputs changed
+      const currentConnectedOutputs = (node.data as ScriptingNodeData).connectedOutputs || [];
+      const outputsChanged = connectedOutputs.length !== currentConnectedOutputs.length ||
+        !connectedOutputs.every(output => currentConnectedOutputs.includes(output));
+      
+      if ((node.data as ScriptingNodeData).isStartingPoint !== isStartingPoint || outputsChanged) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isStartingPoint,
+            connectedOutputs
+          }
+        };
+      }
+      
+      return node;
+    });
+
+    // Only update if there were changes
+    const hasChanges = updatedNodes.some((node, index) => 
+      (node.data as ScriptingNodeData).isStartingPoint !== (propNodes[index].data as ScriptingNodeData).isStartingPoint
+    );
+    
+    if (hasChanges) {
+      propOnNodesChange(updatedNodes);
+    }
+  }, [edges, propNodes, propOnNodesChange]);
 
 
   const isValidConnection = useCallback(
