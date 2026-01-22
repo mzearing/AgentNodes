@@ -4,7 +4,7 @@ use crate::{
   language::{nodes::Complex, typing::DataValue},
 };
 use std::{
-  collections::{HashMap, VecDeque},
+  collections::{HashMap, HashSet, VecDeque},
   sync::{atomic::AtomicBool, Arc},
 };
 use tokio::{
@@ -104,6 +104,10 @@ pub struct Evaluator
   io_registry: Arc<RwLock<HashMap<Uuid, IoObject>>>,
 
   agent_registry: Arc<RwLock<HashMap<Uuid, DynAgent>>>,
+
+  dangling_nodes: Arc<HashSet<Uuid>>,
+
+  variables: RwLock<HashMap<String, DataValue>>,
 }
 
 impl AsyncClone for Evaluator
@@ -130,6 +134,8 @@ impl AsyncClone for Evaluator
       closed: AtomicBool::new(false),
       io_registry: Arc::new(RwLock::new(HashMap::new())),
       agent_registry: Arc::new(RwLock::new(HashMap::new())),
+      dangling_nodes: Arc::new(self.dangling_nodes.as_ref().clone()),
+      variables: RwLock::new(HashMap::new()),
     }
   }
 }
@@ -143,6 +149,13 @@ impl Evaluator
     let me = serde_json::from_reader::<std::fs::File, Complex>(file)
       .map_err(|x| EvalError::InvalidComplexNode(path.clone(), x))?;
 
+    let mut non_dangling = HashSet::new();
+    let all_ids: HashSet<Uuid> = me
+      .instances
+      .iter()
+      .map(|(unscoped, _)| Self::convert_id(&scope_id, unscoped.clone()))
+      .collect();
+
     //wow iterators are insane
     let nodes: HashMap<Uuid, Arc<ExecutionNode>> = me
       .instances
@@ -152,13 +165,23 @@ impl Evaluator
         let inputs = instance
           .inputs
           .iter()
-          .map(|(t, id, socket)| (t.clone(), Self::convert_id(&scope_id, id.clone()), *socket))
+          .map(|(t, id, socket, strong)| {
+            non_dangling.insert(Self::convert_id(&scope_id, id.clone()));
+            (
+              t.clone(),
+              Self::convert_id(&scope_id, id.clone()),
+              *socket,
+              *strong,
+            )
+          })
           .collect();
 
         let ex = Arc::new(ExecutionNode::new(scoped, instance, inputs));
         (scoped, ex)
       })
       .collect();
+
+    let dangling: HashSet<Uuid> = all_ids.difference(&non_dangling).cloned().collect();
 
     Ok(Arc::new(Self {
       scope_id: scope_id.clone(),
@@ -179,6 +202,8 @@ impl Evaluator
       closed: AtomicBool::new(false),
       io_registry: Arc::new(RwLock::new(HashMap::new())),
       agent_registry: Arc::new(RwLock::new(HashMap::new())),
+      dangling_nodes: Arc::new(dangling),
+      variables: RwLock::new(HashMap::new()),
     }))
   }
 
@@ -202,6 +227,18 @@ impl Evaluator
     // println!("Getoutputs");
     let node = self.nodes.get(&self.end_node).ok_or(EvalError::NoEndNode)?;
     // println!("Got");
+
+    let dangles: Vec<Result<&Arc<ExecutionNode>, EvalError>> = self
+      .dangling_nodes
+      .iter()
+      .map(|x| self.nodes.get(x).ok_or(EvalError::NodeNotFound(x.clone())))
+      .collect();
+
+    for node in dangles
+    {
+      node?.trigger_processing().await;
+    }
+
     let mut out = Vec::with_capacity(node.outputs.len());
     for i in 0..node.outputs.len()
     {
@@ -427,5 +464,24 @@ impl Evaluator
         .get_last_response()
         .await,
     )
+  }
+
+  pub async fn get_variable(self: Arc<Self>, name: &str) -> DataValue
+  {
+    let mut guard = self.variables.write().await;
+    if let Some(v) = guard.get(name)
+    {
+      v.clone()
+    }
+    else
+    {
+      guard.insert(name.to_string(), DataValue::None);
+      DataValue::None
+    }
+  }
+
+  pub async fn set_variable(self: Arc<Self>, name: String, value: DataValue)
+  {
+    self.variables.write().await.insert(name, value);
   }
 }

@@ -3,32 +3,32 @@
   "title": "Complex",
   "type": "object",
   "properties": {
-    "defaults": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/DataValue"
-      }
-    },
-    "end_node": {
-      "type": "string",
-      "format": "uuid"
-    },
     "inputs": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/DataType"
       }
     },
-    "instances": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/Instance"
-      }
-    },
     "outputs": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/DataType"
+      }
+    },
+    "end_node": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/DataValue"
+      }
+    },
+    "instances": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Instance"
       }
     }
   },
@@ -40,319 +40,6 @@
     "instances"
   ],
   "$defs": {
-    "AgentOperation": {
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "Send",
-            "Recieve"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Create": {
-              "$ref": "#/$defs/AgentType"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Create"
-          ]
-        }
-      ]
-    },
-    "AgentType": {
-      "type": "string",
-      "enum": [
-        "OpenAi",
-        "OpenRouter"
-      ]
-    },
-    "AtomicBinOp": {
-      "type": "string",
-      "enum": [
-        "Add",
-        "Sub",
-        "Mul",
-        "Div",
-        "Pow",
-        "Mod"
-      ]
-    },
-    "AtomicIo": {
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "ConsoleInput",
-            "Read",
-            "Write",
-            "GetLine"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Open": {
-              "$ref": "#/$defs/IoType"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Open"
-          ]
-        }
-      ]
-    },
-    "AtomicLogic": {
-      "type": "string",
-      "enum": [
-        "And",
-        "Or",
-        "Xor",
-        "Not",
-        "Eq"
-      ]
-    },
-    "AtomicType": {
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "Print",
-            "Replace",
-            "IsNone"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "BinOp": {
-              "$ref": "#/$defs/AtomicBinOp"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "BinOp"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "UnaryOp": {
-              "$ref": "#/$defs/AtomicUnaryOp"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "UnaryOp"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Value": {
-              "$ref": "#/$defs/DataValue"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Value"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Control": {
-              "$ref": "#/$defs/ControlFlow"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Control"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Variable": {
-              "type": "array",
-              "maxItems": 3,
-              "minItems": 3,
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                }
-              ]
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Variable"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Io": {
-              "$ref": "#/$defs/AtomicIo"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Io"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Cast": {
-              "$ref": "#/$defs/DataType"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Cast"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "LogicalOp": {
-              "$ref": "#/$defs/AtomicLogic"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "LogicalOp"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "AgentOp": {
-              "$ref": "#/$defs/AgentOperation"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "AgentOp"
-          ]
-        }
-      ]
-    },
-    "AtomicUnaryOp": {
-      "type": "string",
-      "enum": [
-        "Neg"
-      ]
-    },
-    "ControlFlow": {
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "Start",
-            "End"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "WaitForInit": {
-              "type": "array",
-              "maxItems": 3,
-              "minItems": 3,
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                }
-              ]
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "WaitForInit"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "While": {
-              "type": "array",
-              "maxItems": 3,
-              "minItems": 3,
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                }
-              ]
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "While"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "If": {
-              "type": "array",
-              "maxItems": 3,
-              "minItems": 3,
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                }
-              ]
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "If"
-          ]
-        }
-      ]
-    },
     "DataType": {
       "oneOf": [
         {
@@ -376,11 +63,18 @@
               "$ref": "#/$defs/AgentType"
             }
           },
-          "additionalProperties": false,
           "required": [
             "Agent"
-          ]
+          ],
+          "additionalProperties": false
         }
+      ]
+    },
+    "AgentType": {
+      "type": "string",
+      "enum": [
+        "OpenAi",
+        "OpenRouter"
       ]
     },
     "DataValue": {
@@ -402,8 +96,8 @@
         {
           "type": "integer",
           "format": "uint8",
-          "maximum": 255,
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 255
         },
         {
           "type": "array",
@@ -423,8 +117,6 @@
         },
         {
           "type": "array",
-          "maxItems": 2,
-          "minItems": 2,
           "prefixItems": [
             {
               "$ref": "#/$defs/AgentType"
@@ -433,7 +125,9 @@
               "type": "string",
               "format": "uuid"
             }
-          ]
+          ],
+          "minItems": 2,
+          "maxItems": 2
         },
         {
           "type": "null"
@@ -443,18 +137,25 @@
     "Instance": {
       "type": "object",
       "properties": {
+        "node_type": {
+          "$ref": "#/$defs/NodeType"
+        },
         "default_overrides": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/DataValue"
           }
         },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataType"
+          }
+        },
         "inputs": {
           "type": "array",
           "items": {
             "type": "array",
-            "maxItems": 3,
-            "minItems": 3,
             "prefixItems": [
               {
                 "$ref": "#/$defs/DataType"
@@ -467,17 +168,13 @@
                 "type": "integer",
                 "format": "uint",
                 "minimum": 0
+              },
+              {
+                "type": "boolean"
               }
-            ]
-          }
-        },
-        "node_type": {
-          "$ref": "#/$defs/NodeType"
-        },
-        "outputs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/DataType"
+            ],
+            "minItems": 4,
+            "maxItems": 4
           }
         }
       },
@@ -486,13 +183,6 @@
         "default_overrides",
         "outputs",
         "inputs"
-      ]
-    },
-    "IoType": {
-      "type": "string",
-      "enum": [
-        "File",
-        "TcpSocket"
       ]
     },
     "NodeType": {
@@ -504,10 +194,10 @@
               "$ref": "#/$defs/AtomicType"
             }
           },
-          "additionalProperties": false,
           "required": [
             "Atomic"
-          ]
+          ],
+          "additionalProperties": false
         },
         {
           "type": "object",
@@ -516,10 +206,333 @@
               "type": "string"
             }
           },
-          "additionalProperties": false,
           "required": [
             "Complex"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AtomicType": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Print",
+            "Replace",
+            "IsNone"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "BinOp": {
+              "$ref": "#/$defs/AtomicBinOp"
+            }
+          },
+          "required": [
+            "BinOp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "UnaryOp": {
+              "$ref": "#/$defs/AtomicUnaryOp"
+            }
+          },
+          "required": [
+            "UnaryOp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Value": {
+              "$ref": "#/$defs/DataValue"
+            }
+          },
+          "required": [
+            "Value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Control": {
+              "$ref": "#/$defs/ControlFlow"
+            }
+          },
+          "required": [
+            "Control"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Variable": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/Variable"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "Variable"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Io": {
+              "$ref": "#/$defs/AtomicIo"
+            }
+          },
+          "required": [
+            "Io"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Cast": {
+              "$ref": "#/$defs/DataType"
+            }
+          },
+          "required": [
+            "Cast"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "LogicalOp": {
+              "$ref": "#/$defs/AtomicLogic"
+            }
+          },
+          "required": [
+            "LogicalOp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "AgentOp": {
+              "$ref": "#/$defs/AgentOperation"
+            }
+          },
+          "required": [
+            "AgentOp"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AtomicBinOp": {
+      "type": "string",
+      "enum": [
+        "Add",
+        "Sub",
+        "Mul",
+        "Div",
+        "Pow",
+        "Mod"
+      ]
+    },
+    "AtomicUnaryOp": {
+      "type": "string",
+      "enum": [
+        "Neg"
+      ]
+    },
+    "ControlFlow": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Start",
+            "End"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "WaitForInit": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "WaitForInit"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "While": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "While"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "If": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/DataType"
+                },
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "If"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Variable": {
+      "type": "string",
+      "enum": [
+        "Set",
+        "Get"
+      ]
+    },
+    "AtomicIo": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "ConsoleInput",
+            "Read",
+            "Write",
+            "GetLine"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Open": {
+              "$ref": "#/$defs/IoType"
+            }
+          },
+          "required": [
+            "Open"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "IoType": {
+      "type": "string",
+      "enum": [
+        "File",
+        "TcpSocket"
+      ]
+    },
+    "AtomicLogic": {
+      "type": "string",
+      "enum": [
+        "And",
+        "Or",
+        "Xor",
+        "Not",
+        "Eq"
+      ]
+    },
+    "AgentOperation": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Send",
+            "Recieve"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Create": {
+              "$ref": "#/$defs/AgentType"
+            }
+          },
+          "required": [
+            "Create"
+          ],
+          "additionalProperties": false
         }
       ]
     }

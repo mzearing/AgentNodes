@@ -1,6 +1,7 @@
 use super::{EvalError, EvaluateIt, Evaluator};
 use crate::language::nodes::Instance;
 use crate::language::typing::{DataType, DataValue};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::oneshot::{channel, Receiver, Sender};
 use tokio::sync::{Notify, RwLock};
@@ -15,7 +16,7 @@ pub enum NodeState
   Closed,
 }
 
-pub type NodeConnection = (DataType, Uuid, usize); //(id, port)
+pub type NodeConnection = (DataType, Uuid, usize, bool); //(type, id, port, strong)
 
 // IMPORTANT, USE Uuid v5 SO ITS SCOPED
 pub struct ExecutionNode
@@ -27,7 +28,7 @@ pub struct ExecutionNode
   pub(super) state: RwLock<NodeState>,
   trigger: Notify,
   stored_value: RwLock<Option<DataValue>>,
-  stored_channel: RwLock<Option<Receiver<Option<DataValue>>>>,
+  weak_listens: RwLock<HashMap<NodeConnection, Receiver<Option<DataValue>>>>,
 }
 
 impl Clone for ExecutionNode
@@ -44,7 +45,7 @@ impl Clone for ExecutionNode
       state: RwLock::new(NodeState::Waiting),
       trigger: Notify::new(),
       stored_value: RwLock::new(None),
-      stored_channel: RwLock::new(None),
+      weak_listens: RwLock::new(HashMap::new()),
     }
   }
 }
@@ -77,6 +78,34 @@ impl ExecutionNode
     *self.state.write().await = NodeState::Closed;
   }
 
+  async fn get_channel(
+    &self,
+    o_node: Option<&Arc<Self>>,
+    eval: Arc<Evaluator>,
+    connection: &NodeConnection,
+  ) -> Result<Receiver<Option<DataValue>>, EvalError>
+  {
+    let node = o_node
+      .or(eval.nodes.get(&connection.1))
+      .ok_or(EvalError::NodeNotFound(connection.1.clone()))?;
+
+    if connection.3
+    {
+      node.listen(connection.2).await
+    }
+    else
+    {
+      Ok(
+        self
+          .weak_listens
+          .write()
+          .await
+          .remove(&connection)
+          .unwrap_or(node.weak_listen(connection.2).await?),
+      )
+    }
+  }
+
   async fn process(&self, eval: Arc<Evaluator>) -> Result<Vec<DataValue>, EvalError>
   {
     /*
@@ -103,7 +132,7 @@ impl ExecutionNode
       //2
       // println!("{id} step 2");
       let mut inputs = Vec::with_capacity(self.inputs.len());
-      for (_, id, port) in &self.inputs
+      for (t, id, port, strong) in &self.inputs
       {
         if let Some(node) = eval.nodes.get(&id)
         {
@@ -115,17 +144,37 @@ impl ExecutionNode
             return Ok(vec![]);
           }
           // println!("{id} step 2b notify");
-          let i = node.listen(port.clone()).await?.await?;
+          let connection = (t.clone(), id.clone(), port.clone(), strong.clone());
+          let channel = self
+            .get_channel(Some(node), eval.clone(), &connection)
+            .await?;
+
+          let i = if *strong
+          {
+            node.listen(port.clone()).await?.await?
+          }
+          else
+          {
+            if channel.is_empty()
+            {
+              self.weak_listens.write().await.insert(connection, channel);
+              None
+            }
+            else
+            {
+              channel.await?
+            }
+          };
 
           // 2a_2, check if we got None, also signifying a close
-          if i.is_none()
+          if i.is_none() && *strong
           {
             self.broadcast_closed().await;
             // println!("2a_2");
             return Ok(vec![]);
           }
 
-          inputs.push(i.unwrap());
+          inputs.push(i);
         }
       }
 
@@ -230,7 +279,7 @@ impl ExecutionNode
       state: RwLock::new(NodeState::Waiting),
       trigger: Notify::new(),
       stored_value: RwLock::new(None),
-      stored_channel: RwLock::new(None),
+      weak_listens: RwLock::new(HashMap::new()),
     }
   }
 
@@ -250,36 +299,5 @@ impl ExecutionNode
     let ret = guard.clone();
     *guard = Some(val);
     ret
-  }
-
-  pub async fn channel_data_ready(&self) -> bool
-  {
-    if let Some(channel) = self.stored_channel.read().await.as_ref()
-    {
-      !channel.is_empty()
-    }
-    else
-    {
-      false
-    }
-  }
-  pub async fn channel_read_data(&self) -> Result<Option<DataValue>, EvalError>
-  {
-    if let Some(channel) = self.stored_channel.write().await.take()
-    {
-      channel.await.map_err(|x| EvalError::ChannelRecvErr(x))
-    }
-    else
-    {
-      Err(EvalError::NoListeningNode)
-    }
-  }
-  pub async fn channel_exists(&self) -> bool
-  {
-    self.stored_channel.read().await.is_some()
-  }
-  pub async fn channel_set(&self, channel: Receiver<Option<DataValue>>)
-  {
-    *self.stored_channel.write().await = Some(channel);
   }
 }

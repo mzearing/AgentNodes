@@ -1,6 +1,6 @@
 use crate::ai::{Agent, AgentErr, ChatBody};
 use crate::correct_body;
-use openai::chat::{ChatCompletion, ChatCompletionMessage};
+use openai::chat::{ChatCompletion, ChatCompletionFunctionDefinition, ChatCompletionMessage};
 use openai::Credentials;
 use tokio::sync::Mutex;
 
@@ -8,16 +8,25 @@ pub struct OpenAiAgent
 {
   credentials: Credentials,
   messages: Mutex<Vec<ChatCompletionMessage>>,
+  functions: Vec<ChatCompletionFunctionDefinition>,
+  o_tempurature: Option<f64>,
   model: String,
 }
 
 impl OpenAiAgent
 {
-  pub fn new(model: String, creds: Option<Credentials>) -> Self
+  pub fn new(
+    model: String,
+    creds: Option<Credentials>,
+    functions: Vec<ChatCompletionFunctionDefinition>,
+    o_tempurature: Option<f64>,
+  ) -> Self
   {
     Self {
       credentials: creds.unwrap_or(Credentials::from_env()),
       messages: Mutex::new(Vec::new()),
+      functions,
+      o_tempurature,
       model,
     }
   }
@@ -32,8 +41,19 @@ impl Agent for OpenAiAgent
     let mut guard = self.messages.lock().await;
 
     guard.push(message);
-    let o_response = ChatCompletion::builder(&self.model, guard.clone())
+    let mut builder = ChatCompletion::builder(&self.model, guard.clone())
       .credentials(self.credentials.clone())
+      .n(1);
+    if self.functions.len() > 0
+    {
+      builder = builder.functions(self.functions.clone())
+    }
+    if let Some(tempurature) = self.o_tempurature
+    {
+      builder = builder.temperature(tempurature as f32);
+    }
+
+    let o_response = builder
       .create()
       .await
       .map_err(|x| AgentErr::OpenAi(x))?

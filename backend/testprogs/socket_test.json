@@ -40,8 +40,8 @@
     {
       "default_overrides": {},
       "inputs": [
-        ["String", "6356aa10-6133-47c4-87ad-5d5016d47796", 0], 
-        ["Integer", "01ce7213-589c-4ca9-b76a-f40db7978b78", 0]
+        ["String", "6356aa10-6133-47c4-87ad-5d5016d47796", 0, true], 
+        ["Integer", "01ce7213-589c-4ca9-b76a-f40db7978b78", 0, true]
       ],
       "outputs": ["Handle"],
       "node_type": {
@@ -54,7 +54,7 @@
     },
     "0af6bef8-ca53-11f0-8da3-00155d8c2776" : 
     {
-      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0]],
+      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type": {
@@ -64,7 +64,7 @@
     
     "592b807e-cfd3-11f0-ada6-00155d55e5e2": 
     {
-      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0]],
+      "inputs": [["Handle", "88eeaf08-5e26-4e1a-a3c8-0c5a9a7ed4d0", 0, true]],
       "outputs": ["String"],
       "default_overrides": {},
       "node_type": {
@@ -75,7 +75,7 @@
     },
 
     "0209e578-cfd4-11f0-b975-00155d55e5e2":{
-      "inputs": [["String", "592b807e-cfd3-11f0-ada6-00155d55e5e2", 0]],
+      "inputs": [["String", "592b807e-cfd3-11f0-ada6-00155d55e5e2", 0, true]],
       "outputs": ["None"],
       "default_overrides": {},
       "node_type": {
@@ -84,19 +84,30 @@
     },
 
     "40c9c468-cfd4-11f0-8823-00155d55e5e2":{
-      "inputs": [],
-      "outputs": ["String"],
+      "inputs": [ ["String", "592b807e-cfd3-11f0-ada6-00155d55e5e2", 0, false]],
+      "outputs": [],
       "default_overrides": {},
       "node_type": {
         "Atomic" :
         {
-          "Variable" : ["String", "592b807e-cfd3-11f0-ada6-00155d55e5e2", 0]
+          "Variable" : ["Set", "CurrentLine"]
+        }
+      }
+    },
+    "f7da808c-f7cc-11f0-ab3a-00155d64d972":{
+      "inputs": [],
+      "outputs": ["String"],
+      "default_overrides": {},
+      "node_type":{
+        "Atomic":
+        {
+          "Variable": ["Get", "CurrentLine"]
         }
       }
     },
 
     "4641ed42-cfd6-11f0-a446-00155d55e5e2":{
-      "inputs": [["String", "40c9c468-cfd4-11f0-8823-00155d55e5e2", 0]],
+      "inputs": [["String", "f7da808c-f7cc-11f0-ab3a-00155d64d972", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type": {
@@ -104,7 +115,7 @@
       }
     },
     "adfe2f36-cfd6-11f0-bcca-00155d55e5e2":{
-      "inputs": [["String", "40c9c468-cfd4-11f0-8823-00155d55e5e2", 0], ["String", "dd1a64ba-cfd6-11f0-b81d-00155d55e5e2", 0]],
+      "inputs": [["String", "f7da808c-f7cc-11f0-ab3a-00155d64d972", 0, true], ["String", "dd1a64ba-cfd6-11f0-b81d-00155d55e5e2", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type":{
@@ -114,7 +125,7 @@
       }
     },
     "af82b258-cfd8-11f0-aa60-00155d55e5e2":{
-      "inputs": [["Boolean","adfe2f36-cfd6-11f0-bcca-00155d55e5e2", 0]],
+      "inputs": [["Boolean","adfe2f36-cfd6-11f0-bcca-00155d55e5e2", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type":{
@@ -125,7 +136,7 @@
     },
 
     "0104f930-cfd7-11f0-8984-00155d55e5e2":{
-      "inputs": [["Boolean", "af82b258-cfd8-11f0-aa60-00155d55e5e2", 0], ["Boolean", "4641ed42-cfd6-11f0-a446-00155d55e5e2", 0]],
+      "inputs": [["Boolean", "af82b258-cfd8-11f0-aa60-00155d55e5e2", 0, true], ["Boolean", "4641ed42-cfd6-11f0-a446-00155d55e5e2", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type":{
@@ -136,7 +147,7 @@
     },
 
     "496ee4b0-cfd7-11f0-9cc6-00155d55e5e2":{
-      "inputs": [["Boolean","0104f930-cfd7-11f0-8984-00155d55e5e2", 0], ["Boolean", "0af6bef8-ca53-11f0-8da3-00155d8c2776", 0]],
+      "inputs": [["Boolean","0104f930-cfd7-11f0-8984-00155d55e5e2", 0, true], ["Boolean", "0af6bef8-ca53-11f0-8da3-00155d8c2776", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type":{
@@ -146,20 +157,20 @@
       }
     },
     "9e30eb00-cfd8-11f0-a6ba-00155d55e5e2":{
-      "inputs": [["Boolean", "496ee4b0-cfd7-11f0-9cc6-00155d55e5e2", 0]],
+      "inputs": [["Boolean", "496ee4b0-cfd7-11f0-9cc6-00155d55e5e2", 0, true]],
       "outputs": ["None"],
       "default_overrides": {},
       "node_type":{
         "Atomic":{
           "Control":{
-            "While": ["None", "0209e578-cfd4-11f0-b975-00155d55e5e2", 0]
+            "While": ["None", "0209e578-cfd4-11f0-b975-00155d55e5e2", 0, true]
           }
         }
       }
     },
 
     "006a2592-ca53-11f0-a545-00155d8c2776":{
-      "inputs": [["None", "9e30eb00-cfd8-11f0-a6ba-00155d55e5e2", 0]],
+      "inputs": [["None", "9e30eb00-cfd8-11f0-a6ba-00155d55e5e2", 0, true]],
       "outputs": ["None"],
       "default_overrides": {},
       "node_type": {

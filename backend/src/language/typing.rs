@@ -15,7 +15,7 @@ pub enum ArithmaticError
   DivByZero,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema, Eq, Hash)]
 pub enum DataType
 {
   Array,

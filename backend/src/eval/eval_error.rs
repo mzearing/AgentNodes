@@ -33,6 +33,7 @@ pub enum EvalError
   NoListeningNode,
   NoEndNode,
   Closed,
+  ComplexWeakInput,
 }
 impl From<ArithmaticError> for EvalError
 {

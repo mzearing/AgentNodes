@@ -25,7 +25,7 @@
       }
     },
     "9c60e09c-ca50-11f0-a22f-00155d8c2776":{
-      "inputs": [["Handle", "328ff522-ca50-11f0-a356-00155d8c2776", 0], ["String", "0cf99642-ca50-11f0-b48b-00155d8c2776", 0]],
+      "inputs": [["Handle", "328ff522-ca50-11f0-a356-00155d8c2776", 0, true], ["String", "0cf99642-ca50-11f0-b48b-00155d8c2776", 0, true]],
       "outputs": ["None"],
       "default_overrides": {},
       "node_type": {
@@ -35,7 +35,7 @@
       }
     },
     "5938e52a-ca51-11f0-8c10-00155d8c2776":{
-      "inputs": [["None", "9c60e09c-ca50-11f0-a22f-00155d8c2776", 0]],
+      "inputs": [["None", "9c60e09c-ca50-11f0-a22f-00155d8c2776", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type": {
@@ -43,17 +43,28 @@
       }
     },
     "83952a36-ca51-11f0-a69b-00155d8c2776":{
-      "inputs": [],
-      "outputs": ["Boolean"],
+      "inputs": [["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0, false]],
+      "outputs": [],
       "default_overrides": {},
       "node_type": {
         "Atomic":{
-          "Variable": ["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0]
+          "Variable": ["Set", "Write_Complete"]
+        }
+      }
+    },
+    "06a8158a-f7cc-11f0-8d81-00155d64d972":{
+      "inputs": [],
+      "outputs": ["Boolean"],
+      "default_overrides": {},
+      "node_type" : {
+        "Atomic":
+        {
+          "Variable": ["Get", "Write_Complete"]
         }
       }
     },
     "c9530a02-ca51-11f0-8867-00155d8c2776":{
-      "inputs": [["Boolean", "83952a36-ca51-11f0-a69b-00155d8c2776", 0]],
+      "inputs": [["Boolean", "06a8158a-f7cc-11f0-8d81-00155d64d972", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type": {
@@ -61,13 +72,13 @@
         {
           "Control" : 
           {
-            "WaitForInit": ["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0]
+            "WaitForInit": ["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0, true]
           }
         }
       }
     },
     "3f755d1a-ca53-11f0-ad8d-00155d8c2776":{
-      "inputs": [["Boolean", "c9530a02-ca51-11f0-8867-00155d8c2776", 0]],
+      "inputs": [["Boolean", "c9530a02-ca51-11f0-8867-00155d8c2776", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
       "node_type": {

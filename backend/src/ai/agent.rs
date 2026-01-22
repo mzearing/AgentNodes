@@ -1,9 +1,10 @@
-use crate::ai::openai::OpenAiAgent;
+use crate::{ai::openai::OpenAiAgent, language::typing::DataValue};
+use openai::chat::ChatCompletionFunctionDefinition;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq, Eq, Hash)]
 pub enum AgentType
 {
   OpenAi,
@@ -17,6 +18,20 @@ pub enum ChatBody
   OpenRouter(usize),
 }
 
+pub struct FunctionCall
+{
+  pub name: String,
+  pub args: String,
+}
+
+pub struct FunctionDefinition
+{
+  pub name: String,
+  pub description: Option<String>,
+  pub arguments: Option<serde_json::Value>,
+}
+
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum AgentErr
 {
@@ -27,6 +42,46 @@ pub enum AgentErr
 pub struct AgentArgs
 {
   pub(crate) model: String,
+  pub(crate) functions: Option<Vec<FunctionDefinition>>,
+  pub(crate) tempurature: Option<f64>,
+}
+
+impl AgentArgs
+{
+  pub fn from_values(vals: &Vec<DataValue>) -> Option<Self>
+  {
+    match (
+      vals.get(0).cloned(),
+      vals.get(1).cloned(),
+      vals.get(2).cloned(),
+    )
+    {
+      (Some(DataValue::String(model)), Some(v_functions), Some(v_temp)) =>
+      {
+        let mut ret = Self {
+          model,
+          functions: None,
+          tempurature: None,
+        };
+        match v_functions
+        {
+          DataValue::Array(_functions) => todo!(),
+          DataValue::None => (),
+          _ => return None,
+        };
+
+        match v_temp
+        {
+          DataValue::Float(tempurature) => ret.tempurature = Some(tempurature),
+          DataValue::None => (),
+          _ => return None,
+        };
+        Some(ret)
+      }
+
+      _ => None,
+    }
+  }
 }
 
 pub type DynAgent = Pin<Box<dyn Agent + Send + Sync>>;
@@ -62,7 +117,29 @@ impl AgentType
   {
     match self
     {
-      AgentType::OpenAi => Box::pin(OpenAiAgent::new(args.model, None)),
+      AgentType::OpenAi =>
+      {
+        Box::pin(OpenAiAgent::new(
+          args.model,
+          None,
+          args
+            .functions
+            .map(|funcs| {
+              funcs
+                .into_iter()
+                .map(|x| {
+                  ChatCompletionFunctionDefinition {
+                    name: x.name,
+                    description: x.description,
+                    parameters: x.arguments,
+                  }
+                })
+                .collect()
+            })
+            .unwrap_or(vec![]),
+          args.tempurature,
+        ))
+      }
       AgentType::OpenRouter => todo!(),
     }
   }
@@ -75,6 +152,22 @@ impl ChatBody
     match self
     {
       ChatBody::OpenAi(message) => message.content.clone(),
+      ChatBody::OpenRouter(_) => todo!(),
+    }
+  }
+  pub fn get_function_call(&self) -> Option<FunctionCall>
+  {
+    match self
+    {
+      ChatBody::OpenAi(message) =>
+      {
+        message.function_call.clone().map(|x| {
+          FunctionCall {
+            name: x.name,
+            args: x.arguments,
+          }
+        })
+      }
       ChatBody::OpenRouter(_) => todo!(),
     }
   }
