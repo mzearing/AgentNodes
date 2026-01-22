@@ -84,7 +84,7 @@ const App: React.FC = () => {
       console.log('Canvas data retrieved:', canvasData);
       if (canvasData && projectState) {
         console.log('Starting compilation with canvas data:', canvasData);
-        const result = compilationService.compile(canvasData);
+        const result = await compilationService.compile(canvasData);
         console.log('Compilation result:', result);
         
         if (result.success && result.data) {

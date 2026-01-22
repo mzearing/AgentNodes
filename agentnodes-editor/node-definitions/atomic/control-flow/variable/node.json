@@ -1,14 +1,13 @@
 {
   "id": "variable",
   "name": "Variable",
-  "inputs": [],
+  "inputs": ["Value"],
   "outputs": ["Value"],
-  "inputTypes": [],
+  "inputTypes": [[0, 1, 2, 3, 4, 5, 6, 7, 8]],
   "outputTypes": [[0, 1, 2, 3, 4, 5, 6, 7, 8]],
   "variadicInputs": false,
   "variadicOutputs": false,
-  "multitypeInputs": false,
+  "multitypeInputs": true,
   "multitypeOutputs": true,
-  "constantData": [3, 3, 1],
   "solo": false
 }

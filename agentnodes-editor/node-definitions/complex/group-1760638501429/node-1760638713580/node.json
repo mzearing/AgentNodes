@@ -1,10 +1,306 @@
 {
-  "id": "node-1760638713580",
-  "name": "New Node",
-  "inputs": [
-    "Input"
-  ],
-  "outputs": [
-    "Output"
-  ]
+  "summary": {
+    "path": "complex/group-1760638501429/node-1760638713580",
+    "id": "node-1760638713580",
+    "name": "LLMOneshot",
+    "inputs": [
+      "Model",
+      "Prompt"
+    ],
+    "inputTypes": [
+      [
+        3
+      ],
+      [
+        3
+      ]
+    ],
+    "outputs": [
+      "Agent",
+      "Trigger"
+    ],
+    "outputTypes": [
+      [
+        9
+      ],
+      [
+        0
+      ]
+    ],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "constantData": [],
+    "solo": false
+  },
+  "dependencies": [],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 317.7057931509813,
+          "y": 148.22863478461477
+        },
+        "data": {
+          "nodeId": "agent-create",
+          "label": "Create Agent",
+          "inputs": [
+            {
+              "id": "input-1765406341279-0-jt568tq5p",
+              "name": "Model",
+              "type": 3
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1765406341279-0-1sdhatbvu",
+              "name": "Agent",
+              "type": 9
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": false,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              3
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              9
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/llm",
+          "constantData": [
+            3
+          ],
+          "constantValues": [
+            {
+              "type": 3,
+              "value": "OpenAi"
+            }
+          ]
+        },
+        "measured": {
+          "width": 182,
+          "height": 200
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 357.8401990175653,
+          "y": -120.35507292788321
+        },
+        "data": {
+          "nodeId": "start",
+          "label": "Start",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1765406372079-kfhzxxujk",
+              "name": "Model",
+              "type": 3
+            },
+            {
+              "id": "output-1765406356608-0-nq7hnh3a7",
+              "name": "Prompt",
+              "type": 3
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": true,
+          "multitypeInputs": false,
+          "multitypeOutputs": true,
+          "availableOutputTypes": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": []
+        },
+        "measured": {
+          "width": 319,
+          "height": 138
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_5",
+        "type": "scripting-node",
+        "position": {
+          "x": 431.4115397934912,
+          "y": 428.97844715859236
+        },
+        "data": {
+          "nodeId": "agent-send",
+          "label": "Send Message",
+          "inputs": [
+            {
+              "id": "input-1765406390288-0-9ni7lf4o9",
+              "name": "Agent",
+              "type": 9
+            },
+            {
+              "id": "input-1765406390288-1-qb9r2v57j",
+              "name": "Message",
+              "type": 3
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-1765406390288-0-2kp7adjqn",
+              "name": "None",
+              "type": 0
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": false,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              9
+            ],
+            [
+              3
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              0
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/llm",
+          "constantData": []
+        },
+        "measured": {
+          "width": 211,
+          "height": 180
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_15",
+        "type": "scripting-node",
+        "position": {
+          "x": 346.3211153571813,
+          "y": 654.7337457175965
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [
+            {
+              "id": "input-1765406526068-0-35tpkwtiy",
+              "name": "Agent",
+              "type": 9
+            },
+            {
+              "id": "input-1765406532279-0i9f3d766",
+              "name": "Trigger",
+              "type": 0
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": []
+        },
+        "measured": {
+          "width": 277,
+          "height": 150
+        },
+        "selected": false,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_3",
+        "sourceHandle": "output-1765406372079-kfhzxxujk",
+        "target": "node_2",
+        "targetHandle": "input-1765406341279-0-jt568tq5p",
+        "id": "xy-edge__node_3output-1765406372079-kfhzxxujk-node_2input-1765406341279-0-jt568tq5p",
+        "selected": false
+      },
+      {
+        "source": "node_2",
+        "sourceHandle": "output-1765406341279-0-1sdhatbvu",
+        "target": "node_5",
+        "targetHandle": "input-1765406390288-0-9ni7lf4o9",
+        "id": "xy-edge__node_2output-1765406341279-0-1sdhatbvu-node_5input-1765406390288-0-9ni7lf4o9",
+        "selected": false
+      },
+      {
+        "source": "node_2",
+        "sourceHandle": "output-1765406341279-0-1sdhatbvu",
+        "target": "node_15",
+        "targetHandle": "input-1765406526068-0-35tpkwtiy",
+        "id": "xy-edge__node_2output-1765406341279-0-1sdhatbvu-node_15input-1765406526068-0-35tpkwtiy",
+        "selected": false
+      },
+      {
+        "source": "node_5",
+        "sourceHandle": "output-1765406390288-0-2kp7adjqn",
+        "target": "node_15",
+        "targetHandle": "input-1765406532279-0i9f3d766",
+        "id": "xy-edge__node_5output-1765406390288-0-2kp7adjqn-node_15input-1765406532279-0i9f3d766",
+        "selected": false
+      },
+      {
+        "source": "node_3",
+        "sourceHandle": "output-1765406356608-0-nq7hnh3a7",
+        "target": "node_5",
+        "targetHandle": "input-1765406390288-1-qb9r2v57j",
+        "id": "xy-edge__node_3output-1765406356608-0-nq7hnh3a7-node_5input-1765406390288-1-qb9r2v57j",
+        "selected": false
+      }
+    ],
+    "viewport": {
+      "x": -77.03375481941475,
+      "y": 127.18923224517465,
+      "zoom": 1.0468102819745755
+    }
+  },
+  "variables": []
 }

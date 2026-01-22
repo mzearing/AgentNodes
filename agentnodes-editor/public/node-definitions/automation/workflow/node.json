@@ -1,9 +1,0 @@
-{
-  "id": "workflow",
-  "name": "Workflow",
-  "inputs": ["Input", "Config"],
-  "outputs": ["Result", "Status"],
-  "variadicInputs": false,
-  "variadicOutputs": false,
-  "solo": false
-}

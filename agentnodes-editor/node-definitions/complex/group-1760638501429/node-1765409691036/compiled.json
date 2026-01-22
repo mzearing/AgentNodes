@@ -1,0 +1,96 @@
+{
+  "inputs": [],
+  "outputs": [
+    "String"
+  ],
+  "defaults": {},
+  "instances": {
+    "efe5ab07-d042-4173-b5d5-3eaa299c37e1": {
+      "node_type": {
+        "Atomic": {
+          "Value": "Hello!"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "String"
+      ],
+      "inputs": []
+    },
+    "610f0d3d-c761-4110-86b1-93681ba0457a": {
+      "node_type": {
+        "Atomic": {
+          "Value": "gpt-4o"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "String"
+      ],
+      "inputs": []
+    },
+    "8eca8c62-9f1f-4ba0-aa9a-8726c6f2de4d": {
+      "node_type": {
+        "Complex": "./node-definitions/complex/group-1760638501429/node-1760638713580/compiled.json"
+      },
+      "default_overrides": {},
+      "outputs": [
+        {
+          "Agent": "OpenAi"
+        },
+        "None"
+      ],
+      "inputs": [
+        [
+          "None",
+          "efe5ab07-d042-4173-b5d5-3eaa299c37e1",
+          0
+        ],
+        [
+          "None",
+          "610f0d3d-c761-4110-86b1-93681ba0457a",
+          0
+        ]
+      ]
+    },
+    "74a0e803-110f-4afa-9631-2c3c8c1e80c0": {
+      "node_type": {
+        "Atomic": {
+          "AgentOp": "Recieve"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "String"
+      ],
+      "inputs": [
+        [
+          {
+            "Agent": "OpenAi"
+          },
+          "8eca8c62-9f1f-4ba0-aa9a-8726c6f2de4d",
+          0
+        ]
+      ]
+    },
+    "8c4658aa-9db8-4835-bf1c-61924e0d839f": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "String"
+      ],
+      "inputs": [
+        [
+          "String",
+          "74a0e803-110f-4afa-9631-2c3c8c1e80c0",
+          0
+        ]
+      ]
+    }
+  },
+  "end_node": "8c4658aa-9db8-4835-bf1c-61924e0d839f"
+}

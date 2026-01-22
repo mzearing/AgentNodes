@@ -1,0 +1,14 @@
+{
+  "id": "agent-create",
+  "name": "Create Agent",
+  "inputs": ["Model"],
+  "outputs": ["Agent"],
+  "inputTypes": [3],
+  "outputTypes": [9],
+  "variadicInputs": false,
+  "variadicOutputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "constantData": [3],
+  "solo": false
+}
