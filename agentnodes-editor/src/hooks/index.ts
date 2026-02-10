@@ -11,3 +11,7 @@ export { useSidebarDragHandlers } from './useSidebarDragHandlers';
 export { useSidebarHandlers } from './useSidebarHandlers';
 export { useSidebarHooks } from './useSidebarHooks';
 export { useSidebarNodeHandlers } from './useSidebarNodeHandlers';
+export { useKeyboardShortcuts, shortcuts } from './useKeyboardShortcuts';
+export { useCanvasHistory } from './useCanvasHistory';
+export { useVariableNodeSync } from './useVariableNodeSync';
+export { useVariableManagement } from './useVariableManagement';

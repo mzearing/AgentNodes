@@ -1,104 +1,71 @@
 {
-  "inputs": [
-    "String",
-    "String"
-  ],
-  "outputs": [
-    {
-      "Agent": "OpenAi"
-    },
-    "None"
-  ],
+  "inputs": [],
+  "outputs": [],
   "defaults": {},
   "instances": {
-    "e5bf2a3c-b938-4ee8-802c-79805cb33b0b": {
+    "95278151-879f-47da-a10b-6822da795bf3": {
       "node_type": {
         "Atomic": {
-          "AgentOp": {
-            "Create": "OpenAi"
-          }
+          "Variable": [
+            "Get",
+            "Test 1"
+          ]
         }
       },
       "default_overrides": {},
       "outputs": [
-        {
-          "Agent": "OpenAi"
-        }
-      ],
-      "inputs": [
-        [
-          "String",
-          "7a8de5b2-07de-41fa-b941-2e743344e5c7",
-          0
-        ]
-      ]
-    },
-    "7a8de5b2-07de-41fa-b941-2e743344e5c7": {
-      "node_type": {
-        "Atomic": {
-          "Control": "Start"
-        }
-      },
-      "default_overrides": {},
-      "outputs": [
-        "String",
-        "String"
+        "Float"
       ],
       "inputs": []
     },
-    "181e619c-7221-41f7-8bdb-7fe75b1347d7": {
+    "63d7766d-366a-437b-95c6-e1bc71764210": {
       "node_type": {
         "Atomic": {
-          "AgentOp": "Send"
+          "Variable": [
+            "Set",
+            "Test 1"
+          ]
         }
       },
       "default_overrides": {},
-      "outputs": [
-        "None"
-      ],
+      "outputs": [],
       "inputs": [
         [
-          {
-            "Agent": "OpenAi"
-          },
-          "e5bf2a3c-b938-4ee8-802c-79805cb33b0b",
-          0
-        ],
-        [
-          "String",
-          "7a8de5b2-07de-41fa-b941-2e743344e5c7",
-          0
+          "Float",
+          "03e05474-97e5-4f10-9a72-5bdafad6a61f",
+          0,
+          false
         ]
       ]
     },
-    "45f43005-70c9-4099-824e-3ff162390b50": {
+    "03e05474-97e5-4f10-9a72-5bdafad6a61f": {
       "node_type": {
         "Atomic": {
-          "Control": "End"
+          "Value": 3.14
         }
       },
       "default_overrides": {},
       "outputs": [
-        {
-          "Agent": "OpenAi"
-        },
+        "Float"
+      ],
+      "inputs": []
+    },
+    "8622a972-1350-4c5b-aa63-8bea5575ddc1": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [
         "None"
       ],
       "inputs": [
         [
-          {
-            "Agent": "OpenAi"
-          },
-          "e5bf2a3c-b938-4ee8-802c-79805cb33b0b",
-          0
-        ],
-        [
-          "None",
-          "181e619c-7221-41f7-8bdb-7fe75b1347d7",
+          "Float",
+          "95278151-879f-47da-a10b-6822da795bf3",
           0
         ]
       ]
     }
   },
-  "end_node": "45f43005-70c9-4099-824e-3ff162390b50"
+  "end_node": "63d7766d-366a-437b-95c6-e1bc71764210"
 }

@@ -31,32 +31,43 @@ export const useVariableManagement = (initialVariables: Variable[] = [], options
   const updateVariables = useCallback((newVariables: Variable[]) => {
     setVariables(newVariables);
     variableStorage.saveVariables(newVariables);
-    if (isInitialized) {
-      onVariablesChangeRef.current?.(newVariables);
-    }
-  }, [isInitialized]);
+    onVariablesChangeRef.current?.(newVariables);
+  }, []);
 
   const addVariable = useCallback(() => {
-    const newVariable: Variable = {
-      id: `var_${Date.now()}`,
-      name: `Variable ${variables.length + 1}`,
-      type: IOType.String,
-      defaultValue: ''
-    };
-    updateVariables([...variables, newVariable]);
-  }, [variables, updateVariables]);
+    setVariables(prevVariables => {
+      const newVariable: Variable = {
+        id: `var_${Date.now()}`,
+        name: `Variable ${prevVariables.length + 1}`,
+        type: IOType.String,
+        defaultValue: ''
+      };
+      const newVariables = [...prevVariables, newVariable];
+      variableStorage.saveVariables(newVariables);
+      onVariablesChangeRef.current?.(newVariables);
+      return newVariables;
+    });
+  }, []);
 
   const deleteVariable = useCallback((variableId: string) => {
-    const newVariables = variables.filter(v => v.id !== variableId);
-    updateVariables(newVariables);
-  }, [variables, updateVariables]);
+    setVariables(prevVariables => {
+      const newVariables = prevVariables.filter(v => v.id !== variableId);
+      variableStorage.saveVariables(newVariables);
+      onVariablesChangeRef.current?.(newVariables);
+      return newVariables;
+    });
+  }, []);
 
   const updateVariable = useCallback((variableId: string, updates: Partial<Variable>) => {
-    const newVariables = variables.map(v => 
-      v.id === variableId ? { ...v, ...updates } : v
-    );
-    updateVariables(newVariables);
-  }, [variables, updateVariables]);
+    setVariables(prevVariables => {
+      const newVariables = prevVariables.map(v => 
+        v.id === variableId ? { ...v, ...updates } : v
+      );
+      variableStorage.saveVariables(newVariables);
+      onVariablesChangeRef.current?.(newVariables);
+      return newVariables;
+    });
+  }, []);
 
   const startEditingVariable = useCallback((variableId: string, currentName: string) => {
     setEditingVariable(variableId);

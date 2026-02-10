@@ -84,7 +84,9 @@ const App: React.FC = () => {
       console.log('Canvas data retrieved:', canvasData);
       if (canvasData && projectState) {
         console.log('Starting compilation with canvas data:', canvasData);
-        const result = await compilationService.compile(canvasData);
+        // Check if we're compiling a complex node
+        const isComplexNode = projectState.openedNodePath?.includes('/complex/');
+        const result = await compilationService.compile(canvasData, isComplexNode);
         console.log('Compilation result:', result);
         
         if (result.success && result.data) {

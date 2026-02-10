@@ -1,6 +1,7 @@
 import { ReactFlowJsonObject, Node, Edge } from '@xyflow/react';
 import { IOType } from '../types/project';
 import { v4 as uuidv4 } from 'uuid';
+import { determineConnectionStrength } from '../utils/connectionUtils';
 
 export interface CompilationResult {
   success: boolean;
@@ -20,7 +21,7 @@ export interface CompiledInstance {
   node_type: NodeType;
   default_overrides: Record<string, any>;
   outputs: any[];
-  inputs: Array<[any, string, number]>;
+  inputs: Array<[any, string, number, boolean]>; // Updated to include strong boolean
 }
 
 export type NodeType = 
@@ -32,7 +33,7 @@ export type NodeType =
   | { Atomic: { Control: { WaitForInit: [string, string, number] } } }
   | { Atomic: { Control: { While: [string, string, number] } } }
   | { Atomic: { Control: { If: [string, string, number] } } }
-  | { Atomic: { Variable: [string, string, number] } }
+  | { Atomic: { Variable: [string, string] } }
   | { Atomic: { Io: string | { Open: string } } }
   | { Atomic: { Cast: string } }
   | { Atomic: { LogicalOp: string } }
@@ -44,7 +45,7 @@ export class CompilationService {
   /**
    * Compiles a canvas (React Flow data) into the backend format
    */
-  async compile(canvasData: ReactFlowJsonObject<Node, Edge>): Promise<CompilationResult> {
+  async compile(canvasData: ReactFlowJsonObject<Node, Edge>, isComplexNode = false): Promise<CompilationResult> {
     try {
       console.log('CompilationService.compile called with:', canvasData);
       
@@ -95,6 +96,11 @@ export class CompilationService {
         const nodeData = node.data as any;
         if (nodeData.isVariableNode) {
           variableNodes.push(node);
+          
+          // Error if trying to use variables in complex nodes
+          if (isComplexNode) {
+            errors.push(`Variable nodes (${nodeData.label || 'Unknown'}) are not supported inside complex node groups. Variables can only be used in main programs.`);
+          }
         }
       }
       
@@ -115,14 +121,14 @@ export class CompilationService {
         return { success: false, errors };
       }
       
-      // Second pass: Compile each node (skip variable getters)
+      // Second pass: Compile each node (skip variable nodes in complex nodes)
       for (const node of canvasData.nodes) {
         const uuid = nodeIdMap.get(node.id);
         if (!uuid) continue;
         
-        // Skip variable getters - they don't create separate nodes
+        // Skip variable nodes when compiling complex nodes
         const nodeData = node.data as any;
-        if (nodeData.isVariableNode && nodeData.isGetter) {
+        if (isComplexNode && nodeData.isVariableNode) {
           continue;
         }
         
@@ -181,7 +187,7 @@ export class CompilationService {
       return { success: false, errors: [`Node ${node.id} missing nodeId`] };
     }
     
-    // Map output types - special handling for finish and print nodes
+    // Map output types - special handling for finish, print, and variable nodes
     let outputs: string[];
     if (nodeId === 'finish') {
       // For finish nodes, outputs should match the program outputs (based on inputs)
@@ -190,10 +196,17 @@ export class CompilationService {
     } else if (nodeId === 'print') {
       // Print nodes always output ["None"] regardless of UI definition
       outputs = ['None'];
-    } else if (metadataPath?.startsWith('complex/')) {
+    } else if ((nodeId as string)?.startsWith('variable_set_')) {
+      // Variable setters have no outputs
+      outputs = [];
+    } else if ((nodeId as string)?.startsWith('variable_get_')) {
+      // Variable getters output the type they store
+      const nodeOutputs = (node.data as any)?.outputs || [];
+      outputs = this.mapIOTypes(nodeOutputs);
+    } else if ((metadataPath as string)?.startsWith('complex/')) {
       // For complex nodes, read outputs from compiled.json
       try {
-        const groupId = metadataPath.split('/')[1];
+        const groupId = (metadataPath as string).split('/')[1];
         const compiledPath = `node-definitions/complex/${groupId}/${nodeId}/compiled.json`;
         // Use Electron API to read the compiled.json file
         if (window.electronAPI?.readFile) {
@@ -212,30 +225,32 @@ export class CompilationService {
       outputs = this.mapIOTypes(nodeOutputs);
       
       // Debug: Log output mapping for agent nodes
-      if (nodeId?.includes('agent')) {
+      if ((nodeId as string)?.includes('agent')) {
         console.log(`DEBUG: Node ${nodeId} (${node.id}) output mapping:`);
         console.log(`  Raw outputs from node.data:`, JSON.stringify(nodeOutputs, null, 2));
         console.log(`  Mapped outputs:`, JSON.stringify(outputs, null, 2));
       }
     }
     
-    // Find input connections
-    const inputConnections = this.findInputConnections(node.id, edges, nodeIdMap, allNodes);
+    // Find input connections (strength determination now handled by shared logic)
+    let inputConnections: Array<[any, string, number, boolean]>;
+    
+    if ((nodeId as string)?.startsWith('variable_get_')) {
+      // Variable getters have no inputs
+      inputConnections = [];
+    } else {
+      // All other nodes get connections with strength determined by shared logic
+      inputConnections = this.findInputConnections(node.id, edges, nodeIdMap, allNodes);
+    }
     
     // Determine node type based on metadata and nodeId, passing node info for connection-based types
     const nodeType = this.determineNodeType(nodeId as string, metadataPath as string, (node.data as any)?.constantValues, node, edges, nodeIdMap, allNodes);
-    
-    // Variable setters should have empty inputs - they listen via their Variable connection
-    let finalInputConnections = inputConnections;
-    if (typeof nodeId === 'string' && nodeId.startsWith('variable_set_')) {
-      finalInputConnections = [];
-    }
     
     const instance: CompiledInstance = {
       node_type: nodeType,
       default_overrides: {},
       outputs,
-      inputs: finalInputConnections
+      inputs: inputConnections
     };
     
     return { success: true, instance };
@@ -293,22 +308,16 @@ export class CompilationService {
       return { Atomic: 'IsNone' };
     }
     
-    // Handle variable setter nodes with syntactic sugar
+    // Handle variable setter nodes
     if (nodeId?.startsWith('variable_set_')) {
-      return this.compileVariableNode(node, nodeIdMap, edges, allNodes);
+      const variableName = (node?.data as any)?.variableName || nodeId.replace('variable_set_', '');
+      return { Atomic: { Variable: ["Set", variableName] } };
     }
     
-    // Variable getters should not create separate nodes - they are handled in compilation
-    if (nodeId?.startsWith('variable_get_')) {
-      console.error('Variable getter should not create separate atomic nodes');
-      return { Atomic: 'Print' }; // Fallback - this should not be reached
-    }
-    
-    if (nodeId === 'variable') {
-      // Variables need [DataType, uuid, usize] format
-      // Use syntactic sugar: automatically resolve the source connection for variable storage
-      const sourceConnection = this.findVariableSourceConnection(node!, edges!, nodeIdMap!, allNodes!);
-      return { Atomic: { Variable: sourceConnection } };
+    // Handle variable getter nodes
+    if ((nodeId as string)?.startsWith('variable_get_')) {
+      const variableName = (node?.data as any)?.variableName || nodeId.replace('variable_get_', '');
+      return { Atomic: { Variable: ["Get", variableName] } };
     }
     
     // IO operations
@@ -383,100 +392,21 @@ export class CompilationService {
     return { Atomic: nodeId };
   }
 
-  private compileVariableNode(node?: Node, nodeIdMap?: Map<string, string>, edges?: Edge[], allNodes?: Node[]): NodeType {
-    if (!node || !nodeIdMap || !edges || !allNodes) {
-      console.error('Cannot compile variable node without complete data');
-      return { Atomic: 'Print' }; // Fallback
-    }
-
-    const nodeData = node.data as any;
-    const isGetter = nodeData.isGetter;
-    const variableType = this.mapIOTypeToBackend(
-      isGetter ? (nodeData.outputs?.[0]?.type || 0) : (nodeData.inputs?.[0]?.type || 0)
-    );
-
-    if (isGetter) {
-      // Variable getter: Reference the setter node to get stored value
-      const variableSetter = allNodes.find(n => {
-        const data = n.data as any;
-        return data.isVariableNode && !data.isGetter && data.variableId === nodeData.variableId;
-      });
-      
-      if (variableSetter) {
-        const setterUuid = nodeIdMap.get(variableSetter.id);
-        if (setterUuid) {
-          return {
-            Atomic: {
-              Variable: [variableType, setterUuid, 0]
-            }
-          };
-        }
-      }
-      
-      // Fallback: Variable with no setter - references a dummy node
-      return {
-        Atomic: {
-          Variable: [variableType, '00000000-0000-0000-0000-000000000000', 0]
-        }
-      };
-    } else {
-      // Variable setter: Listen to whatever is connected to this node's input
-      const incomingEdge = edges.find(edge => edge.target === node.id);
-      if (incomingEdge) {
-        const sourceUuid = nodeIdMap.get(incomingEdge.source);
-        const outputIndex = this.parseOutputIndex(incomingEdge.sourceHandle);
-        
-        if (sourceUuid) {
-          return {
-            Atomic: {
-              Variable: [variableType, sourceUuid, outputIndex]
-            }
-          };
-        }
-      }
-      
-      // Fallback: Variable with no input connection
-      return {
-        Atomic: {
-          Variable: [variableType, '00000000-0000-0000-0000-000000000000', 0]
-        }
-      };
-    }
-  }
-  
   private findInputConnections(
     nodeId: string, 
     edges: Edge[], 
     nodeIdMap: Map<string, string>,
     allNodes: Node[]
-  ): Array<[any, string, number]> {
+  ): Array<[any, string, number, boolean]> {
     
-    const connections: Array<[any, string, number]> = [];
+    const connections: Array<[any, string, number, boolean]> = [];
     
     // Find all edges that target this node
     const incomingEdges = edges.filter(edge => edge.target === nodeId);
     
     for (const edge of incomingEdges) {
-      let sourceUuid = nodeIdMap.get(edge.source);
+      const sourceUuid = nodeIdMap.get(edge.source);
       if (!sourceUuid) continue;
-      
-      // Check if source is a variable getter - if so, redirect to its setter
-      const sourceNode = allNodes.find(n => n.id === edge.source);
-      if (sourceNode) {
-        const sourceData = sourceNode.data as any;
-        if (sourceData.isVariableNode && sourceData.isGetter) {
-          // Find the corresponding setter
-          const variableSetter = allNodes.find(n => {
-            const data = n.data as any;
-            return data.isVariableNode && !data.isGetter && data.variableId === sourceData.variableId;
-          });
-          
-          if (variableSetter) {
-            sourceUuid = nodeIdMap.get(variableSetter.id);
-            if (!sourceUuid) continue;
-          }
-        }
-      }
       
       // Parse output index from sourceHandle (format: "output-timestamp-index-randomId")
       const outputIndex = this.parseOutputIndex(edge.sourceHandle);
@@ -484,7 +414,11 @@ export class CompilationService {
       // Parse input type from targetHandle and target node
       const inputType = this.parseInputType(edge.targetHandle, edge.target, allNodes);
       
-      connections.push([inputType, sourceUuid, outputIndex]);
+      // Determine connection strength using shared logic
+      const targetNode = allNodes.find(node => node.id === edge.target);
+      const isStrong = targetNode ? determineConnectionStrength(targetNode, edge.targetHandle) : true;
+      
+      connections.push([inputType, sourceUuid, outputIndex, isStrong]);
     }
     
     return connections;
@@ -626,7 +560,7 @@ export class CompilationService {
       node_type: { Atomic: { Cast: castType } },
       default_overrides: {},
       outputs: [toType], // Preserve original format for outputs
-      inputs: [[fromType, '', 0]] // Will be filled by connection logic
+      inputs: [[fromType, '', 0, true]] // Will be filled by connection logic, default to strong
     };
   }
   
@@ -639,10 +573,10 @@ export class CompilationService {
     
     // Analyze each node's inputs to see if casts are needed
     for (const [nodeId, instance] of Object.entries(updatedInstances)) {
-      const newInputs: Array<[string, string, number]> = [];
+      const newInputs: Array<[any, string, number, boolean]> = [];
       
       for (let i = 0; i < instance.inputs.length; i++) {
-        const [expectedType, sourceNodeId, sourceOutputIndex] = instance.inputs[i];
+        const [expectedType, sourceNodeId, sourceOutputIndex, isStrong] = instance.inputs[i];
         
         // Find the source node and its output type
         const sourceInstance = updatedInstances[sourceNodeId];
@@ -677,10 +611,10 @@ export class CompilationService {
             // Insert cast node with proper UUID
             const castNodeId = uuidv4(); // Use proper UUID instead of custom format
             const castInstance = this.createCastNode(actualType, expectedType);
-            castInstance.inputs = [[actualType, sourceNodeId, sourceOutputIndex]];
+            castInstance.inputs = [[actualType, sourceNodeId, sourceOutputIndex, isStrong]];
             
             updatedInstances[castNodeId] = castInstance;
-            newInputs.push([expectedType, castNodeId, 0]);
+            newInputs.push([expectedType, castNodeId, 0, isStrong]);
             
             console.log(`Inserted automatic cast from ${actualTypeStr} to ${expectedTypeStr} for node ${nodeId} input ${i} (cast node: ${castNodeId})`);
           } else {
@@ -754,37 +688,6 @@ export class CompilationService {
     return ['None', '00000000-0000-0000-0000-000000000000', 0];
   }
 
-  private findVariableSourceConnection(
-    node: Node, 
-    edges: Edge[], 
-    nodeIdMap: Map<string, string>, 
-    allNodes: Node[]
-  ): [any, string, number] {
-    // Find incoming edges to this variable node (the value to store)
-    const incomingEdges = edges.filter(edge => edge.target === node.id);
-    
-    if (incomingEdges.length > 0) {
-      // Use the first incoming connection as the value source
-      const sourceEdge = incomingEdges[0];
-      const sourceNodeId = nodeIdMap.get(sourceEdge.source);
-      const outputIndex = this.parseOutputIndex(sourceEdge.sourceHandle);
-      
-      if (sourceNodeId) {
-        // Determine the type based on the source node's output type
-        const sourceNode = allNodes.find(n => n.id === sourceEdge.source);
-        if (sourceNode && (sourceNode.data as any)?.outputs) {
-          const sourceOutputs = (sourceNode.data as any).outputs;
-          const outputType = sourceOutputs[outputIndex]?.type || 0;
-          const backendType = this.mapIOTypeToBackend(outputType);
-          
-          return [backendType, sourceNodeId, outputIndex];
-        }
-      }
-    }
-    
-    // Fallback: use default String type with dummy UUID
-    return ['String', '00000000-0000-0000-0000-000000000000', 0];
-  }
 
   private findEndNode(nodes: Node[], edges: Edge[], nodeIdMap: Map<string, string>): string {
     // First, try to find a finish node

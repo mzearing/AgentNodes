@@ -23,30 +23,10 @@
       "path": "complex/group-1760638501429/node-1760638713580",
       "id": "node-1760638713580",
       "name": "LLMOneshot",
-      "inputs": [
-        "Model",
-        "Prompt"
-      ],
-      "inputTypes": [
-        [
-          3
-        ],
-        [
-          3
-        ]
-      ],
-      "outputs": [
-        "Agent",
-        "Trigger"
-      ],
-      "outputTypes": [
-        [
-          9
-        ],
-        [
-          0
-        ]
-      ],
+      "inputs": [],
+      "inputTypes": [],
+      "outputs": [],
+      "outputTypes": [],
       "variadicOutputs": false,
       "variadicInputs": false,
       "constantData": [],
@@ -152,38 +132,8 @@
         "data": {
           "nodeId": "node-1760638713580",
           "label": "LLMOneshot",
-          "inputs": [
-            {
-              "id": "input-1765409713407-0-xe3e1itwx",
-              "name": "Model",
-              "type": [
-                3
-              ]
-            },
-            {
-              "id": "input-1765409713407-1-hbpk9ndi1",
-              "name": "Prompt",
-              "type": [
-                3
-              ]
-            }
-          ],
-          "outputs": [
-            {
-              "id": "output-1765409713407-0-dml6hzibw",
-              "name": "Agent",
-              "type": [
-                9
-              ]
-            },
-            {
-              "id": "output-1765409713407-1-p0jcvhe8i",
-              "name": "Trigger",
-              "type": [
-                0
-              ]
-            }
-          ],
+          "inputs": [],
+          "outputs": [],
           "availableInputTypes": [
             [
               3

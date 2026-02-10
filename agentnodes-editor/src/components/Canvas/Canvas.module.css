@@ -42,3 +42,48 @@
 .reactFlow :global(.react-flow__background) {
   --xy-background-color-dots: var(--color-pattern);
 }
+
+/* Strong connection styling - filled arrow */
+.reactFlow :global(.react-flow__edge.strong-connection) {
+  --edge-color: #3b82f6;
+  --edge-width: 2px;
+}
+
+.reactFlow :global(.react-flow__edge.strong-connection path) {
+  stroke: var(--edge-color);
+  stroke-width: var(--edge-width);
+}
+
+.reactFlow :global(.react-flow__edge.strong-connection .react-flow__edge-path) {
+  stroke: var(--edge-color);
+  stroke-width: var(--edge-width);
+}
+
+.reactFlow :global(.react-flow__edge.strong-connection marker-end) path {
+  fill: var(--edge-color);
+  stroke: var(--edge-color);
+}
+
+/* Weak connection styling - outlined arrow */
+.reactFlow :global(.react-flow__edge.weak-connection) {
+  --edge-color: #9ca3af;
+  --edge-width: 1.5px;
+}
+
+.reactFlow :global(.react-flow__edge.weak-connection path) {
+  stroke: var(--edge-color);
+  stroke-width: var(--edge-width);
+  stroke-dasharray: 5, 5;
+}
+
+.reactFlow :global(.react-flow__edge.weak-connection .react-flow__edge-path) {
+  stroke: var(--edge-color);
+  stroke-width: var(--edge-width);
+  stroke-dasharray: 5, 5;
+}
+
+.reactFlow :global(.react-flow__edge.weak-connection marker-end) path {
+  fill: none;
+  stroke: var(--edge-color);
+  stroke-width: 1.5px;
+}

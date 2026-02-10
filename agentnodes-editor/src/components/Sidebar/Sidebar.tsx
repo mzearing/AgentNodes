@@ -39,17 +39,23 @@ const Sidebar: React.FC<SidebarProps> = ({ nodes, onLoadProject, onRefreshFuncti
 
   // Variable management with sync callbacks and project state
   const onVariableUpdate = useCallback((variables: Variable[]) => {
-    // Update project state with new variables
-    if (projectState && onProjectStateChange) {
-      onProjectStateChange({
-        ...projectState,
-        variables
-      });
-    }
+    console.log('[Sidebar] onVariableUpdate called with variables:', variables);
     
-    // Find which variable was updated and sync canvas nodes
-    variables.forEach(variable => {
-      updateVariableNodes(variable);
+    // Use queueMicrotask instead of setTimeout to avoid focus loss
+    queueMicrotask(() => {
+      // Update project state with new variables
+      if (projectState && onProjectStateChange) {
+        onProjectStateChange({
+          ...projectState,
+          variables
+        });
+      }
+      
+      // Find which variable was updated and sync canvas nodes
+      variables.forEach(variable => {
+        console.log('[Sidebar] Calling updateVariableNodes for variable:', variable);
+        updateVariableNodes(variable);
+      });
     });
   }, [updateVariableNodes, projectState, onProjectStateChange]);
 

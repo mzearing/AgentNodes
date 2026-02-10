@@ -2,7 +2,6 @@ import React, { useCallback, useState, useImperativeHandle, forwardRef } from 'r
 import {
   ReactFlow,
   Node,
-  Edge,
   addEdge,
   Connection,
   useEdgesState,
@@ -18,9 +17,12 @@ import {
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
 import { nodeTypes, ScriptingNodeData, ConstantDataValue } from '../ScriptingNodes/ScriptingNode';
-import { useCanvasDrop } from '../../hooks';
-import { ProjectState, NodeMetadata, NodeSummary, IOType } from '../../types/project';
+import { useCanvasDrop, useKeyboardShortcuts, shortcuts, useCanvasHistory, useVariableNodeSync } from '../../hooks';
+import { copySelectedNodes, pasteNodes } from '../../utils/nodeClipboard';
+import { ProjectState, NodeMetadata, NodeSummary, IOType, Edge, Variable } from '../../types/project';
 import { nodeFileSystem } from '../../services/nodeFileSystem';
+import { determineConnectionStrength, getConnectionStyleClass } from '../../utils/connectionUtils';
+import { canvasRefreshEmitter, sidebarRefreshEmitter } from '../../hooks/useSidebarData';
 
 // Helper function to compare arrays
 const arraysEqual = (arr1: string[], arr2: string[]): boolean => {
@@ -146,6 +148,16 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
     }
     
     return true;
+  }).map(edge => {
+    // Determine connection strength using shared logic
+    const targetNode = nodes.find(node => node.id === edge.target);
+    const strong = targetNode ? determineConnectionStrength(targetNode, edge.targetHandle) : true;
+    
+    return {
+      ...edge,
+      strong,
+      className: getConnectionStyleClass(strong)
+    };
   });
 };
 
@@ -167,6 +179,19 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   
   const canvasDrop = useCanvasDrop(propNodes, propOnNodesChange, onNodeAdd);
   const { toObject, getNodes, getEdges } = useReactFlow();
+  
+  // History management for undo/redo
+  const {
+    saveState: saveHistoryState,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    initializeHistory
+  } = useCanvasHistory();
+
+  // Variable node synchronization
+  const variableNodeSync = useVariableNodeSync(propNodes, propOnNodesChange);
 
   // Save project functionality
   const saveProject = useCallback(async (): Promise<boolean> => {
@@ -677,11 +702,181 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     propOnNodesChange(newNodes);
   }, [propOnNodesChange]);
   
+  // Initialize history when project loads
+  React.useEffect(() => {
+    if (projectState.hasNodeLoaded && propNodes.length > 0) {
+      initializeHistory(propNodes, edges, projectState.variables || [], projectState.openedNodeName);
+    }
+  }, [projectState.hasNodeLoaded, initializeHistory, projectState.variables, projectState.openedNodeName]);
+
+  // Save history when nodes or edges change
+  React.useEffect(() => {
+    if (projectState.hasNodeLoaded && propNodes.length > 0) {
+      saveHistoryState(propNodes, edges, projectState.variables || [], projectState.openedNodeName);
+    }
+  }, [propNodes, edges, projectState.hasNodeLoaded, saveHistoryState, projectState.variables, projectState.openedNodeName]);
+
+  // Get selected nodes
+  const getSelectedNodes = React.useCallback(() => {
+    return propNodes.filter(node => node.selected);
+  }, [propNodes]);
+
+  // Handle copy operation
+  const handleCopy = React.useCallback(() => {
+    const selectedNodes = getSelectedNodes();
+    if (selectedNodes.length > 0) {
+      const success = copySelectedNodes(selectedNodes, edges);
+      if (success) {
+        console.log(`Copied ${selectedNodes.length} node(s)`);
+      }
+    }
+  }, [getSelectedNodes, edges]);
+
+  // Handle paste operation
+  const handlePaste = React.useCallback(() => {
+    const result = pasteNodes(propNodes, edges);
+    if (result) {
+      const allNodes = [...propNodes, ...result.nodes];
+      const allEdges = [...edges, ...result.edges];
+      
+      // Clear selection from existing nodes
+      const updatedNodes = allNodes.map(node => ({
+        ...node,
+        selected: result.nodes.some(newNode => newNode.id === node.id)
+      }));
+      
+      propOnNodesChange(updatedNodes);
+      setEdges(allEdges);
+      
+      console.log(`Pasted ${result.nodes.length} node(s) and ${result.edges.length} edge(s)`);
+    }
+  }, [propNodes, edges, propOnNodesChange, setEdges]);
+
+  // Comprehensive state synchronization after undo/redo
+  const synchronizeState = React.useCallback(async (restoredState: { nodes: Node[]; edges: Edge[]; variables: Variable[]; projectName?: string }) => {
+    // Update project state with restored variables and name
+    const updatedProjectState: ProjectState = {
+      ...projectState,
+      variables: restoredState.variables,
+      openedNodeName: restoredState.projectName || projectState.openedNodeName,
+      canvasStateCache: {
+        ...projectState.canvasStateCache,
+        nodes: restoredState.nodes,
+        edges: restoredState.edges
+      }
+    };
+    setProjectState(updatedProjectState);
+
+    // Sync variable nodes if variables changed
+    if (restoredState.variables && restoredState.variables.length > 0) {
+      for (const variable of restoredState.variables) {
+        variableNodeSync.updateVariableNodes(variable);
+      }
+    }
+
+    // Trigger refresh events for UI synchronization
+    canvasRefreshEmitter.emit();
+    sidebarRefreshEmitter.emit();
+  }, [projectState, setProjectState, variableNodeSync]);
+
+  // Handle undo operation
+  const handleUndo = React.useCallback(async () => {
+    if (canUndo()) {
+      const result = undo();
+      if (result) {
+        // Migrate nodes to ensure they have proper type properties
+        const migratedNodes = migrateNodesWithTypes(result.nodes);
+        
+        // Validate and clean connections to ensure type compatibility
+        const validatedEdges = validateAndCleanConnections(migratedNodes, result.edges);
+        
+        // Apply the changes
+        propOnNodesChange(migratedNodes);
+        setEdges(validatedEdges);
+        
+        // Synchronize the full state including variables
+        await synchronizeState({
+          ...result,
+          nodes: migratedNodes,
+          edges: validatedEdges
+        });
+        
+        console.log('Undo successful with full state sync');
+      }
+    }
+  }, [canUndo, undo, propOnNodesChange, setEdges, synchronizeState, migrateNodesWithTypes, validateAndCleanConnections]);
+
+  // Handle redo operation
+  const handleRedo = React.useCallback(async () => {
+    if (canRedo()) {
+      const result = redo();
+      if (result) {
+        // Migrate nodes to ensure they have proper type properties
+        const migratedNodes = migrateNodesWithTypes(result.nodes);
+        
+        // Validate and clean connections to ensure type compatibility
+        const validatedEdges = validateAndCleanConnections(migratedNodes, result.edges);
+        
+        // Apply the changes
+        propOnNodesChange(migratedNodes);
+        setEdges(validatedEdges);
+        
+        // Synchronize the full state including variables
+        await synchronizeState({
+          ...result,
+          nodes: migratedNodes,
+          edges: validatedEdges
+        });
+        
+        console.log('Redo successful with full state sync');
+      }
+    }
+  }, [canRedo, redo, propOnNodesChange, setEdges, synchronizeState, migrateNodesWithTypes, validateAndCleanConnections]);
+
+  // Handle delete operation
+  const handleDelete = React.useCallback(() => {
+    const selectedNodes = getSelectedNodes();
+    if (selectedNodes.length > 0) {
+      const selectedNodeIds = new Set(selectedNodes.map(node => node.id));
+      
+      // Remove selected nodes
+      const remainingNodes = propNodes.filter(node => !node.selected);
+      
+      // Remove edges connected to deleted nodes
+      const remainingEdges = edges.filter(edge => 
+        !selectedNodeIds.has(edge.source) && !selectedNodeIds.has(edge.target)
+      );
+      
+      propOnNodesChange(remainingNodes);
+      setEdges(remainingEdges);
+      
+      console.log(`Deleted ${selectedNodes.length} node(s)`);
+    }
+  }, [getSelectedNodes, propNodes, edges, propOnNodesChange, setEdges]);
+
+  // Set up keyboard shortcuts
+  useKeyboardShortcuts([
+    shortcuts.copy(handleCopy),
+    shortcuts.paste(handlePaste),
+    shortcuts.undo(handleUndo),
+    shortcuts.redo(handleRedo),
+    shortcuts.redoAlt(handleRedo), // Ctrl+Shift+Z alternative
+    shortcuts.delete(handleDelete),
+    shortcuts.backspace(handleDelete)
+  ]);
+
   // Add effect to validate and clean edges when nodes change
   React.useEffect(() => {
     setEdges(currentEdges => {
       const validatedEdges = validateAndCleanConnections(propNodes, currentEdges);
-      if (validatedEdges.length !== currentEdges.length) {
+      // Check if any edge styling needs to be updated (not just length changes)
+      const hasChanges = validatedEdges.length !== currentEdges.length || 
+        validatedEdges.some((edge, index) => {
+          const currentEdge = currentEdges[index];
+          return !currentEdge || edge.strong !== currentEdge.strong || edge.className !== currentEdge.className;
+        });
+      
+      if (hasChanges) {
         return validatedEdges;
       }
       return currentEdges;
@@ -690,12 +885,66 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
 
   // Add effect to mark starting point nodes
   React.useEffect(() => {
+    // Helper function to recursively check if all connections in entire graph are strong
+    const hasOnlyStrongConnections = (nodeId: string, visited = new Set<string>()): boolean => {
+      // Avoid infinite loops in case of cycles
+      if (visited.has(nodeId)) return true;
+      visited.add(nodeId);
+      
+      // Check all outgoing edges from this node
+      const outgoingEdges = edges.filter(edge => edge.source === nodeId);
+      for (const edge of outgoingEdges) {
+        const targetNode = propNodes.find(n => n.id === edge.target);
+        if (!targetNode) continue;
+        
+        // Check if this specific connection is strong
+        const isStrong = determineConnectionStrength(targetNode, edge.targetHandle);
+        
+        // If this connection is weak, the entire chain is weak
+        if (!isStrong) {
+          return false;
+        }
+        
+        // Recursively check the target node's connections
+        if (!hasOnlyStrongConnections(edge.target, new Set(visited))) {
+          return false;
+        }
+      }
+      
+      // Check all incoming edges to this node
+      const incomingEdges = edges.filter(edge => edge.target === nodeId);
+      for (const edge of incomingEdges) {
+        const targetNode = propNodes.find(n => n.id === edge.target);
+        if (!targetNode) continue;
+        
+        // Check if this specific connection is strong
+        const isStrong = determineConnectionStrength(targetNode, edge.targetHandle);
+        
+        // If this connection is weak, the entire chain is weak
+        if (!isStrong) {
+          return false;
+        }
+        
+        // Recursively check the source node's connections
+        if (!hasOnlyStrongConnections(edge.source, new Set(visited))) {
+          return false;
+        }
+      }
+      
+      return true;
+    };
+
     // Identify nodes that are starting points:
-    // - Have no incoming edges (no edges where node is target)
-    // - Have at least one output that is connected to another node
+    // - Have no direct strong incoming connections
+    // - Have at least one output that is connected to another node  
+    // - ALL dependencies in the entire chain are strong connections
     const updatedNodes = propNodes.map(node => {
-      // Check if node has any incoming edges
-      const hasIncomingEdges = edges.some(edge => edge.target === node.id);
+      // Check if node has any direct strong incoming connections
+      const hasDirectStrongIncoming = edges.some(edge => {
+        if (edge.target !== node.id) return false;
+        const isStrong = determineConnectionStrength(node, edge.targetHandle);
+        return isStrong;
+      });
       
       // Get all connected output handles for this node
       const connectedOutputs = edges
@@ -703,8 +952,14 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         .map(edge => edge.sourceHandle)
         .filter(Boolean) as string[];
       
-      // Node is a starting point if it has no incoming edges but has outgoing edges
-      const isStartingPoint = !hasIncomingEdges && connectedOutputs.length > 0;
+      // Check if all connections in the entire connected graph are strong
+      const hasOnlyStrongChain = hasOnlyStrongConnections(node.id);
+      
+      // Node is a starting point if:
+      // 1. It has no direct strong incoming connections
+      // 2. It has outgoing edges
+      // 3. ALL dependencies in its entire chain are strong connections
+      const isStartingPoint = !hasDirectStrongIncoming && connectedOutputs.length > 0 && hasOnlyStrongChain;
       
       // Update node data if starting point status or connected outputs changed
       const currentConnectedOutputs = (node.data as ScriptingNodeData).connectedOutputs || [];
@@ -773,6 +1028,28 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     [propNodes]
   );
 
+  // Function to toggle edge strength
+  const toggleEdgeStrength = useCallback((edgeId: string) => {
+    setEdges((eds) => 
+      eds.map((edge) => {
+        if (edge.id === edgeId) {
+          const newStrong = !edge.strong;
+          return {
+            ...edge,
+            strong: newStrong,
+            className: getConnectionStyleClass(newStrong)
+          };
+        }
+        return edge;
+      })
+    );
+  }, [setEdges]);
+
+  // Handle edge double-click to toggle strength
+  const onEdgeDoubleClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
+    toggleEdgeStrength(edge.id);
+  }, [toggleEdgeStrength]);
+
   const onConnect = useCallback(
     (params: Edge | Connection) => {
       setEdges((eds) => {
@@ -780,11 +1057,24 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         const filteredEdges = eds.filter(edge => 
           !(edge.target === params.target && edge.targetHandle === params.targetHandle)
         );
+        
+        // Determine connection strength using shared logic
+        const targetNode = propNodes.find(node => node.id === params.target);
+        const strong = targetNode ? determineConnectionStrength(targetNode, params.targetHandle) : true;
+        
+        // Create edge with proper strong/weak styling
+        const newEdge: Edge = {
+          ...params,
+          id: 'id' in params ? params.id : `${params.source}-${params.target}`,
+          strong,
+          className: getConnectionStyleClass(strong)
+        };
+        
         // Add the new connection
-        return addEdge(params, filteredEdges);
+        return addEdge(newEdge, filteredEdges);
       });
     },
-    [setEdges]
+    [setEdges, propNodes]
   );
 
 
@@ -810,6 +1100,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
           onNodesChange={wrappedOnNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onEdgeDoubleClick={onEdgeDoubleClick}
           isValidConnection={isValidConnection}
           onInit={canvasDrop.setReactFlowInstance}
           onDrop={canvasDrop.onDrop}

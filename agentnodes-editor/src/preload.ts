@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import * as path from 'path';
 import { NodeGroup } from './types/project';
+
+// Path utility functions to replace node's path module
+const pathJoin = (...parts: string[]): string => {
+  return parts.join('/').replace(/\/+/g, '/');
+};
 
 // File system wrapper using IPC
 const fsAsync = {
@@ -53,7 +57,7 @@ const readFileWithRetry = async (filePath: string, maxRetries = 3, delay = 10): 
 
 const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | null> => {
   try {
-    const groupJsonPath = path.join(groupPath, 'group.json');
+    const groupJsonPath = pathJoin(groupPath, 'group.json');
     
     try {
       const groupData = await readFileWithRetry(groupJsonPath);
@@ -84,8 +88,8 @@ const readNodeGroupInternal = async (groupPath: string): Promise<NodeGroup | nul
       group.nodes = [];
       
       for (const nodeDir of nodeDirs) {
-        const nodeDirPath = path.join(groupPath, nodeDir);
-        const nodeJsonPath = path.join(nodeDirPath, 'node.json');
+        const nodeDirPath = pathJoin(groupPath, nodeDir);
+        const nodeJsonPath = pathJoin(nodeDirPath, 'node.json');
         
         try {
           const nodeData = await readFileWithRetry(nodeJsonPath);
@@ -215,13 +219,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
         const result: { complex: NodeGroup[]; atomic: NodeGroup[] } = { complex: [], atomic: [] };
         
         for (const category of ['complex', 'atomic'] as const) {
-          const categoryPath = path.join(nodesPath, category);
+          const categoryPath = pathJoin(nodesPath, category);
           
           try {
             const groupDirs = await fsAsync.readdir(categoryPath);
             
             for (const groupDir of groupDirs) {
-              const groupPath = path.join(categoryPath, groupDir);
+              const groupPath = pathJoin(categoryPath, groupDir);
               const group = await readNodeGroupInternal(groupPath);
               if (group) {
                 result[category].push(group);
@@ -247,15 +251,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
         await fsAsync.mkdir(groupPath, { recursive: true });
         
         const { nodes, ...groupMeta } = group;
-        const groupJsonPath = path.join(groupPath, 'group.json');
+        const groupJsonPath = pathJoin(groupPath, 'group.json');
         await fsAsync.writeFile(groupJsonPath, JSON.stringify(groupMeta, null, 2), 'utf-8');
         
         if (nodes && Array.isArray(nodes)) {
           for (const node of nodes) {
-            const nodeDirPath = path.join(groupPath, node.id);
+            const nodeDirPath = pathJoin(groupPath, node.id);
             await fsAsync.mkdir(nodeDirPath, { recursive: true });
             
-            const nodeJsonPath = path.join(nodeDirPath, 'node.json');
+            const nodeJsonPath = pathJoin(nodeDirPath, 'node.json');
             
             // Check if node file already exists and contains NodeMetadata structure
             try {
@@ -297,8 +301,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     createNodesDirectory: async (nodesPath: string): Promise<void> => {
       try {
-        await fsAsync.mkdir(path.join(nodesPath, 'complex'), { recursive: true });
-        await fsAsync.mkdir(path.join(nodesPath, 'atomic'), { recursive: true });
+        await fsAsync.mkdir(pathJoin(nodesPath, 'complex'), { recursive: true });
+        await fsAsync.mkdir(pathJoin(nodesPath, 'atomic'), { recursive: true });
       } catch (error) {
         throw new Error(`Failed to create nodes directory: ${error}`);
       }
@@ -306,7 +310,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     deleteNode: async (groupPath: string, nodeId: string): Promise<void> => {
       try {
-        const nodePath = path.join(groupPath, nodeId);
+        const nodePath = pathJoin(groupPath, nodeId);
         await fsAsync.rm(nodePath, { recursive: true, force: true });
         
         // Small delay to ensure filesystem operations are fully complete
@@ -318,8 +322,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     readNode: async (groupPath: string, nodeId: string): Promise<JSON> => {
       try {
-        const nodePath = path.join(groupPath, nodeId);
-        const nodeJsonPath = path.join(nodePath, 'node.json');
+        const nodePath = pathJoin(groupPath, nodeId);
+        const nodeJsonPath = pathJoin(nodePath, 'node.json');
         const nodeData = await readFileWithRetry(nodeJsonPath);
         
         // Handle empty or invalid JSON gracefully
@@ -339,10 +343,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     writeNode: async (groupPath: string, nodeId: string, nodeData: JSON): Promise<void> => {
       try {
-        const nodePath = path.join(groupPath, nodeId);
+        const nodePath = pathJoin(groupPath, nodeId);
         await fsAsync.mkdir(nodePath, { recursive: true });
         
-        const nodeJsonPath = path.join(nodePath, 'node.json');
+        const nodeJsonPath = pathJoin(nodePath, 'node.json');
         await fsAsync.writeFile(nodeJsonPath, JSON.stringify(nodeData, null, 2), 'utf-8');
         
         // Small delay to ensure filesystem operations are fully complete

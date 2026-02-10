@@ -1,4 +1,9 @@
-import { ReactFlowJsonObject, Node, Edge } from '@xyflow/react';
+import { ReactFlowJsonObject, Node, Edge as ReactFlowEdge } from '@xyflow/react';
+
+// Extended Edge type with strong/weak connection property
+export interface Edge extends ReactFlowEdge {
+  strong?: boolean; // true for strong connections (filled arrow), false for weak connections (outlined arrow)
+}
 
 export type Category = 'Complex' | 'Atomic';
 
