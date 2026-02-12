@@ -118,90 +118,37 @@ impl ExecutionNode
      *  5. clear the trigger and the listeners
      */
 
+    /*
+    * Process:
+    1. Wait for request
+    2. Run instance with input connections
+    3a. return error and close if run fails
+    3b. send outputs to listeners if run succeeds
+    4. clear trigger and listeners
+    */
+
     while *(self.state.read().await) != NodeState::Closed
     {
-      // let id = tokio::task::try_id().unwrap();
-      // println!("{:?}", self.state.read().await);
-      // println!("{} waiting for notif", tokio::task::try_id().unwrap());
-
       //1
-      // println!("{id} step 1");
       self.trigger.notified().await;
-      // println!("{} notified", tokio::task::try_id().unwrap());
-
+      *self.state.write().await = NodeState::Processing;
       //2
-      // println!("{id} step 2");
-      let mut inputs = Vec::with_capacity(self.inputs.len());
-      for (t, id, port, strong) in &self.inputs
-      {
-        if let Some(node) = eval.nodes.get(&id)
-        {
-          // 2a_1, check state
-          if *node.state.read().await == NodeState::Closed
-          {
-            self.broadcast_closed().await;
-            // println!("2a_1");
-            return Ok(vec![]);
-          }
-          // println!("{id} step 2b notify");
-          let connection = (t.clone(), id.clone(), port.clone(), strong.clone());
-          let channel = self
-            .get_channel(Some(node), eval.clone(), &connection)
-            .await?;
-
-          let i = if *strong
-          {
-            node.listen(port.clone()).await?.await?
-          }
-          else
-          {
-            if channel.is_empty()
-            {
-              self.weak_listens.write().await.insert(connection, channel);
-              None
-            }
-            else
-            {
-              channel.await?
-            }
-          };
-
-          // 2a_2, check if we got None, also signifying a close
-          if i.is_none() && *strong
-          {
-            self.broadcast_closed().await;
-            // println!("2a_2");
-            return Ok(vec![]);
-          }
-
-          inputs.push(i);
-        }
-      }
-
-      // 5, outputs already drained, set back to waiting
-      // println!("{id} step 5");
-      *self.state.write().await = NodeState::Waiting;
-
-      // 3
-      // println!("{id} step 3");
-      // dbg!(&self.instance.node_type);
-      // dbg!(&inputs);
       let res = self
         .instance
         .node_type
-        .evaluate(eval.clone(), self, inputs)
+        .evaluate(eval.clone(), self, &self.inputs)
         .await;
       if let Ok(outputs) = res
       {
-        // dbg!(&outputs);
-        // 4
-        // println!("{id} step 4");
+        // 3
         for (socket, out) in self.outputs.iter().zip(outputs.iter())
         {
+          // clear listeners
           socket.write().await.drain(..).for_each(|x| {
             let _ = x.send(Some(out.clone()));
           });
         }
+        *self.state.write().await = NodeState::Waiting;
       }
       else
       {
@@ -299,5 +246,26 @@ impl ExecutionNode
     let ret = guard.clone();
     *guard = Some(val);
     ret
+  }
+
+  pub async fn get_weak_listener(
+    &self,
+    connection: &NodeConnection,
+  ) -> Option<Receiver<Option<DataValue>>>
+  {
+    self.weak_listens.write().await.remove(connection)
+  }
+
+  pub async fn set_weak_listener(
+    &self,
+    connection: &NodeConnection,
+    listener: Receiver<Option<DataValue>>,
+  )
+  {
+    self
+      .weak_listens
+      .write()
+      .await
+      .insert(connection.clone(), listener);
   }
 }

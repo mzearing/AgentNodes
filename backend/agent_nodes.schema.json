@@ -220,7 +220,8 @@
           "enum": [
             "Print",
             "Replace",
-            "IsNone"
+            "IsNone",
+            "Cache"
           ]
         },
         {
@@ -368,37 +369,6 @@
             "Start",
             "End"
           ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "WaitForInit": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                },
-                {
-                  "type": "boolean"
-                }
-              ],
-              "minItems": 4,
-              "maxItems": 4
-            }
-          },
-          "required": [
-            "WaitForInit"
-          ],
-          "additionalProperties": false
         },
         {
           "type": "object",

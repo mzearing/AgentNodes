@@ -70,10 +70,7 @@
       "node_type": {
         "Atomic":
         {
-          "Control" : 
-          {
-            "WaitForInit": ["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0, true]
-          }
+          "Control" : "WaitForInit"
         }
       }
     },

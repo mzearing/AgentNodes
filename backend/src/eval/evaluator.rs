@@ -1,7 +1,10 @@
 use super::{AsyncClone, EvalError, ExecutionNode, IoObject};
 use crate::{
   ai::{AgentArgs, AgentType, ChatBody, DynAgent},
-  language::{nodes::Complex, typing::DataValue},
+  language::{
+    nodes::{AtomicType, Complex, NodeType, Variable},
+    typing::DataValue,
+  },
 };
 use std::{
   collections::{HashMap, HashSet, VecDeque},
@@ -108,6 +111,7 @@ pub struct Evaluator
   dangling_nodes: Arc<HashSet<Uuid>>,
 
   variables: RwLock<HashMap<String, DataValue>>,
+  variable_setters: RwLock<HashMap<String, Vec<Uuid>>>,
 }
 
 impl AsyncClone for Evaluator
@@ -136,6 +140,7 @@ impl AsyncClone for Evaluator
       agent_registry: Arc::new(RwLock::new(HashMap::new())),
       dangling_nodes: Arc::new(self.dangling_nodes.as_ref().clone()),
       variables: RwLock::new(HashMap::new()),
+      variable_setters: RwLock::new(self.variable_setters.write().await.clone()),
     }
   }
 }
@@ -155,6 +160,7 @@ impl Evaluator
       .iter()
       .map(|(unscoped, _)| Self::convert_id(&scope_id, unscoped.clone()))
       .collect();
+    let mut variable_setters = HashMap::new();
 
     //wow iterators are insane
     let nodes: HashMap<Uuid, Arc<ExecutionNode>> = me
@@ -162,6 +168,11 @@ impl Evaluator
       .into_iter()
       .map(|(unscoped, instance)| {
         let scoped = Self::convert_id(&scope_id, unscoped);
+        if let NodeType::Atomic(AtomicType::Variable(Variable::Set, name)) = &instance.node_type
+        {
+          let e: &mut Vec<Uuid> = variable_setters.entry(name.clone()).or_default();
+          e.push(unscoped);
+        }
         let inputs = instance
           .inputs
           .iter()
@@ -182,6 +193,8 @@ impl Evaluator
       .collect();
 
     let dangling: HashSet<Uuid> = all_ids.difference(&non_dangling).cloned().collect();
+
+    dbg!(&variable_setters);
 
     Ok(Arc::new(Self {
       scope_id: scope_id.clone(),
@@ -204,6 +217,7 @@ impl Evaluator
       agent_registry: Arc::new(RwLock::new(HashMap::new())),
       dangling_nodes: Arc::new(dangling),
       variables: RwLock::new(HashMap::new()),
+      variable_setters: RwLock::new(variable_setters),
     }))
   }
 
@@ -224,9 +238,7 @@ impl Evaluator
 
   pub async fn get_outputs(&self) -> Result<Vec<DataValue>, EvalError>
   {
-    // println!("Getoutputs");
     let node = self.nodes.get(&self.end_node).ok_or(EvalError::NoEndNode)?;
-    // println!("Got");
 
     let dangles: Vec<Result<&Arc<ExecutionNode>, EvalError>> = self
       .dangling_nodes
@@ -243,9 +255,7 @@ impl Evaluator
     for i in 0..node.outputs.len()
     {
       let n = node.clone();
-      // println!("listening");
       let recv = n.listen(i).await?;
-      // println!("receiving");
       let res = recv.await?.ok_or(EvalError::Closed)?;
       out.push(res);
 
@@ -468,6 +478,18 @@ impl Evaluator
 
   pub async fn get_variable(self: Arc<Self>, name: &str) -> DataValue
   {
+    let mut setter_guard = self.variable_setters.write().await;
+
+    let e = setter_guard.entry(name.to_string()).or_default();
+
+    for id in e
+    {
+      if let Ok(node) = self.find_node(id)
+      {
+        node.trigger_processing().await
+      }
+    }
+
     let mut guard = self.variables.write().await;
     if let Some(v) = guard.get(name)
     {

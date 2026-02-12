@@ -23,6 +23,6 @@ pub trait EvaluateIt
     &self,
     eval: Arc<Evaluator>,
     node: &ExecutionNode,
-    inputs: Vec<Option<DataValue>>,
+    inputs: &Vec<NodeConnection>,
   ) -> Result<Vec<DataValue>, EvalError>;
 }
