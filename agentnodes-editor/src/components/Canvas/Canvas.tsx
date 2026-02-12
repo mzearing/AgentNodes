@@ -22,6 +22,7 @@ import { copySelectedNodes, pasteNodes } from '../../utils/nodeClipboard';
 import { ProjectState, NodeMetadata, NodeSummary, IOType, Edge, Variable } from '../../types/project';
 import { nodeFileSystem } from '../../services/nodeFileSystem';
 import { determineConnectionStrength, getConnectionStyleClass } from '../../utils/connectionUtils';
+import { getTypeColor } from '../../utils/typeColors';
 import { canvasRefreshEmitter, sidebarRefreshEmitter } from '../../hooks/useSidebarData';
 
 // Helper function to compare arrays
@@ -108,7 +109,7 @@ const canAutocastTypes = (fromType: IOType, toType: IOType): boolean => {
   // - Any type can be cast to None (for trigger/control flow purposes)
   // - None can only be cast to other None inputs (control flow only)
   if (toType === IOType.None) return true; // Any type can trigger None inputs
-  if (fromType === IOType.None) return toType === IOType.None; // None outputs only go to None inputs
+  if ((fromType as number) === IOType.None) return (toType as number) === IOType.None; // None outputs only go to None inputs
   
   // Other supported automatic casts:
   if (fromType === IOType.Integer && toType === IOType.Float) return true; 
@@ -1034,16 +1035,27 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       eds.map((edge) => {
         if (edge.id === edgeId) {
           const newStrong = !edge.strong;
+          
+          // Get source type for coloring
+          const sourceNode = propNodes.find(node => node.id === edge.source);
+          const sourceHandle = (sourceNode?.data as ScriptingNodeData)?.outputs?.find(output => output.id === edge.sourceHandle);
+          const sourceType = sourceHandle?.type ?? IOType.None;
+          const typeColor = getTypeColor(Array.isArray(sourceType) ? sourceType[0] : sourceType);
+          
           return {
             ...edge,
             strong: newStrong,
-            className: getConnectionStyleClass(newStrong)
+            className: getConnectionStyleClass(newStrong),
+            style: {
+              stroke: typeColor,
+              '--edge-color': typeColor
+            } as React.CSSProperties
           };
         }
         return edge;
       })
     );
-  }, [setEdges]);
+  }, [setEdges, propNodes]);
 
   // Handle edge double-click to toggle strength
   const onEdgeDoubleClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
@@ -1062,12 +1074,22 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         const targetNode = propNodes.find(node => node.id === params.target);
         const strong = targetNode ? determineConnectionStrength(targetNode, params.targetHandle) : true;
         
-        // Create edge with proper strong/weak styling
+        // Get source type for coloring
+        const sourceNode = propNodes.find(node => node.id === params.source);
+        const sourceHandle = (sourceNode?.data as ScriptingNodeData)?.outputs?.find(output => output.id === params.sourceHandle);
+        const sourceType = sourceHandle?.type ?? IOType.None;
+        const typeColor = getTypeColor(Array.isArray(sourceType) ? sourceType[0] : sourceType);
+        
+        // Create edge with proper strong/weak styling and type color
         const newEdge: Edge = {
           ...params,
           id: 'id' in params ? params.id : `${params.source}-${params.target}`,
           strong,
-          className: getConnectionStyleClass(strong)
+          className: getConnectionStyleClass(strong),
+          style: {
+            stroke: typeColor,
+            '--edge-color': typeColor
+          } as React.CSSProperties
         };
         
         // Add the new connection

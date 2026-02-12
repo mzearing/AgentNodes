@@ -4,6 +4,7 @@ import styles from './NodeSources.module.css';
 import { OutputHandle } from '../ScriptingNode';
 import TypeDropdown, { DropdownOption } from '../TypeDropdown/TypeDropdown';
 import { IOType } from '../../../types/project';
+import { allTypeOptions, hexToRgba } from '../../../utils/typeColors';
 
 interface NodeSourcesProps {
   outputs: OutputHandle[];
@@ -140,14 +141,6 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
     setDragOverIndex(null);
   };
 
-  const allTypeOptions: DropdownOption[] = [
-    { value: 'None', label: 'N', color: '#4A5568', bgColor: '#4A5568', textColor: '#FFFFFF' },
-    { value: 'Integer', label: 'I', color: '#BEE3F8', bgColor: '#BEE3F8', textColor: '#000000' },
-    { value: 'Float', label: 'F', color: '#C6F6D5', bgColor: '#C6F6D5', textColor: '#000000' },
-    { value: 'String', label: 'S', color: '#FF8C00', bgColor: '#FF8C00', textColor: '#FFFFFF' },
-    { value: 'Boolean', label: 'B', color: '#E6E6FA', bgColor: '#E6E6FA', textColor: '#000000' },
-    { value: 'Agent', label: 'A', color: '#FF69B4', bgColor: '#FF69B4', textColor: '#FFFFFF' },
-  ];
 
   // Function to get available type options for specific outputs based on type arrays
   const getAvailableTypeOptions = (outputIndex: number): DropdownOption[] => {
@@ -168,12 +161,6 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
     });
   };
 
-  const hexToRgba = (hex: string, alpha: number): string => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
 
   return (
     <div className={`${styles.nodeSources} nodrag`}>
@@ -186,7 +173,7 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
         return (
         <div 
           key={output.id} 
-          className={`${styles.outputBox} ${draggedIndex === index ? styles.dragging : ''} ${dragOverIndex === index ? styles.dragOver : ''} nodrag`}
+          className={`${styles.outputBox} ${output.type === IOType.None && !multitype ? styles.noneType : ''} ${draggedIndex === index ? styles.dragging : ''} ${dragOverIndex === index ? styles.dragOver : ''} nodrag`}
           draggable={variadic}
           onDragStart={(e) => variadic && handleDragStart(e, index)}
           onDragEnd={handleDragEnd}
@@ -239,19 +226,21 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
             />
           ) : (
             <>
-              <TypeDropdown
-                key={`${output.id}-${output.type}-${updateKey}`}
-                options={getAvailableTypeOptions(index)}
-                value={(() => {
-                  const availableOptions = getAvailableTypeOptions(index);
-                  const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
-                  return availableOptions.find(opt => opt.value === typeNames[output.type]) || availableOptions[0];
-                })()}
-                onChange={(option) => handleTypeChange(index, option.value)}
-                isLocked={!multitype}
-              />
+              {!(output.type === IOType.None && !multitype) && (
+                <TypeDropdown
+                  key={`${output.id}-${output.type}-${updateKey}`}
+                  options={getAvailableTypeOptions(index)}
+                  value={(() => {
+                    const availableOptions = getAvailableTypeOptions(index);
+                    const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
+                    return availableOptions.find(opt => opt.value === typeNames[output.type]) || availableOptions[0];
+                  })()}
+                  onChange={(option) => handleTypeChange(index, option.value)}
+                  isLocked={!multitype}
+                />
+              )}
               <span 
-                className={styles.outputLabel}
+                className={`${styles.outputLabel} ${output.type === IOType.None && !multitype ? styles.noneTypeLabel : ''}`}
               >
                 {output.name}
               </span>

@@ -129,7 +129,7 @@
               "value": 3.14
             }
           ],
-          "isStartingPoint": true,
+          "isStartingPoint": false,
           "connectedOutputs": [
             "output-1769551512414-0-i409v2ejq"
           ]
@@ -205,24 +205,27 @@
         "targetHandle": "input-1769551474157",
         "id": "xy-edge__node_19output-1769551512414-0-i409v2ejq-node_18input-1769551474157",
         "selected": false,
-        "strong": true,
-        "className": "strong-connection"
+        "strong": false,
+        "className": "weak-connection"
       },
       {
         "source": "node_16",
         "sourceHandle": "output-1769551467870",
         "target": "node_20",
         "targetHandle": "input-1769551528161-0-fviuhat0g",
-        "id": "xy-edge__node_16output-1769551467870-node_20input-1769551528161-0-fviuhat0g",
-        "selected": false,
+        "id": "node_16-node_20",
         "strong": true,
-        "className": "strong-connection"
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#C6F6D5",
+          "--edge-color": "#C6F6D5"
+        }
       }
     ],
     "viewport": {
-      "x": -113.710936182811,
-      "y": 332.8632981184892,
-      "zoom": 1.094770948835814
+      "x": 244.5076851630874,
+      "y": 354.6826680342558,
+      "zoom": 0.7189682664234783
     }
   },
   "variables": [

@@ -59,55 +59,13 @@
           ],
           "solo": false,
           "metadataPath": "atomic/io",
-          "constantData": []
+          "constantData": [],
+          "isStartingPoint": false,
+          "connectedOutputs": []
         },
         "measured": {
-          "width": 63,
-          "height": 170
-        },
-        "selected": false,
-        "dragging": false
-      },
-      {
-        "id": "node_19",
-        "type": "scripting-node",
-        "position": {
-          "x": 587.6065420070496,
-          "y": -483.994664529552
-        },
-        "data": {
-          "nodeId": "integer-constant",
-          "label": "Integer Constant",
-          "inputs": [],
-          "outputs": [
-            {
-              "id": "output-1765414122306-0-l76rltg9c",
-              "name": "Value",
-              "type": 1
-            }
-          ],
-          "variadicInputs": false,
-          "variadicOutputs": false,
-          "availableOutputTypes": [
-            [
-              1
-            ]
-          ],
-          "solo": false,
-          "metadataPath": "atomic/constants",
-          "constantData": [
-            1
-          ],
-          "constantValues": [
-            {
-              "type": 1,
-              "value": 4
-            }
-          ]
-        },
-        "measured": {
-          "width": 166,
-          "height": 178
+          "width": 100,
+          "height": 168
         },
         "selected": false,
         "dragging": false
@@ -116,8 +74,8 @@
         "id": "node_20",
         "type": "scripting-node",
         "position": {
-          "x": 941.1971740932809,
-          "y": -473.6933953263333
+          "x": 852.6774215216782,
+          "y": -384.00890916826216
         },
         "data": {
           "nodeId": "float-constant",
@@ -147,11 +105,15 @@
               "type": 2,
               "value": 18.8
             }
+          ],
+          "isStartingPoint": true,
+          "connectedOutputs": [
+            "output-1765414126714-0-5uzbi29ui"
           ]
         },
         "measured": {
-          "width": 166,
-          "height": 178
+          "width": 178,
+          "height": 137
         },
         "selected": false,
         "dragging": false
@@ -215,14 +177,64 @@
               "type": 3,
               "value": "+"
             }
-          ]
+          ],
+          "isStartingPoint": false,
+          "connectedOutputs": []
         },
         "measured": {
-          "width": 166,
-          "height": 236
+          "width": 185,
+          "height": 188
         },
         "dragging": false,
         "selected": false
+      },
+      {
+        "id": "node_22",
+        "type": "scripting-node",
+        "position": {
+          "x": 558.4284224867724,
+          "y": -423.0821890754907
+        },
+        "data": {
+          "nodeId": "integer-constant",
+          "label": "Integer Constant",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1770921209127-0-56fb7z1b5",
+              "name": "Value",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "availableOutputTypes": [
+            [
+              1
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/constants",
+          "constantData": [
+            1
+          ],
+          "constantValues": [
+            {
+              "type": 1,
+              "value": 0
+            }
+          ],
+          "isStartingPoint": true,
+          "connectedOutputs": [
+            "output-1770921209127-0-56fb7z1b5"
+          ]
+        },
+        "measured": {
+          "width": 178,
+          "height": 137
+        },
+        "selected": false,
+        "dragging": false
       }
     ],
     "edges": [
@@ -231,15 +243,27 @@
         "sourceHandle": "output-1765414126714-0-5uzbi29ui",
         "target": "node_21",
         "targetHandle": "input-1765414138219-1-yfdrmifle",
-        "id": "xy-edge__node_20output-1765414126714-0-5uzbi29ui-node_21input-1765414138219-1-yfdrmifle",
+        "id": "node_20-node_21",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#C6F6D5",
+          "--edge-color": "#C6F6D5"
+        },
         "selected": false
       },
       {
-        "source": "node_19",
-        "sourceHandle": "output-1765414122306-0-l76rltg9c",
+        "source": "node_22",
+        "sourceHandle": "output-1770921209127-0-56fb7z1b5",
         "target": "node_21",
         "targetHandle": "input-1765414138219-0-70mpsewtt",
-        "id": "xy-edge__node_19output-1765414122306-0-l76rltg9c-node_21input-1765414138219-0-70mpsewtt",
+        "id": "node_22-node_21",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#BEE3F8",
+          "--edge-color": "#BEE3F8"
+        },
         "selected": false
       },
       {
@@ -247,14 +271,20 @@
         "sourceHandle": "output-1765414138219-0-v5d057q54",
         "target": "node_18",
         "targetHandle": "input-1765414095068-0-iulyi70hq",
-        "id": "xy-edge__node_21output-1765414138219-0-v5d057q54-node_18input-1765414095068-0-iulyi70hq",
+        "id": "node_21-node_18",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#C6F6D5",
+          "--edge-color": "#C6F6D5"
+        },
         "selected": false
       }
     ],
     "viewport": {
-      "x": -111.94696297147925,
-      "y": 459.1775124850642,
-      "zoom": 0.7878538860493461
+      "x": -177.75139148755125,
+      "y": 648.8184920711823,
+      "zoom": 0.8585654364377533
     }
   },
   "variables": []
