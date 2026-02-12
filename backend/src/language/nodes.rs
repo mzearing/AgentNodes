@@ -351,7 +351,21 @@ impl NodeType
       }
       AtomicType::Cache =>
       {
-        todo!()
+        if let Some(v) = node.get_stored().await
+        {
+          Ok(vec![v])
+        }
+        else
+        {
+          let v = eval
+            .find_node(&connections[0].1)?
+            .listen(connections[0].2)
+            .await?
+            .await?
+            .ok_or(EvalError::Closed)?;
+          node.set_stored(v.clone()).await;
+          Ok(vec![v])
+        }
       }
       AtomicType::AgentOp(op) => Self::eval_agent(op, connections, node, eval).await,
     }
