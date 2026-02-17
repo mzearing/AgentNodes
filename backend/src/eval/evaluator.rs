@@ -118,13 +118,15 @@ impl AsyncClone for Evaluator
 {
   async fn clone(&self) -> Self
   {
+    let mut cloned_nodes = HashMap::new();
+    for (id, node) in &self.nodes
+    {
+      cloned_nodes.insert(id.clone(), Arc::new(node.clone().as_ref().clone().await));
+    }
+
     Self {
       scope_id: self.scope_id.clone(),
-      nodes: self
-        .nodes
-        .iter()
-        .map(|(id, node)| (id.clone(), Arc::new((*(node.clone())).clone())))
-        .collect(),
+      nodes: cloned_nodes,
       evaluator_cache: RwLock::new(self.evaluator_cache.read().await.clone()),
       complex_nodes: RwLock::new(HashMap::new()),
       parent: self.parent.clone(),

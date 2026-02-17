@@ -2,7 +2,7 @@
   "inputs": ["Handle"],
   "outputs": ["Boolean"],
   "defaults": {},
-  "end_node": "3f755d1a-ca53-11f0-ad8d-00155d8c2776",
+  "end_node": "cb2295c2-084b-11f1-9e13-00155d97444a",
   "instances": {
     "0cf99642-ca50-11f0-b48b-00155d8c2776":{
       "inputs": [],
@@ -34,56 +34,52 @@
         }
       }
     },
-    "5938e52a-ca51-11f0-8c10-00155d8c2776":{
+    "06a605ee-084b-11f1-8266-00155d97444a":{
       "inputs": [["None", "9c60e09c-ca50-11f0-a22f-00155d8c2776", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
-      "node_type": {
-        "Atomic" : "IsNone"
+      "node_type":{
+        "Atomic":"IsNone"
       }
     },
-    "83952a36-ca51-11f0-a69b-00155d8c2776":{
-      "inputs": [["Boolean","5938e52a-ca51-11f0-8c10-00155d8c2776",0, false]],
+    "29e1becc-084b-11f1-b506-00155d97444a":{
+      "inputs": [["Boolean", "06a605ee-084b-11f1-8266-00155d97444a", 0, true]],
       "outputs": [],
       "default_overrides": {},
-      "node_type": {
-        "Atomic":{
-          "Variable": ["Set", "Write_Complete"]
+      "node_type":{
+        "Atomic":
+        {
+          "Variable": ["Set", "write_complete"]
         }
       }
     },
-    "06a8158a-f7cc-11f0-8d81-00155d64d972":{
+    "757c3c04-084b-11f1-af27-00155d97444a":{
       "inputs": [],
       "outputs": ["Boolean"],
       "default_overrides": {},
-      "node_type" : {
-        "Atomic":
-        {
-          "Variable": ["Get", "Write_Complete"]
+      "node_type":{
+        "Atomic":{
+          "Variable": ["Get", "write_complete"]
         }
       }
     },
-    "c9530a02-ca51-11f0-8867-00155d8c2776":{
-      "inputs": [["Boolean", "06a8158a-f7cc-11f0-8d81-00155d64d972", 0, true]],
+    "9ba716c4-084b-11f1-b855-00155d97444a":{
+      "inputs": [["Boolean", "757c3c04-084b-11f1-af27-00155d97444a", 0, true]],
       "outputs": ["Boolean"],
       "default_overrides": {},
-      "node_type": {
-        "Atomic":
-        {
-          "Control" : "WaitForInit"
-        }
+      "node_type":{
+        "Atomic":"Cache"
       }
     },
-    "3f755d1a-ca53-11f0-ad8d-00155d8c2776":{
-      "inputs": [["Boolean", "c9530a02-ca51-11f0-8867-00155d8c2776", 0, true]],
-      "outputs": ["Boolean"],
+    "cb2295c2-084b-11f1-9e13-00155d97444a":{
+      "inputs": [["Boolean", "9ba716c4-084b-11f1-b855-00155d97444a", 0, true]],
+      "outputs": [],
       "default_overrides": {},
-      "node_type": {
-        "Atomic": {
-          "Control" : "End"
+      "node_type":{
+        "Atomic":{
+          "Control":"End"
         }
       }
     }
-
   }
 }

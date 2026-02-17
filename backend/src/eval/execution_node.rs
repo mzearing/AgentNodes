@@ -1,4 +1,5 @@
 use super::{EvalError, EvaluateIt, Evaluator};
+use crate::eval::AsyncClone;
 use crate::language::nodes::Instance;
 use crate::language::typing::{DataType, DataValue};
 use std::collections::HashMap;
@@ -31,9 +32,9 @@ pub struct ExecutionNode
   weak_listens: RwLock<HashMap<NodeConnection, Receiver<Option<DataValue>>>>,
 }
 
-impl Clone for ExecutionNode
+impl AsyncClone for ExecutionNode
 {
-  fn clone(&self) -> Self
+  async fn clone(&self) -> Self
   {
     let mut outputs = Vec::new();
     outputs.resize_with(self.outputs.len(), || RwLock::new(Vec::new()));
