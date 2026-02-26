@@ -1,3 +1,5 @@
+#![feature(fn_traits)]
+
 mod ai;
 mod cli;
 mod eval;

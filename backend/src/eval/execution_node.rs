@@ -2,6 +2,7 @@ use super::{EvalError, EvaluateIt, Evaluator};
 use crate::language::nodes::Instance;
 use crate::language::typing::{DataType, DataValue};
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::oneshot::{channel, Receiver, Sender};
 use tokio::sync::{Notify, RwLock};
@@ -13,39 +14,97 @@ pub enum NodeState
 {
   Processing,
   Waiting,
+  Outputting,
   Closed,
 }
 
-pub type NodeConnection = (DataType, Uuid, usize, bool); //(type, id, port, strong)
+pub type InputConnection = (DataType, Uuid, usize); //(type, id, port)
+pub type OutputConnection = Uuid;
 
 // IMPORTANT, USE Uuid v5 SO ITS SCOPED
 pub struct ExecutionNode
 {
   pub(crate) id: Uuid,
   pub(crate) instance: Instance,
-  inputs: Vec<NodeConnection>,
-  pub(super) outputs: Vec<RwLock<Vec<Sender<Option<DataValue>>>>>,
+  inputs: Vec<InputConnection>,
+  pub(super) outputs: Vec<Uuid>,
+  pub(super) controlflow: Vec<Uuid>,
   pub(super) state: RwLock<NodeState>,
   trigger: Notify,
   stored_value: RwLock<Option<DataValue>>,
-  weak_listens: RwLock<HashMap<NodeConnection, Receiver<Option<DataValue>>>>,
+  output_notify: NotifyCounter<usize>,
+  current_values: RwLock<Vec<DataValue>>,
+}
+
+struct NotifyCounter<T>
+{
+  notif: Notify,
+  counter: RwLock<T>,
+  start_value: T,
+  end_value: T,
+  comp_pred: Box<dyn Fn(&T, &T) -> bool>,
+  increment_pred: Box<dyn Fn(&mut T)>,
+}
+
+unsafe impl<T> Sync for NotifyCounter<T> {}
+unsafe impl<T> Send for NotifyCounter<T> {}
+
+impl<T> NotifyCounter<T>
+where
+  T: Clone,
+{
+  pub fn new<C, I>(start_value: T, end_value: T, increment_pred: I, comp_pred: C) -> Self
+  where
+    C: 'static + Fn(&T, &T) -> bool,
+    I: 'static + Fn(&mut T),
+  {
+    Self {
+      notif: Notify::const_new(),
+      start_value: start_value.clone(),
+      counter: RwLock::const_new(start_value),
+      end_value,
+      comp_pred: Box::new(comp_pred),
+      increment_pred: Box::new(increment_pred),
+    }
+  }
+
+  pub async fn increment(&self) -> bool
+  {
+    let mut guard = self.counter.write().await;
+    self.increment_pred.call((guard.deref_mut(),));
+    if self.comp_pred.call((&*guard, &self.end_value))
+    {
+      self.notif.notify_one();
+      true
+    }
+    else
+    {
+      false
+    }
+  }
+
+  pub async fn reset(&self)
+  {
+    *self.counter.write().await = self.start_value.clone();
+  }
+  pub async fn wait(&self)
+  {
+    self.notif.notified().await
+  }
 }
 
 impl Clone for ExecutionNode
 {
   fn clone(&self) -> Self
   {
-    let mut outputs = Vec::new();
-    outputs.resize_with(self.outputs.len(), || RwLock::new(Vec::new()));
     Self {
       id: self.id.clone(),
       instance: self.instance.clone(),
       inputs: self.inputs.clone(),
-      outputs: outputs,
+      outputs: self.outputs.clone(),
       state: RwLock::new(NodeState::Waiting),
       trigger: Notify::new(),
       stored_value: RwLock::new(None),
-      weak_listens: RwLock::new(HashMap::new()),
     }
   }
 }
@@ -82,7 +141,7 @@ impl ExecutionNode
     &self,
     o_node: Option<&Arc<Self>>,
     eval: Arc<Evaluator>,
-    connection: &NodeConnection,
+    connection: &InputConnection,
   ) -> Result<Receiver<Option<DataValue>>, EvalError>
   {
     let node = o_node
@@ -241,18 +300,18 @@ impl ExecutionNode
     Ok(recv)
   }
 
-  pub async fn weak_listen(&self, port: usize) -> Result<Receiver<Option<DataValue>>, EvalError>
-  {
-    let (send, recv) = channel();
-    self
-      .outputs
-      .get(port)
-      .ok_or(EvalError::PortOutOfBounds(port.clone()))?
-      .write()
-      .await
-      .push(send);
-    Ok(recv)
-  }
+  // pub async fn weak_listen(&self, port: usize) -> Result<Receiver<Option<DataValue>>, EvalError>
+  // {
+  //   let (send, recv) = channel();
+  //   self
+  //     .outputs
+  //     .get(port)
+  //     .ok_or(EvalError::PortOutOfBounds(port.clone()))?
+  //     .write()
+  //     .await
+  //     .push(send);
+  //   Ok(recv)
+  // }
 
   pub async fn listen_all(&self) -> JoinSet<Option<DataValue>>
   {
@@ -267,10 +326,14 @@ impl ExecutionNode
     ret
   }
 
-  pub fn new(id: Uuid, instance: Instance, inputs: Vec<NodeConnection>) -> Self
+  pub fn new(
+    id: Uuid,
+    instance: Instance,
+    inputs: Vec<InputConnection>,
+    outputs: Vec<OutputConnection>,
+  ) -> Self
   {
-    let mut outputs = Vec::with_capacity(instance.outputs.len());
-    outputs.resize_with(instance.outputs.len(), || RwLock::new(Vec::new()));
+    let outsize = outputs.len();
     Self {
       id,
       instance,
@@ -279,13 +342,22 @@ impl ExecutionNode
       state: RwLock::new(NodeState::Waiting),
       trigger: Notify::new(),
       stored_value: RwLock::new(None),
-      weak_listens: RwLock::new(HashMap::new()),
+      output_notify: NotifyCounter::new(0, outsize, |x| *x += 1, |a, b| a == b),
+      current_values: RwLock::new(vec![]),
     }
   }
 
   pub async fn close(&self)
   {
     self.broadcast_closed().await;
+  }
+
+  pub async fn get_output(&self, port: usize) -> DataValue
+  {
+    let guard = self.current_values.read().await;
+    let output = guard[port].clone();
+    self.output_notify.increment().await;
+    output
   }
 
   pub async fn get_stored(&self) -> Option<DataValue>

@@ -1,6 +1,6 @@
 use super::typing::{DataType, DataValue};
 use crate::ai::{AgentArgs, AgentType};
-use crate::eval::{EvalError, NodeConnection};
+use crate::eval::{EvalError, InputConnection, OutputConnection};
 use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -47,9 +47,9 @@ pub enum ControlFlow
 {
   Start,
   End,
-  WaitForInit(NodeConnection),
-  While(NodeConnection),
-  If(NodeConnection),
+  WaitForInit(InputConnection),
+  While(InputConnection),
+  If(InputConnection),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -108,8 +108,8 @@ pub struct Instance
 {
   pub node_type: NodeType,
   default_overrides: std::collections::HashMap<String, DataValue>,
-  pub outputs: Vec<DataType>,
-  pub inputs: Vec<NodeConnection>,
+  pub outputs: Vec<OutputConnection>,
+  pub inputs: Vec<InputConnection>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
