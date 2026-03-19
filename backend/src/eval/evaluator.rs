@@ -165,14 +165,9 @@ impl Evaluator
         let inputs = instance
           .inputs
           .iter()
-          .map(|(t, id, socket, strong)| {
+          .map(|(t, id, socket)| {
             non_dangling.insert(Self::convert_id(&scope_id, id.clone()));
-            (
-              t.clone(),
-              Self::convert_id(&scope_id, id.clone()),
-              *socket,
-              *strong,
-            )
+            (t.clone(), Self::convert_id(&scope_id, id.clone()), *socket)
           })
           .collect();
 
@@ -244,9 +239,8 @@ impl Evaluator
     {
       let n = node.clone();
       // println!("listening");
-      let recv = n.listen(i).await?;
+      let res = n.get_output(i).await;
       // println!("receiving");
-      let res = recv.await?.ok_or(EvalError::Closed)?;
       out.push(res);
 
       // out.push(

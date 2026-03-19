@@ -1,12 +1,10 @@
 use super::{EvalError, EvaluateIt, Evaluator};
-use crate::language::nodes::Instance;
+use crate::language::nodes::{Instance, NodeType};
 use crate::language::typing::{DataType, DataValue};
-use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
-use tokio::sync::oneshot::{channel, Receiver, Sender};
 use tokio::sync::{Notify, RwLock};
-use tokio::task::{JoinHandle, JoinSet};
+use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -18,19 +16,21 @@ pub enum NodeState
   Closed,
 }
 
-pub type InputConnection = (DataType, Uuid, usize); //(type, id, port)
+pub type DataInputConnection = (DataType, Uuid, usize); //(type, id, port)
 pub type OutputConnection = Uuid;
+
+pub type ControlInputConnection = (Uuid, usize);
+pub type ControlPort = Vec<(Uuid, usize)>;
 
 // IMPORTANT, USE Uuid v5 SO ITS SCOPED
 pub struct ExecutionNode
 {
   pub(crate) id: Uuid,
   pub(crate) instance: Instance,
-  inputs: Vec<InputConnection>,
+  inputs: Vec<DataInputConnection>,
   pub(super) outputs: Vec<Uuid>,
-  pub(super) controlflow: Vec<Uuid>,
   pub(super) state: RwLock<NodeState>,
-  trigger: Notify,
+  trigger: NotifyCounter<usize>,
   stored_value: RwLock<Option<DataValue>>,
   output_notify: NotifyCounter<usize>,
   current_values: RwLock<Vec<DataValue>>,
@@ -93,6 +93,14 @@ where
   }
 }
 
+fn get_counter(node_type: &NodeType, _control_flow: &Vec<ControlPort>) -> NotifyCounter<usize>
+{
+  match node_type
+  {
+    _ => NotifyCounter::new(0, 1, |x| *x += 1, PartialEq::eq),
+  }
+}
+
 impl Clone for ExecutionNode
 {
   fn clone(&self) -> Self
@@ -103,8 +111,10 @@ impl Clone for ExecutionNode
       inputs: self.inputs.clone(),
       outputs: self.outputs.clone(),
       state: RwLock::new(NodeState::Waiting),
-      trigger: Notify::new(),
+      trigger: get_counter(&self.instance.node_type, &self.instance.control_flow_in),
       stored_value: RwLock::new(None),
+      output_notify: NotifyCounter::new(0, self.outputs.len(), |x| *x += 1, |a, b| a == b),
+      current_values: RwLock::new(vec![]),
     }
   }
 }
@@ -127,42 +137,15 @@ impl ExecutionNode
 
   async fn broadcast_closed(&self)
   {
-    for x in &self.outputs
-    {
-      let mut guard = x.write().await;
-      guard.drain(..).for_each(|s| {
-        let _ = s.send(None);
-      });
-    }
-    *self.state.write().await = NodeState::Closed;
-  }
+    // for x in &self.outputs
+    // {
 
-  async fn get_channel(
-    &self,
-    o_node: Option<&Arc<Self>>,
-    eval: Arc<Evaluator>,
-    connection: &InputConnection,
-  ) -> Result<Receiver<Option<DataValue>>, EvalError>
-  {
-    let node = o_node
-      .or(eval.nodes.get(&connection.1))
-      .ok_or(EvalError::NodeNotFound(connection.1.clone()))?;
-
-    if connection.3
-    {
-      node.listen(connection.2).await
-    }
-    else
-    {
-      Ok(
-        self
-          .weak_listens
-          .write()
-          .await
-          .remove(&connection)
-          .unwrap_or(node.weak_listen(connection.2).await?),
-      )
-    }
+    //   let mut guard = x.write().await;
+    //   guard.drain(..).for_each(|s| {
+    //     let _ = s.send(None);
+    //   });
+    // }
+    // *self.state.write().await = NodeState::Closed;
   }
 
   async fn process(&self, eval: Arc<Evaluator>) -> Result<Vec<DataValue>, EvalError>
@@ -177,6 +160,13 @@ impl ExecutionNode
      *  5. clear the trigger and the listeners
      */
 
+    /*
+     * 1. Wait for all control_flow inputs
+     * 2. Request data from upstream
+     * 3. Process Data (node eval)
+     *   a. node eval controls which control flow out gets triggered
+     * 4. wait for all data to be retrieved
+     */
     while *(self.state.read().await) != NodeState::Closed
     {
       // let id = tokio::task::try_id().unwrap();
@@ -185,13 +175,14 @@ impl ExecutionNode
 
       //1
       // println!("{id} step 1");
-      self.trigger.notified().await;
+      self.trigger.wait().await;
+      self.trigger.reset().await;
       // println!("{} notified", tokio::task::try_id().unwrap());
 
       //2
       // println!("{id} step 2");
       let mut inputs = Vec::with_capacity(self.inputs.len());
-      for (t, id, port, strong) in &self.inputs
+      for (t, id, port) in &self.inputs
       {
         if let Some(node) = eval.nodes.get(&id)
         {
@@ -202,65 +193,29 @@ impl ExecutionNode
             // println!("2a_1");
             return Ok(vec![]);
           }
-          // println!("{id} step 2b notify");
-          let connection = (t.clone(), id.clone(), port.clone(), strong.clone());
-          let channel = self
-            .get_channel(Some(node), eval.clone(), &connection)
-            .await?;
 
-          let i = if *strong
-          {
-            node.listen(port.clone()).await?.await?
-          }
-          else
-          {
-            if channel.is_empty()
-            {
-              self.weak_listens.write().await.insert(connection, channel);
-              None
-            }
-            else
-            {
-              channel.await?
-            }
-          };
-
-          // 2a_2, check if we got None, also signifying a close
-          if i.is_none() && *strong
-          {
-            self.broadcast_closed().await;
-            // println!("2a_2");
-            return Ok(vec![]);
-          }
-
-          inputs.push(i);
+          inputs.push(node.get_output(*port).await);
+        }
+        else
+        {
+          self.broadcast_closed().await;
+          return Ok(vec![]);
         }
       }
 
       // 5, outputs already drained, set back to waiting
       // println!("{id} step 5");
-      *self.state.write().await = NodeState::Waiting;
-
-      // 3
-      // println!("{id} step 3");
-      // dbg!(&self.instance.node_type);
-      // dbg!(&inputs);
       let res = self
         .instance
         .node_type
         .evaluate(eval.clone(), self, inputs)
         .await;
+      *self.state.write().await = NodeState::Waiting;
       if let Ok(outputs) = res
       {
-        // dbg!(&outputs);
-        // 4
-        // println!("{id} step 4");
-        for (socket, out) in self.outputs.iter().zip(outputs.iter())
-        {
-          socket.write().await.drain(..).for_each(|x| {
-            let _ = x.send(Some(out.clone()));
-          });
-        }
+        let mut guard = self.current_values.write().await;
+        *guard = outputs;
+        self.output_notify.wait().await;
       }
       else
       {
@@ -277,70 +232,24 @@ impl ExecutionNode
     if *self.state.read().await == NodeState::Waiting
     {
       // println!("{} notifying", self.id);
-      self.trigger.notify_one();
-      *self.state.write().await = NodeState::Processing;
+      if self.trigger.increment().await
+      {
+        *self.state.write().await = NodeState::Processing;
+      }
     }
-    // else
-    // {
-    //   println!("State: {:?}", self.state.read().await)
-    // }
   }
 
-  // triggers AND adds a listener, must do both simultaneously in hopes of not fucking up the order
-  pub async fn listen(&self, port: usize) -> Result<Receiver<Option<DataValue>>, EvalError>
+  pub fn new(id: Uuid, instance: Instance, inputs: Vec<DataInputConnection>) -> Self
   {
-    // println!("listen");
-    if port >= self.outputs.len()
-    {
-      return Err(EvalError::PortOutOfBounds(port));
-    }
-    let (send, recv) = channel();
-    self.outputs[port].write().await.push(send);
-    self.trigger_processing().await;
-    Ok(recv)
-  }
-
-  // pub async fn weak_listen(&self, port: usize) -> Result<Receiver<Option<DataValue>>, EvalError>
-  // {
-  //   let (send, recv) = channel();
-  //   self
-  //     .outputs
-  //     .get(port)
-  //     .ok_or(EvalError::PortOutOfBounds(port.clone()))?
-  //     .write()
-  //     .await
-  //     .push(send);
-  //   Ok(recv)
-  // }
-
-  pub async fn listen_all(&self) -> JoinSet<Option<DataValue>>
-  {
-    let mut ret = JoinSet::new();
-    for i in 0..self.outputs.len()
-    {
-      let (send, recv) = channel();
-      self.outputs[i].write().await.push(send);
-      ret.spawn(async move { recv.await.unwrap_or_default() });
-    }
-    self.trigger_processing().await;
-    ret
-  }
-
-  pub fn new(
-    id: Uuid,
-    instance: Instance,
-    inputs: Vec<InputConnection>,
-    outputs: Vec<OutputConnection>,
-  ) -> Self
-  {
-    let outsize = outputs.len();
+    let outsize = instance.outputs.len();
+    let outputs = instance.outputs.clone();
     Self {
       id,
+      trigger: get_counter(&instance.node_type, &instance.control_flow_in),
       instance,
       inputs,
       outputs,
       state: RwLock::new(NodeState::Waiting),
-      trigger: Notify::new(),
       stored_value: RwLock::new(None),
       output_notify: NotifyCounter::new(0, outsize, |x| *x += 1, |a, b| a == b),
       current_values: RwLock::new(vec![]),

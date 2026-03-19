@@ -1,6 +1,8 @@
 use super::typing::{DataType, DataValue};
 use crate::ai::{AgentArgs, AgentType};
-use crate::eval::{EvalError, InputConnection, OutputConnection};
+use crate::eval::{
+  ControlInputConnection, ControlPort, DataInputConnection, EvalError, OutputConnection,
+};
 use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -47,9 +49,8 @@ pub enum ControlFlow
 {
   Start,
   End,
-  WaitForInit(InputConnection),
-  While(InputConnection),
-  If(InputConnection),
+  While(DataInputConnection),
+  If(DataInputConnection),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -109,7 +110,9 @@ pub struct Instance
   pub node_type: NodeType,
   default_overrides: std::collections::HashMap<String, DataValue>,
   pub outputs: Vec<OutputConnection>,
-  pub inputs: Vec<InputConnection>,
+  pub control_flow_in: Vec<ControlPort>,
+  pub control_flow_out: Vec<ControlPort>,
+  pub inputs: Vec<DataInputConnection>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
@@ -128,7 +131,7 @@ impl EvaluateIt for NodeType
     &self,
     eval: Arc<Evaluator>,
     node: &ExecutionNode,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
     match self
@@ -139,13 +142,9 @@ impl EvaluateIt for NodeType
       }
       NodeType::Complex(path) =>
       {
-        let unwrapped_inputs = inputs
-          .into_iter()
-          .collect::<Option<Vec<DataValue>>>()
-          .ok_or(EvalError::ComplexWeakInput)?;
         if let Some(runner) = eval.get_complex_runner(&node.id).await
         {
-          runner.send_inputs(unwrapped_inputs).await;
+          runner.send_inputs(inputs).await;
           runner.get_outputs().await
         }
         else
@@ -156,7 +155,7 @@ impl EvaluateIt for NodeType
           let opt_e = eval.get_evaluator(&rel).await;
           if let Some(e) = opt_e
           {
-            let i = e.instantiate(unwrapped_inputs).await;
+            let i = e.instantiate(inputs).await;
             eval.add_complex_runner(i.clone(), &node.id).await;
             i.get_outputs().await
           }
@@ -164,7 +163,7 @@ impl EvaluateIt for NodeType
           {
             let e = Evaluator::new(rel.clone(), Some(eval.clone()))?;
             eval.clone().add_evaluator(&rel, e.clone()).await;
-            let i = e.instantiate(unwrapped_inputs).await;
+            let i = e.instantiate(inputs).await;
             eval.add_complex_runner(i.clone(), &node.id).await;
             i.get_outputs().await
           }
@@ -180,14 +179,14 @@ impl NodeType
     atomic_type: AtomicType,
     eval: Arc<Evaluator>,
     node: &ExecutionNode,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
     match atomic_type
     {
       AtomicType::Print =>
       {
-        inputs.into_iter().for_each(|x| println!("{}", x.unwrap()));
+        inputs.into_iter().for_each(|x| println!("{}", x));
         tokio::task::yield_now().await;
         Ok(vec![DataValue::None])
       }
@@ -211,15 +210,9 @@ impl NodeType
         {
           return Err(EvalError::IncorrectInputCount);
         }
-        let unwrapped_inputs: Vec<DataValue> = inputs
-          .into_iter()
-          .collect::<Option<Vec<DataValue>>>()
-          .ok_or(EvalError::IncorrectInputCount)?;
-        if let (DataValue::String(pattern), DataValue::String(replace), DataValue::String(input)) = (
-          &unwrapped_inputs[0],
-          &unwrapped_inputs[1],
-          &unwrapped_inputs[2],
-        )
+
+        if let (DataValue::String(pattern), DataValue::String(replace), DataValue::String(input)) =
+          (&inputs[0], &inputs[1], &inputs[2])
         {
           let regex = regex::Regex::new(&pattern).map_err(EvalError::from)?;
           let ret = regex.replace(input, replace).to_string();
@@ -228,7 +221,7 @@ impl NodeType
         else
         {
           Err(EvalError::IncorrectTyping {
-            got: unwrapped_inputs.into_iter().map(|x| x.get_type()).collect(),
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
             expected: vec![DataType::String, DataType::String],
           })
         }
@@ -241,7 +234,6 @@ impl NodeType
           .get(0)
           .ok_or(EvalError::IncorrectInputCount)?
           .clone()
-          .ok_or(EvalError::IncorrectInputCount)?
           .try_cast(to_type)
           .map(|x| vec![x])
           .map_err(|t| EvalError::CastError(t))
@@ -271,47 +263,18 @@ impl NodeType
 
   fn eval_bin_op(
     atomic_bin_op: AtomicBinOp,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
     assert!(inputs.len() == 2);
-    let unwrapped_inputs = inputs
-      .into_iter()
-      .collect::<Option<Vec<DataValue>>>()
-      .ok_or(EvalError::IncorrectInputCount)?;
     match atomic_bin_op
     {
-      AtomicBinOp::Add =>
-      {
-        Ok(vec![
-          (unwrapped_inputs[0].clone() + unwrapped_inputs[1].clone())?,
-        ])
-      }
-      AtomicBinOp::Sub =>
-      {
-        Ok(vec![
-          (unwrapped_inputs[0].clone() - unwrapped_inputs[1].clone())?,
-        ])
-      }
-      AtomicBinOp::Mul =>
-      {
-        Ok(vec![
-          (unwrapped_inputs[0].clone() * unwrapped_inputs[1].clone())?,
-        ])
-      }
-      AtomicBinOp::Div =>
-      {
-        Ok(vec![
-          (unwrapped_inputs[0].clone() / unwrapped_inputs[1].clone())?,
-        ])
-      }
-      AtomicBinOp::Mod =>
-      {
-        Ok(vec![
-          (unwrapped_inputs[0].clone() % unwrapped_inputs[1].clone())?,
-        ])
-      }
-      AtomicBinOp::Pow => Ok(vec![unwrapped_inputs[0].pow(&unwrapped_inputs[1])?]),
+      AtomicBinOp::Add => Ok(vec![(inputs[0].clone() + inputs[1].clone())?]),
+      AtomicBinOp::Sub => Ok(vec![(inputs[0].clone() - inputs[1].clone())?]),
+      AtomicBinOp::Mul => Ok(vec![(inputs[0].clone() * inputs[1].clone())?]),
+      AtomicBinOp::Div => Ok(vec![(inputs[0].clone() / inputs[1].clone())?]),
+      AtomicBinOp::Mod => Ok(vec![(inputs[0].clone() % inputs[1].clone())?]),
+      AtomicBinOp::Pow => Ok(vec![inputs[0].pow(&inputs[1])?]),
     }
   }
 
@@ -319,7 +282,7 @@ impl NodeType
     control_flow: ControlFlow,
     eval: Arc<Evaluator>,
     node: &ExecutionNode,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
     match control_flow
@@ -327,32 +290,17 @@ impl NodeType
       ControlFlow::Start => Ok(eval.get_inputs().await),
       ControlFlow::End =>
       {
-        let unwrapped_inputs = inputs
-          .into_iter()
-          .collect::<Option<Vec<DataValue>>>()
-          .ok_or(EvalError::ComplexWeakInput)?;
         tokio::task::yield_now().await;
-        Ok(unwrapped_inputs)
+        Ok(inputs)
       }
       ControlFlow::While(end_node) =>
       {
-        let unwrapped_inputs = inputs
-          .into_iter()
-          .collect::<Option<Vec<DataValue>>>()
-          .ok_or(EvalError::IncorrectInputCount)?;
-        if let DataValue::Boolean(cond) = unwrapped_inputs[0]
+        if let DataValue::Boolean(cond) = inputs[0]
         {
           if cond
           {
             let end = eval.find_node(&end_node.1)?;
-            let _outputs: Vec<DataValue> = end
-              .listen_all()
-              .await
-              .join_all()
-              .await
-              .into_iter()
-              .map(|x| x.unwrap_or(DataValue::None))
-              .collect();
+            todo!("FIX WHILE LOOPS TO WORK WITH NEW CONTROL FLOW");
             // dbg!(_outputs);
             node.trigger_processing().await;
             Ok(vec![])
@@ -365,58 +313,17 @@ impl NodeType
         else
         {
           Err(EvalError::IncorrectTyping {
-            got: unwrapped_inputs.into_iter().map(|x| x.get_type()).collect(),
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
             expected: vec![DataType::Boolean],
           })
         }
       }
-      ControlFlow::WaitForInit(initializer) =>
-      {
-        let unwrapped_inputs = inputs
-          .into_iter()
-          .collect::<Option<Vec<DataValue>>>()
-          .ok_or(EvalError::IncorrectInputCount)?;
-        if node.get_stored().await.is_none()
-        {
-          let v = eval
-            .find_node(&initializer.1)?
-            .listen_all()
-            .await
-            .join_all()
-            .await;
-          node.set_stored(DataValue::Boolean(true)).await;
-          return Ok(
-            v.into_iter()
-              .map(|x| x.unwrap_or(DataValue::None))
-              .collect(),
-          );
-        }
-        if unwrapped_inputs[0] == DataValue::None
-        {
-          Ok(vec![])
-        }
-        else
-        {
-          Ok(unwrapped_inputs)
-        }
-      }
       ControlFlow::If(connection) =>
       {
-        let unwrapped_inputs = inputs
-          .into_iter()
-          .collect::<Option<Vec<DataValue>>>()
-          .ok_or(EvalError::IncorrectInputCount)?;
-        if Some(DataValue::Boolean(true)) == unwrapped_inputs.get(0).cloned()
+        if Some(DataValue::Boolean(true)) == inputs.get(0).cloned()
         {
           let end = eval.find_node(&connection.1)?;
-          let _outputs: Vec<DataValue> = end
-            .listen_all()
-            .await
-            .join_all()
-            .await
-            .into_iter()
-            .map(|x| x.unwrap_or(DataValue::None))
-            .collect();
+          todo!("FIX IF STATEMENTS")
         }
         Ok(vec![DataValue::None])
       }
@@ -425,7 +332,7 @@ impl NodeType
 
   async fn eval_variable(
     eval: Arc<Evaluator>,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
     name: &str,
     action: Variable,
   ) -> Result<Vec<DataValue>, EvalError>
@@ -435,10 +342,8 @@ impl NodeType
     {
       Variable::Set =>
       {
-        if let Some(val) = inputs[0].clone()
-        {
-          eval.set_variable(name.to_string(), val).await;
-        }
+        eval.set_variable(name.to_string(), inputs[0].clone()).await;
+
         Ok(vec![])
       }
       Variable::Get => Ok(vec![eval.get_variable(name).await]),
@@ -448,13 +353,9 @@ impl NodeType
     io: AtomicIo,
     node: &ExecutionNode,
     eval: Arc<Evaluator>,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
-    let unwrapped_inputs = inputs
-      .into_iter()
-      .collect::<Option<Vec<DataValue>>>()
-      .ok_or(EvalError::IncorrectInputCount)?;
     match io
     {
       AtomicIo::Open(io_type) =>
@@ -469,7 +370,7 @@ impl NodeType
             {
               IoType::File =>
               {
-                let path = format!("{}", unwrapped_inputs[0]);
+                let path = format!("{}", inputs[0]);
                 eval
                   .register_io(Box::pin(tokio::fs::File::open(path).await?))
                   .await
@@ -478,11 +379,7 @@ impl NodeType
               {
                 eval
                   .register_io(Box::pin(
-                    tokio::net::TcpStream::connect(format!(
-                      "{}:{}",
-                      unwrapped_inputs[0], unwrapped_inputs[1]
-                    ))
-                    .await?,
+                    tokio::net::TcpStream::connect(format!("{}:{}", inputs[0], inputs[1])).await?,
                   ))
                   .await
               }
@@ -494,7 +391,7 @@ impl NodeType
       }
       AtomicIo::GetLine =>
       {
-        if let DataValue::Handle(handle) = unwrapped_inputs[0]
+        if let DataValue::Handle(handle) = inputs[0]
         {
           let bytes = eval.read_until(&handle, b"\n").await?;
           let s = String::from_utf8(bytes)?.trim_end_matches('\r').to_string();
@@ -503,15 +400,14 @@ impl NodeType
         else
         {
           Err(EvalError::IncorrectTyping {
-            got: vec![unwrapped_inputs[0].get_type()],
+            got: vec![inputs[0].get_type()],
             expected: vec![DataType::Handle],
           })
         }
       }
       AtomicIo::Read =>
       {
-        if let (DataValue::Handle(h), DataValue::Integer(size)) =
-          (&unwrapped_inputs[0], &unwrapped_inputs[1])
+        if let (DataValue::Handle(h), DataValue::Integer(size)) = (&inputs[0], &inputs[1])
         {
           let mut buf = Vec::new();
           buf.resize(*size as usize, 0);
@@ -524,15 +420,14 @@ impl NodeType
         else
         {
           Err(EvalError::IncorrectTyping {
-            got: unwrapped_inputs.into_iter().map(|x| x.get_type()).collect(),
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
             expected: vec![DataType::Handle, DataType::Integer],
           })
         }
       }
       AtomicIo::Write =>
       {
-        if let (DataValue::String(s), DataValue::Handle(h)) =
-          (&unwrapped_inputs[1], &unwrapped_inputs[0])
+        if let (DataValue::String(s), DataValue::Handle(h)) = (&inputs[1], &inputs[0])
         {
           let mut bytes = s.bytes().collect();
           eval.write_bytes(h, &mut bytes).await?;
@@ -541,7 +436,7 @@ impl NodeType
         else
         {
           Err(EvalError::IncorrectTyping {
-            got: unwrapped_inputs.into_iter().map(|x| x.get_type()).collect(),
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
             expected: vec![DataType::Handle, DataType::String],
           })
         }
@@ -560,21 +455,15 @@ impl NodeType
 
   async fn eval_unary(
     atomic_unary_op: AtomicUnaryOp,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
-    let unwrapped_inputs = inputs
-      .into_iter()
-      .collect::<Option<Vec<DataValue>>>()
-      .ok_or(EvalError::IncorrectInputCount)?;
     match atomic_unary_op
     {
       AtomicUnaryOp::Neg =>
       {
-        let mut outputs = Vec::with_capacity(unwrapped_inputs.len());
-        for x in unwrapped_inputs
-          .into_iter()
-          .map(|x| x.mul(DataValue::Integer(-1)))
+        let mut outputs = Vec::with_capacity(inputs.len());
+        for x in inputs.into_iter().map(|x| x.mul(DataValue::Integer(-1)))
         {
           outputs.push(x?);
         }
@@ -585,15 +474,11 @@ impl NodeType
 
   async fn eval_agent(
     agent_op: AgentOperation,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
     node: &ExecutionNode,
     eval: Arc<Evaluator>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
-    let unwrapped_inputs = inputs
-      .into_iter()
-      .collect::<Option<Vec<DataValue>>>()
-      .ok_or(EvalError::IncorrectInputCount)?;
     match agent_op
     {
       AgentOperation::Create(agent_type) =>
@@ -603,7 +488,7 @@ impl NodeType
           return Ok(vec![agent]);
         }
 
-        if let Some(args) = AgentArgs::from_values(&unwrapped_inputs)
+        if let Some(args) = AgentArgs::from_values(&inputs)
         {
           let ret = DataValue::Agent(
             agent_type.clone(),
@@ -619,10 +504,7 @@ impl NodeType
       }
       AgentOperation::Send =>
       {
-        let args = (
-          unwrapped_inputs.get(0).cloned(),
-          unwrapped_inputs.get(1).cloned(),
-        );
+        let args = (inputs.get(0).cloned(), inputs.get(1).cloned());
         if let (Some(DataValue::Agent(_, id)), Some(DataValue::String(message))) = args
         {
           eval.agent_send_message(&id, message).await?;
@@ -631,14 +513,14 @@ impl NodeType
         else
         {
           Err(EvalError::IncorrectTyping {
-            got: unwrapped_inputs.into_iter().map(|x| x.get_type()).collect(),
+            got: inputs.into_iter().map(|x| x.get_type()).collect(),
             expected: vec![DataType::Agent(AgentType::OpenAi), DataType::String],
           })
         }
       }
       AgentOperation::Recieve =>
       {
-        if let Some(DataValue::Agent(_, id)) = unwrapped_inputs.get(0)
+        if let Some(DataValue::Agent(_, id)) = inputs.get(0)
         {
           Ok(vec![eval
             .agent_get_last_message(id)
@@ -657,7 +539,7 @@ impl NodeType
 
   fn eval_logic(
     logical_op: AtomicLogic,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
   {
     if logical_op == AtomicLogic::Eq
@@ -671,13 +553,8 @@ impl NodeType
         return Ok(vec![DataValue::Boolean(inputs[0] == inputs[1])]);
       }
     }
-
-    let unwrapped_inputs = inputs
-      .into_iter()
-      .collect::<Option<Vec<DataValue>>>()
-      .ok_or(EvalError::IncorrectInputCount)?;
-    let mut bools = Vec::with_capacity(unwrapped_inputs.len());
-    for res_bool in unwrapped_inputs.iter().cloned().map(|x| {
+    let mut bools = Vec::with_capacity(inputs.len());
+    for res_bool in inputs.iter().cloned().map(|x| {
       x.try_cast(DataType::Boolean)
         .map_err(|e| EvalError::CastError(e))
     })

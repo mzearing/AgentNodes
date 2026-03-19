@@ -1,6 +1,7 @@
 mod eval_error;
 mod evaluator;
 mod execution_node;
+mod waiters;
 use crate::language::typing::DataValue;
 pub use eval_error::*;
 pub use evaluator::*;
@@ -23,6 +24,6 @@ pub trait EvaluateIt
     &self,
     eval: Arc<Evaluator>,
     node: &ExecutionNode,
-    inputs: Vec<Option<DataValue>>,
+    inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>;
 }
