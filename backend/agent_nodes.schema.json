@@ -149,7 +149,52 @@
         "outputs": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/DataType"
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "control_flow_in": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "control_flow_out": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
           }
         },
         "inputs": {
@@ -168,13 +213,10 @@
                 "type": "integer",
                 "format": "uint",
                 "minimum": 0
-              },
-              {
-                "type": "boolean"
               }
             ],
-            "minItems": 4,
-            "maxItems": 4
+            "minItems": 3,
+            "maxItems": 3
           }
         }
       },
@@ -182,6 +224,8 @@
         "node_type",
         "default_overrides",
         "outputs",
+        "control_flow_in",
+        "control_flow_out",
         "inputs"
       ]
     },
@@ -366,99 +410,42 @@
           "type": "string",
           "enum": [
             "Start",
-            "End"
+            "End",
+            "If"
           ]
         },
         {
           "type": "object",
           "properties": {
-            "WaitForInit": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                },
-                {
-                  "type": "boolean"
-                }
-              ],
-              "minItems": 4,
-              "maxItems": 4
+            "Loop": {
+              "$ref": "#/$defs/LoopNodes"
             }
           },
           "required": [
-            "WaitForInit"
+            "Loop"
           ],
           "additionalProperties": false
+        }
+      ]
+    },
+    "LoopNodes": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Start"
+          ]
         },
         {
           "type": "object",
           "properties": {
-            "While": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                },
-                {
-                  "type": "boolean"
-                }
-              ],
-              "minItems": 4,
-              "maxItems": 4
+            "Continue": {
+              "type": "string",
+              "format": "uuid"
             }
           },
           "required": [
-            "While"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "If": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/DataType"
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
-                },
-                {
-                  "type": "boolean"
-                }
-              ],
-              "minItems": 4,
-              "maxItems": 4
-            }
-          },
-          "required": [
-            "If"
+            "Continue"
           ],
           "additionalProperties": false
         }

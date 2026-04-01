@@ -12,7 +12,7 @@ use std::vec;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum AtomicType
 {
   Print,
@@ -28,7 +28,7 @@ pub enum AtomicType
   LogicalOp(AtomicLogic),
   AgentOp(AgentOperation),
 }
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 
 pub enum Variable
 {
@@ -36,7 +36,7 @@ pub enum Variable
   Get,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum AgentOperation
 {
   Create(AgentType),
@@ -44,13 +44,19 @@ pub enum AgentOperation
   Recieve,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum ControlFlow
 {
   Start,
   End,
-  While(DataInputConnection),
-  If(DataInputConnection),
+  Loop(LoopNodes),
+  If,
+}
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
+pub enum LoopNodes
+{
+  Start,
+  Continue(Uuid),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -63,7 +69,7 @@ pub enum AtomicLogic
   Eq,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum AtomicIo
 {
   ConsoleInput,
@@ -73,14 +79,14 @@ pub enum AtomicIo
   GetLine,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum IoType
 {
   File,
   TcpSocket,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum AtomicBinOp
 {
   Add,
@@ -91,20 +97,20 @@ pub enum AtomicBinOp
   Mod,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum AtomicUnaryOp
 {
   Neg,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub enum NodeType
 {
   Atomic(AtomicType),
   Complex(String),
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub struct Instance
 {
   pub node_type: NodeType,
@@ -115,7 +121,7 @@ pub struct Instance
   pub inputs: Vec<DataInputConnection>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
 pub struct Complex
 {
   pub inputs: Vec<DataType>,
@@ -291,41 +297,37 @@ impl NodeType
       ControlFlow::End =>
       {
         tokio::task::yield_now().await;
+        eval.complete.notify_one();
         Ok(inputs)
       }
-      ControlFlow::While(end_node) =>
-      {
-        if let DataValue::Boolean(cond) = inputs[0]
-        {
-          if cond
-          {
-            let end = eval.find_node(&end_node.1)?;
-            todo!("FIX WHILE LOOPS TO WORK WITH NEW CONTROL FLOW");
-            // dbg!(_outputs);
-            node.trigger_processing().await;
-            Ok(vec![])
-          }
-          else
-          {
-            Ok(vec![DataValue::None])
-          }
-        }
-        else
-        {
-          Err(EvalError::IncorrectTyping {
-            got: inputs.into_iter().map(|x| x.get_type()).collect(),
-            expected: vec![DataType::Boolean],
-          })
-        }
-      }
-      ControlFlow::If(connection) =>
+      ControlFlow::Loop(lp_type) => Self::eval_loop(eval, lp_type).await,
+      ControlFlow::If =>
       {
         if Some(DataValue::Boolean(true)) == inputs.get(0).cloned()
         {
-          let end = eval.find_node(&connection.1)?;
-          todo!("FIX IF STATEMENTS")
+          // trigger true port
+          node.trigger_connected(eval, 1).await?;
+        }
+        else
+        {
+          // trigger false port
+          node.trigger_connected(eval, 0).await?;
         }
         Ok(vec![DataValue::None])
+      }
+    }
+  }
+
+  async fn eval_loop(eval: Arc<Evaluator>, lp_type: LoopNodes)
+    -> Result<Vec<DataValue>, EvalError>
+  {
+    match lp_type
+    {
+      LoopNodes::Start => Ok(vec![]),
+      LoopNodes::Continue(uuid) =>
+      {
+        eval.find_node(&uuid)?.trigger_processing().await;
+        Ok(vec![])
       }
     }
   }

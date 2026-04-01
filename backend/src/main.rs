@@ -28,6 +28,7 @@ async fn main()
   // console_subscriber::init();
   let eval = Evaluator::new(cli.filename.unwrap().to_str().unwrap().to_string(), None).unwrap();
   let instance = eval.instantiate(vec![]).await;
+  instance.wait_for_complete().await;
 
   if cli.print_output
   {

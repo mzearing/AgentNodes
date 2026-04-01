@@ -1,5 +1,5 @@
 use super::{EvalError, EvaluateIt, Evaluator};
-use crate::language::nodes::{Instance, NodeType};
+use crate::language::nodes::{AtomicType, ControlFlow, Instance, NodeType};
 use crate::language::typing::{DataType, DataValue};
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -34,6 +34,7 @@ pub struct ExecutionNode
   stored_value: RwLock<Option<DataValue>>,
   output_notify: NotifyCounter<usize>,
   current_values: RwLock<Vec<DataValue>>,
+  custom_control: bool,
 }
 
 struct NotifyCounter<T>
@@ -89,6 +90,10 @@ where
   }
   pub async fn wait(&self)
   {
+    if self.comp_pred.call((&self.start_value, &self.end_value))
+    {
+      return;
+    }
     self.notif.notified().await
   }
 }
@@ -97,6 +102,10 @@ fn get_counter(node_type: &NodeType, _control_flow: &Vec<ControlPort>) -> Notify
 {
   match node_type
   {
+    NodeType::Atomic(AtomicType::Control(ControlFlow::Start)) =>
+    {
+      NotifyCounter::new(0, 0, |x| *x += 1, PartialEq::eq)
+    }
     _ => NotifyCounter::new(0, 1, |x| *x += 1, PartialEq::eq),
   }
 }
@@ -115,6 +124,7 @@ impl Clone for ExecutionNode
       stored_value: RwLock::new(None),
       output_notify: NotifyCounter::new(0, self.outputs.len(), |x| *x += 1, |a, b| a == b),
       current_values: RwLock::new(vec![]),
+      custom_control: self.custom_control.clone(),
     }
   }
 }
@@ -177,6 +187,8 @@ impl ExecutionNode
       // println!("{id} step 1");
       self.trigger.wait().await;
       self.trigger.reset().await;
+      dbg!(self.instance.node_type.clone());
+
       // println!("{} notified", tokio::task::try_id().unwrap());
 
       //2
@@ -193,7 +205,7 @@ impl ExecutionNode
             // println!("2a_1");
             return Ok(vec![]);
           }
-
+          dbg!(node.instance.node_type.clone());
           inputs.push(node.get_output(*port).await);
         }
         else
@@ -204,24 +216,35 @@ impl ExecutionNode
       }
 
       // 5, outputs already drained, set back to waiting
-      // println!("{id} step 5");
+      println!("step 5");
       let res = self
         .instance
         .node_type
         .evaluate(eval.clone(), self, inputs)
         .await;
-      *self.state.write().await = NodeState::Waiting;
+      println!("After eval");
       if let Ok(outputs) = res
       {
         let mut guard = self.current_values.write().await;
         *guard = outputs;
-        self.output_notify.wait().await;
       }
       else
       {
         self.broadcast_closed().await;
         return res;
       }
+      println!("after output");
+
+      *self.state.write().await = NodeState::Waiting;
+
+      if !self.custom_control
+      {
+        for i in 0..self.instance.control_flow_out.len()
+        {
+          self.trigger_connected(eval.clone(), i).await?;
+        }
+      }
+      self.output_notify.wait().await;
     }
     Ok(vec![])
   }
@@ -246,6 +269,11 @@ impl ExecutionNode
     Self {
       id,
       trigger: get_counter(&instance.node_type, &instance.control_flow_in),
+      custom_control: match &instance.node_type
+      {
+        NodeType::Atomic(AtomicType::Control(ControlFlow::If)) => true,
+        _ => false,
+      },
       instance,
       inputs,
       outputs,
@@ -280,5 +308,17 @@ impl ExecutionNode
     let ret = guard.clone();
     *guard = Some(val);
     ret
+  }
+
+  pub async fn trigger_connected(&self, eval: Arc<Evaluator>, port: usize)
+    -> Result<(), EvalError>
+  {
+    for (id, _) in &self.instance.control_flow_out[port]
+    {
+      let node = eval.find_node(id)?;
+      println!("Triggering {:?}", node.instance.node_type.clone());
+      node.trigger_processing().await;
+    }
+    Ok(())
   }
 }

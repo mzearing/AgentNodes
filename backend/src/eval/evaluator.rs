@@ -1,7 +1,10 @@
 use super::{AsyncClone, EvalError, ExecutionNode, IoObject};
 use crate::{
   ai::{AgentArgs, AgentType, ChatBody, DynAgent},
-  language::{nodes::Complex, typing::DataValue},
+  language::{
+    nodes::{AtomicType, Complex, ControlFlow, NodeType},
+    typing::DataValue,
+  },
 };
 use std::{
   collections::{HashMap, HashSet, VecDeque},
@@ -9,7 +12,7 @@ use std::{
 };
 use tokio::{
   io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
-  sync::{RwLock, RwLockWriteGuard},
+  sync::{Notify, RwLock, RwLockWriteGuard},
   task::{AbortHandle, JoinHandle, JoinSet},
 };
 use uuid::Uuid;
@@ -108,6 +111,8 @@ pub struct Evaluator
   dangling_nodes: Arc<HashSet<Uuid>>,
 
   variables: RwLock<HashMap<String, DataValue>>,
+
+  pub complete: Notify,
 }
 
 impl AsyncClone for Evaluator
@@ -136,6 +141,7 @@ impl AsyncClone for Evaluator
       agent_registry: Arc::new(RwLock::new(HashMap::new())),
       dangling_nodes: Arc::new(self.dangling_nodes.as_ref().clone()),
       variables: RwLock::new(HashMap::new()),
+      complete: Notify::new(),
     }
   }
 }
@@ -199,6 +205,7 @@ impl Evaluator
       agent_registry: Arc::new(RwLock::new(HashMap::new())),
       dangling_nodes: Arc::new(dangling),
       variables: RwLock::new(HashMap::new()),
+      complete: Notify::new(),
     }))
   }
 
@@ -223,22 +230,13 @@ impl Evaluator
     let node = self.nodes.get(&self.end_node).ok_or(EvalError::NoEndNode)?;
     // println!("Got");
 
-    let dangles: Vec<Result<&Arc<ExecutionNode>, EvalError>> = self
-      .dangling_nodes
-      .iter()
-      .map(|x| self.nodes.get(x).ok_or(EvalError::NodeNotFound(x.clone())))
-      .collect();
-
-    for node in dangles
-    {
-      node?.trigger_processing().await;
-    }
-
     let mut out = Vec::with_capacity(node.outputs.len());
     for i in 0..node.outputs.len()
     {
       let n = node.clone();
       // println!("listening");
+      dbg!(n.instance.node_type.clone());
+
       let res = n.get_output(i).await;
       // println!("receiving");
       out.push(res);
@@ -287,6 +285,16 @@ impl Evaluator
       .values()
       .map(|x| x.clone().spawn(instance.clone()))
       .collect();
+    let start = instance
+      .nodes
+      .iter()
+      .find(|(_, node)| {
+        node.instance.node_type == NodeType::Atomic(AtomicType::Control(ControlFlow::Start))
+      })
+      .ok_or(EvalError::NoStartNode)
+      .unwrap()
+      .1;
+    start.trigger_processing().await;
     *instance.listen_handle.write().await =
       Some(tokio::task::spawn(task_listen(instance.clone(), tasks)));
 
@@ -477,5 +485,10 @@ impl Evaluator
   pub async fn set_variable(self: Arc<Self>, name: String, value: DataValue)
   {
     self.variables.write().await.insert(name, value);
+  }
+
+  pub async fn wait_for_complete(&self)
+  {
+    self.complete.notified().await;
   }
 }
