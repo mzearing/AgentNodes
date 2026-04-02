@@ -26,6 +26,7 @@ pub type ControlPort = Vec<(Uuid, usize)>;
 pub struct ExecutionNode
 {
   pub(crate) id: Uuid,
+  pub static_id: Uuid,
   pub(crate) instance: Instance,
   inputs: Vec<DataInputConnection>,
   pub(super) outputs: Vec<Uuid>,
@@ -116,6 +117,7 @@ impl Clone for ExecutionNode
   {
     Self {
       id: self.id.clone(),
+      static_id: self.static_id.clone(),
       instance: self.instance.clone(),
       inputs: self.inputs.clone(),
       outputs: self.outputs.clone(),
@@ -133,7 +135,6 @@ impl ExecutionNode
 {
   async fn run(self: Arc<Self>, eval: Arc<Evaluator>) -> (Uuid, Result<Vec<DataValue>, EvalError>)
   {
-    // println!("{}:{:?}", self.id, *self.state.read().await);
     (self.id.clone(), self.process(eval).await)
   }
 
@@ -185,9 +186,17 @@ impl ExecutionNode
 
       //1
       // println!("{id} step 1");
+
+      // println!(
+      //   "Starting process for {} {:?}",
+      //   self.static_id, self.instance.node_type
+      // );
       self.trigger.wait().await;
       self.trigger.reset().await;
-      dbg!(self.instance.node_type.clone());
+      // println!(
+      //   "Finish trigger wait for {} {:?}",
+      //   self.static_id, self.instance.node_type
+      // );
 
       // println!("{} notified", tokio::task::try_id().unwrap());
 
@@ -205,7 +214,6 @@ impl ExecutionNode
             // println!("2a_1");
             return Ok(vec![]);
           }
-          dbg!(node.instance.node_type.clone());
           inputs.push(node.get_output(*port).await);
         }
         else
@@ -216,13 +224,11 @@ impl ExecutionNode
       }
 
       // 5, outputs already drained, set back to waiting
-      println!("step 5");
       let res = self
         .instance
         .node_type
         .evaluate(eval.clone(), self, inputs)
         .await;
-      println!("After eval");
       if let Ok(outputs) = res
       {
         let mut guard = self.current_values.write().await;
@@ -233,9 +239,6 @@ impl ExecutionNode
         self.broadcast_closed().await;
         return res;
       }
-      println!("after output");
-
-      *self.state.write().await = NodeState::Waiting;
 
       if !self.custom_control
       {
@@ -244,7 +247,10 @@ impl ExecutionNode
           self.trigger_connected(eval.clone(), i).await?;
         }
       }
+      *self.state.write().await = NodeState::Outputting;
       self.output_notify.wait().await;
+      self.output_notify.reset().await;
+      *self.state.write().await = NodeState::Waiting;
     }
     Ok(vec![])
   }
@@ -262,12 +268,18 @@ impl ExecutionNode
     }
   }
 
-  pub fn new(id: Uuid, instance: Instance, inputs: Vec<DataInputConnection>) -> Self
+  pub fn new(
+    static_id: Uuid,
+    scoped_id: Uuid,
+    instance: Instance,
+    inputs: Vec<DataInputConnection>,
+  ) -> Self
   {
     let outsize = instance.outputs.len();
     let outputs = instance.outputs.clone();
     Self {
-      id,
+      id: scoped_id,
+      static_id,
       trigger: get_counter(&instance.node_type, &instance.control_flow_in),
       custom_control: match &instance.node_type
       {
@@ -293,6 +305,7 @@ impl ExecutionNode
   {
     let guard = self.current_values.read().await;
     let output = guard[port].clone();
+
     self.output_notify.increment().await;
     output
   }
@@ -316,7 +329,6 @@ impl ExecutionNode
     for (id, _) in &self.instance.control_flow_out[port]
     {
       let node = eval.find_node(id)?;
-      println!("Triggering {:?}", node.instance.node_type.clone());
       node.trigger_processing().await;
     }
     Ok(())

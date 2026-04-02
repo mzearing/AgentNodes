@@ -339,16 +339,23 @@ impl NodeType
     action: Variable,
   ) -> Result<Vec<DataValue>, EvalError>
   {
-    println!("{:?}: {}", action, name);
     match action
     {
       Variable::Set =>
       {
+        // println!("{:?}: {} = {}", action, name, inputs[0].clone());
+
         eval.set_variable(name.to_string(), inputs[0].clone()).await;
 
         Ok(vec![])
       }
-      Variable::Get => Ok(vec![eval.get_variable(name).await]),
+      Variable::Get =>
+      {
+        let val = eval.get_variable(name).await;
+        // println!("{:?}: {} = {}", action, name, val);
+
+        Ok(vec![val])
+      }
     }
   }
   async fn eval_io(

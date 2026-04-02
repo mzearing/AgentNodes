@@ -177,7 +177,7 @@ impl Evaluator
           })
           .collect();
 
-        let ex = Arc::new(ExecutionNode::new(scoped, instance, inputs));
+        let ex = Arc::new(ExecutionNode::new(unscoped, scoped, instance, inputs));
         (scoped, ex)
       })
       .collect();
