@@ -1,13 +1,19 @@
 #![feature(fn_traits)]
+#![feature(get_mut_unchecked)]
 
 mod ai;
 mod cli;
 mod eval;
 mod language;
+mod logging;
 
+use crate::logging::node_state_logger::NodeStateLogger;
 use clap::Parser;
 use cli::Cli;
 use eval::Evaluator;
+use std::sync::Arc;
+use tokio::net::TcpStream;
+use tokio_websockets::ClientBuilder;
 
 #[tokio::main]
 async fn main()
@@ -25,8 +31,23 @@ async fn main()
     return;
   }
 
+  let tcp = TcpStream::connect("localhost:3001").await.unwrap();
+  let (ws, _) = ClientBuilder::new()
+    .uri("ws://localhost:3001")
+    .unwrap()
+    .connect_on(tcp)
+    .await
+    .unwrap();
+  let mut node_logger = Arc::new(NodeStateLogger::new(ws));
+
   // console_subscriber::init();
-  let eval = Evaluator::new(cli.filename.unwrap().to_str().unwrap().to_string(), None).unwrap();
+  let eval = Evaluator::new(
+    cli.filename.unwrap().to_str().unwrap().to_string(),
+    None,
+    Some(node_logger.clone()),
+    Some(node_logger.clone()),
+  )
+  .unwrap();
   let instance = eval.instantiate(vec![]).await;
   instance.wait_for_complete().await;
 
@@ -38,6 +59,9 @@ async fn main()
   {
     let _ = instance.get_outputs().await;
   }
-
   instance.shutdown().await;
+
+  unsafe { Arc::get_mut_unchecked(&mut node_logger) }
+    .shutdown()
+    .await;
 }

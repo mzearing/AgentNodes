@@ -5,6 +5,7 @@ use crate::{
     nodes::{AtomicType, Complex, ControlFlow, NodeType},
     typing::DataValue,
   },
+  logging::Logger,
 };
 use std::{
   collections::{HashMap, HashSet, VecDeque},
@@ -50,8 +51,8 @@ async fn read_until_generic<R: AsyncRead + Unpin>(
   Ok(buffer)
 }
 
-async fn task_listen(
-  eval: Arc<Evaluator>,
+async fn task_listen<TextLogger: Logger + Sync + Send, NodeLogger: Logger + Sync + Send>(
+  eval: Arc<Evaluator<TextLogger, NodeLogger>>,
   tasks: Vec<JoinHandle<(Uuid, Result<Vec<DataValue>, EvalError>)>>,
 ) -> ()
 {
@@ -88,8 +89,10 @@ async fn task_listen(
   }
 }
 
-pub struct Evaluator
-{
+pub struct Evaluator<
+  TextLogger: Logger + Sync + Send + 'static,
+  NodeLogger: Logger + Sync + Send + 'static,
+> {
   pub scope_id: Uuid,
   pub(super) nodes: HashMap<Uuid, Arc<ExecutionNode>>,
   evaluator_cache: RwLock<HashMap<String, Arc<Self>>>, // cache of parsed evaluators, not "alive"
@@ -113,9 +116,13 @@ pub struct Evaluator
   variables: RwLock<HashMap<String, DataValue>>,
 
   pub complete: Notify,
+
+  pub node_logger: Option<Arc<NodeLogger>>,
+  pub text_logger: Option<Arc<TextLogger>>,
 }
 
-impl AsyncClone for Evaluator
+impl<TextLogger: Logger + Sync + Send + 'static, NodeLogger: Logger + Sync + Send + 'static>
+  AsyncClone for Evaluator<TextLogger, NodeLogger>
 {
   async fn clone(&self) -> Self
   {
@@ -142,12 +149,20 @@ impl AsyncClone for Evaluator
       dangling_nodes: Arc::new(self.dangling_nodes.as_ref().clone()),
       variables: RwLock::new(HashMap::new()),
       complete: Notify::new(),
+      node_logger: self.node_logger.clone(),
+      text_logger: self.text_logger.clone(),
     }
   }
 }
-impl Evaluator
+impl<TextLogger: Logger + Sync + Send + 'static, NodeLogger: Logger + Sync + Send + 'static>
+  Evaluator<TextLogger, NodeLogger>
 {
-  pub fn new(path: String, parent: Option<Arc<Self>>) -> Result<Arc<Self>, EvalError>
+  pub fn new(
+    path: String,
+    parent: Option<Arc<Self>>,
+    text_logger: Option<Arc<TextLogger>>,
+    node_logger: Option<Arc<NodeLogger>>,
+  ) -> Result<Arc<Self>, EvalError>
   {
     let parent_id = parent.as_ref().map(|x| x.scope_id).unwrap_or(Uuid::nil());
     let scope_id = Uuid::new_v5(&parent_id, Uuid::new_v4().as_bytes());
@@ -206,6 +221,8 @@ impl Evaluator
       dangling_nodes: Arc::new(dangling),
       variables: RwLock::new(HashMap::new()),
       complete: Notify::new(),
+      text_logger,
+      node_logger,
     }))
   }
 
@@ -294,7 +311,7 @@ impl Evaluator
       .ok_or(EvalError::NoStartNode)
       .unwrap()
       .1;
-    start.trigger_processing().await;
+    start.trigger_processing(self.clone()).await;
     *instance.listen_handle.write().await =
       Some(tokio::task::spawn(task_listen(instance.clone(), tasks)));
 

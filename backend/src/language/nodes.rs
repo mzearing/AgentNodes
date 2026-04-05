@@ -4,6 +4,7 @@ use crate::eval::{
   ControlInputConnection, ControlPort, DataInputConnection, EvalError, OutputConnection,
 };
 use crate::eval::{EvaluateIt, Evaluator, ExecutionNode};
+use crate::logging::Logger;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, BitOr, BitXor, Mul};
@@ -133,12 +134,15 @@ pub struct Complex
 
 impl EvaluateIt for NodeType
 {
-  async fn evaluate(
+  async fn evaluate<Tl, Nl>(
     &self,
-    eval: Arc<Evaluator>,
+    eval: Arc<Evaluator<Tl, Nl>>,
     node: &ExecutionNode,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static,
   {
     match self
     {
@@ -167,7 +171,12 @@ impl EvaluateIt for NodeType
           }
           else
           {
-            let e = Evaluator::new(rel.clone(), Some(eval.clone()))?;
+            let e = Evaluator::new(
+              rel.clone(),
+              Some(eval.clone()),
+              eval.text_logger.clone(),
+              eval.node_logger.clone(),
+            )?;
             eval.clone().add_evaluator(&rel, e.clone()).await;
             let i = e.instantiate(inputs).await;
             eval.add_complex_runner(i.clone(), &node.id).await;
@@ -181,12 +190,15 @@ impl EvaluateIt for NodeType
 
 impl NodeType
 {
-  async fn eval_atomic(
+  async fn eval_atomic<Tl, Nl>(
     atomic_type: AtomicType,
-    eval: Arc<Evaluator>,
+    eval: Arc<Evaluator<Tl, Nl>>,
     node: &ExecutionNode,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static,
   {
     match atomic_type
     {
@@ -284,12 +296,15 @@ impl NodeType
     }
   }
 
-  async fn eval_control(
+  async fn eval_control<Tl, Nl>(
     control_flow: ControlFlow,
-    eval: Arc<Evaluator>,
+    eval: Arc<Evaluator<Tl, Nl>>,
     node: &ExecutionNode,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static,
   {
     match control_flow
     {
@@ -318,26 +333,37 @@ impl NodeType
     }
   }
 
-  async fn eval_loop(eval: Arc<Evaluator>, lp_type: LoopNodes)
-    -> Result<Vec<DataValue>, EvalError>
+  async fn eval_loop<Tl, Nl>(
+    eval: Arc<Evaluator<Tl, Nl>>,
+    lp_type: LoopNodes,
+  ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static,
   {
     match lp_type
     {
       LoopNodes::Start => Ok(vec![]),
       LoopNodes::Continue(uuid) =>
       {
-        eval.find_node(&uuid)?.trigger_processing().await;
+        eval
+          .find_node(&uuid)?
+          .trigger_processing(eval.clone())
+          .await;
         Ok(vec![])
       }
     }
   }
 
-  async fn eval_variable(
-    eval: Arc<Evaluator>,
+  async fn eval_variable<Tl, Nl>(
+    eval: Arc<Evaluator<Tl, Nl>>,
     inputs: Vec<DataValue>,
     name: &str,
     action: Variable,
   ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static,
   {
     match action
     {
@@ -358,12 +384,15 @@ impl NodeType
       }
     }
   }
-  async fn eval_io(
+  async fn eval_io<Tl, Nl>(
     io: AtomicIo,
     node: &ExecutionNode,
-    eval: Arc<Evaluator>,
+    eval: Arc<Evaluator<Tl, Nl>>,
     inputs: Vec<DataValue>,
   ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static,
   {
     match io
     {
@@ -481,12 +510,15 @@ impl NodeType
     }
   }
 
-  async fn eval_agent(
+  async fn eval_agent<Tl, Nl>(
     agent_op: AgentOperation,
     inputs: Vec<DataValue>,
     node: &ExecutionNode,
-    eval: Arc<Evaluator>,
+    eval: Arc<Evaluator<Tl, Nl>>,
   ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static,
   {
     match agent_op
     {
