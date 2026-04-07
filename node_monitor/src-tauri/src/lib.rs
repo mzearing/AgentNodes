@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::TcpListener, time::Duration};
 use tauri::{AppHandle, Emitter};
-use tungstenite::accept;
+use tungstenite::{accept, Message};
 
 #[derive(Serialize, Deserialize, Clone)]
 struct NodeInfo
@@ -32,17 +32,20 @@ fn listen_thread(listener: TcpListener, app_handle: AppHandle) -> Result<()>
   {
     for rstream in listener.incoming()
     {
-      let mut websocket = accept(rstream?)?;
+      let stream = rstream?;
+      let mut websocket = accept(stream)?;
       let res: Result<()> = {
         loop
         {
           if !websocket.can_read() || !websocket.can_write()
           {
-            println!("Websocket connection closed");
-            websocket.close(None)?;
             break;
           }
           let message = websocket.read()?;
+          if let Message::Close(Some(_)) = message
+          {
+            break;
+          }
           let text = message.into_text()?.to_string();
           let node: NodeInfo = serde_json::from_str(&text)?;
           tables.iter_mut().for_each(|x| {
@@ -56,8 +59,7 @@ fn listen_thread(listener: TcpListener, app_handle: AppHandle) -> Result<()>
       };
       if let Err(e) = res
       {
-        println!("Errored out! {e} closing websocket");
-        websocket.close(None)?;
+        println!("Errored out! {e}");
         break;
       }
     }

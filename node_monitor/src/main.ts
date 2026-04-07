@@ -11,12 +11,10 @@ interface NodeInfo
 
 function update_tables(new_tables: Map<string, NodeInfo>[])
 {
-  console.log("Should update");
   for(let i = 0; i < 3; i++)
   {
     let ht_table = tables[i];
     let new_table = document.createElement("tbody");
-    console.log(new_tables[i]);
     let rows = Array.from(Object.entries(new_tables[i]));
 
     rows.forEach(([_, node_info]) =>{
@@ -34,7 +32,12 @@ window.addEventListener("DOMContentLoaded", () => {
   tables.push(document.getElementById("Waiting")!    as HTMLTableSectionElement);
   tables.push(document.getElementById("Processing")! as HTMLTableSectionElement);
   tables.push(document.getElementById("Outputting")! as HTMLTableSectionElement);
+  (document.getElementById("clear_tables")! as HTMLButtonElement).onclick = (_) => {
+    console.log("clear click");
+    update_tables([new Map<string, NodeInfo>(), new Map<string, NodeInfo>(), new Map<string, NodeInfo>()])
+  }
 });
+
 
 listen<Map<string, NodeInfo>[]>('update_tables', (event) => update_tables(event.payload))
 

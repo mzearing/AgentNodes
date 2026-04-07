@@ -68,6 +68,7 @@ pub enum AtomicLogic
   Xor,
   Not,
   Eq,
+  Neq,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -594,6 +595,17 @@ impl NodeType
         return Ok(vec![DataValue::Boolean(inputs[0] == inputs[1])]);
       }
     }
+    else if logical_op == AtomicLogic::Neq
+    {
+      if inputs.len() != 2
+      {
+        return Err(EvalError::IncorrectInputCount);
+      }
+      else
+      {
+        return Ok(vec![DataValue::Boolean(inputs[0] == inputs[1])]);
+      }
+    }
     let mut bools = Vec::with_capacity(inputs.len());
     for res_bool in inputs.iter().cloned().map(|x| {
       x.try_cast(DataType::Boolean)
@@ -640,7 +652,7 @@ impl NodeType
         )])
       }
       AtomicLogic::Not => Ok(bools.into_iter().map(|x| DataValue::Boolean(!x)).collect()),
-      AtomicLogic::Eq =>
+      AtomicLogic::Eq | AtomicLogic::Neq =>
       {
         todo!()
       }

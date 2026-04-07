@@ -497,7 +497,8 @@
         "Or",
         "Xor",
         "Not",
-        "Eq"
+        "Eq",
+        "Neq"
       ]
     },
     "AgentOperation": {
