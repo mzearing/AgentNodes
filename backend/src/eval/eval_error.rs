@@ -32,6 +32,7 @@ pub enum EvalError
   AgentErr(AgentErr),
   NoListeningNode,
   NoEndNode,
+  NoStartNode,
   Closed,
   ComplexWeakInput,
 }

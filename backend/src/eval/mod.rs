@@ -1,7 +1,8 @@
 mod eval_error;
 mod evaluator;
 mod execution_node;
-use crate::language::typing::DataValue;
+mod waiters;
+use crate::{language::typing::DataValue, logging::Logger};
 pub use eval_error::*;
 pub use evaluator::*;
 pub use execution_node::*;
@@ -19,10 +20,13 @@ pub trait AsyncClone
 
 pub trait EvaluateIt
 {
-  async fn evaluate(
+  async fn evaluate<Tl, Nl>(
     &self,
-    eval: Arc<Evaluator>,
+    eval: Arc<Evaluator<Tl, Nl>>,
     node: &ExecutionNode,
-    inputs: Vec<Option<DataValue>>,
-  ) -> Result<Vec<DataValue>, EvalError>;
+    inputs: Vec<DataValue>,
+  ) -> Result<Vec<DataValue>, EvalError>
+  where
+    Tl: Logger + Send + Sync + 'static,
+    Nl: Logger + Send + Sync + 'static;
 }
