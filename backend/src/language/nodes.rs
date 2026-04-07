@@ -190,7 +190,7 @@ impl EvaluateIt for NodeType
 
 impl NodeType
 {
-  async fn eval_atomic<Tl, Nl>(
+  async fn eval_atomic<'a, Tl, Nl>(
     atomic_type: AtomicType,
     eval: Arc<Evaluator<Tl, Nl>>,
     node: &ExecutionNode,
@@ -296,7 +296,7 @@ impl NodeType
     }
   }
 
-  async fn eval_control<Tl, Nl>(
+  async fn eval_control<'a, Tl, Nl>(
     control_flow: ControlFlow,
     eval: Arc<Evaluator<Tl, Nl>>,
     node: &ExecutionNode,
@@ -333,7 +333,7 @@ impl NodeType
     }
   }
 
-  async fn eval_loop<Tl, Nl>(
+  async fn eval_loop<'a, Tl, Nl>(
     eval: Arc<Evaluator<Tl, Nl>>,
     lp_type: LoopNodes,
   ) -> Result<Vec<DataValue>, EvalError>
@@ -355,7 +355,7 @@ impl NodeType
     }
   }
 
-  async fn eval_variable<Tl, Nl>(
+  async fn eval_variable<'a, Tl, Nl>(
     eval: Arc<Evaluator<Tl, Nl>>,
     inputs: Vec<DataValue>,
     name: &str,
@@ -384,7 +384,7 @@ impl NodeType
       }
     }
   }
-  async fn eval_io<Tl, Nl>(
+  async fn eval_io<'a, Tl, Nl>(
     io: AtomicIo,
     node: &ExecutionNode,
     eval: Arc<Evaluator<Tl, Nl>>,
@@ -510,7 +510,7 @@ impl NodeType
     }
   }
 
-  async fn eval_agent<Tl, Nl>(
+  async fn eval_agent<'a, Tl, Nl>(
     agent_op: AgentOperation,
     inputs: Vec<DataValue>,
     node: &ExecutionNode,

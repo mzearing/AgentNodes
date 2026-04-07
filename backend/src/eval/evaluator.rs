@@ -51,7 +51,7 @@ async fn read_until_generic<R: AsyncRead + Unpin>(
   Ok(buffer)
 }
 
-async fn task_listen<TextLogger: Logger + Sync + Send, NodeLogger: Logger + Sync + Send>(
+async fn task_listen<TextLogger: Logger, NodeLogger: Logger>(
   eval: Arc<Evaluator<TextLogger, NodeLogger>>,
   tasks: Vec<JoinHandle<(Uuid, Result<Vec<DataValue>, EvalError>)>>,
 ) -> ()
@@ -89,10 +89,8 @@ async fn task_listen<TextLogger: Logger + Sync + Send, NodeLogger: Logger + Sync
   }
 }
 
-pub struct Evaluator<
-  TextLogger: Logger + Sync + Send + 'static,
-  NodeLogger: Logger + Sync + Send + 'static,
-> {
+pub struct Evaluator<TextLogger: Logger, NodeLogger: Logger>
+{
   pub scope_id: Uuid,
   pub(super) nodes: HashMap<Uuid, Arc<ExecutionNode>>,
   evaluator_cache: RwLock<HashMap<String, Arc<Self>>>, // cache of parsed evaluators, not "alive"
@@ -121,8 +119,7 @@ pub struct Evaluator<
   pub text_logger: Option<Arc<TextLogger>>,
 }
 
-impl<TextLogger: Logger + Sync + Send + 'static, NodeLogger: Logger + Sync + Send + 'static>
-  AsyncClone for Evaluator<TextLogger, NodeLogger>
+impl<TextLogger: Logger, NodeLogger: Logger> AsyncClone for Evaluator<TextLogger, NodeLogger>
 {
   async fn clone(&self) -> Self
   {
@@ -154,8 +151,7 @@ impl<TextLogger: Logger + Sync + Send + 'static, NodeLogger: Logger + Sync + Sen
     }
   }
 }
-impl<TextLogger: Logger + Sync + Send + 'static, NodeLogger: Logger + Sync + Send + 'static>
-  Evaluator<TextLogger, NodeLogger>
+impl<TextLogger: Logger, NodeLogger: Logger> Evaluator<TextLogger, NodeLogger>
 {
   pub fn new(
     path: String,

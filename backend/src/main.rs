@@ -13,6 +13,7 @@ use cli::Cli;
 use eval::Evaluator;
 use std::sync::Arc;
 use tokio::net::TcpStream;
+use tokio::signal::ctrl_c;
 use tokio_websockets::ClientBuilder;
 
 #[tokio::main]
@@ -38,7 +39,7 @@ async fn main()
     .connect_on(tcp)
     .await
     .unwrap();
-  let mut node_logger = Arc::new(NodeStateLogger::new(ws));
+  let node_logger = Arc::new(NodeStateLogger::new(ws));
 
   // console_subscriber::init();
   let eval = Evaluator::new(
@@ -49,19 +50,22 @@ async fn main()
   )
   .unwrap();
   let instance = eval.instantiate(vec![]).await;
-  instance.wait_for_complete().await;
 
-  if cli.print_output
-  {
-    println!("{:?}", instance.get_outputs().await);
+  tokio::select! {
+    _ = ctrl_c() => {println!("Ctrl c, shutting down");},
+    _ = instance.wait_for_complete() => {
+      if cli.print_output
+      {
+        println!("{:?}", instance.get_outputs().await);
+      }
+      else
+      {
+        let _ = instance.get_outputs().await;
+      }
+    }
   }
-  else
-  {
-    let _ = instance.get_outputs().await;
-  }
+
   instance.shutdown().await;
 
-  unsafe { Arc::get_mut_unchecked(&mut node_logger) }
-    .shutdown()
-    .await;
+  node_logger.shutdown().await;
 }

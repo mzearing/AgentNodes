@@ -1,8 +1,7 @@
-use super::{EvalError, EvaluateIt, Evaluator};
+use super::{EvalError, EvaluateIt, Evaluator, Logger};
 use crate::language::nodes::{AtomicType, ControlFlow, Instance, NodeType};
 use crate::language::typing::{DataType, DataValue};
 use crate::logging::node_state_logger::NodeStateLogger;
-use crate::logging::Logger;
 use serde::Serialize;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -138,8 +137,8 @@ impl ExecutionNode
 {
   async fn change_state<Tl, Nl>(&self, state: NodeState, eval: Arc<Evaluator<Tl, Nl>>)
   where
-    Tl: Logger + Send + Sync + 'static,
-    Nl: Logger + Send + Sync + 'static,
+    Tl: Logger,
+    Nl: Logger,
   {
     *self.state.write().await = state.clone();
     if let Some(logger) = &eval.node_logger
@@ -154,24 +153,24 @@ impl ExecutionNode
     }
   }
 
-  async fn run<Tl, Nl>(
+  async fn run<'a, Tl, Nl>(
     self: Arc<Self>,
     eval: Arc<Evaluator<Tl, Nl>>,
   ) -> (Uuid, Result<Vec<DataValue>, EvalError>)
   where
-    Tl: Logger + Send + Sync,
-    Nl: Logger + Send + Sync,
+    Tl: Logger,
+    Nl: Logger,
   {
     (self.id.clone(), self.process(eval).await)
   }
 
-  pub fn spawn<Tl, Nl>(
+  pub fn spawn<'a, Tl, Nl>(
     self: Arc<Self>,
     eval: Arc<Evaluator<Tl, Nl>>,
   ) -> JoinHandle<(Uuid, Result<Vec<DataValue>, EvalError>)>
   where
-    Tl: Logger + Send + Sync,
-    Nl: Logger + Send + Sync,
+    Tl: Logger,
+    Nl: Logger,
   {
     tokio::spawn(self.run(eval))
   }
@@ -189,10 +188,13 @@ impl ExecutionNode
     // *self.state.write().await = NodeState::Closed;
   }
 
-  async fn process<Tl, Nl>(&self, eval: Arc<Evaluator<Tl, Nl>>) -> Result<Vec<DataValue>, EvalError>
+  async fn process<'a, Tl, Nl>(
+    &self,
+    eval: Arc<Evaluator<Tl, Nl>>,
+  ) -> Result<Vec<DataValue>, EvalError>
   where
-    Tl: Logger + Send + Sync,
-    Nl: Logger + Send + Sync,
+    Tl: Logger,
+    Nl: Logger,
   {
     /*
      * Process:
@@ -288,10 +290,10 @@ impl ExecutionNode
     Ok(vec![])
   }
 
-  pub async fn trigger_processing<Tl, Nl>(&self, eval: Arc<Evaluator<Tl, Nl>>)
+  pub async fn trigger_processing<'a, Tl, Nl>(&self, eval: Arc<Evaluator<Tl, Nl>>)
   where
-    Tl: Logger + Send + Sync,
-    Nl: Logger + Send + Sync,
+    Tl: Logger,
+    Nl: Logger,
   {
     // println!("{} triggered", self.id);
     if *self.state.read().await == NodeState::Waiting
@@ -359,14 +361,14 @@ impl ExecutionNode
     ret
   }
 
-  pub async fn trigger_connected<Tl, Nl>(
+  pub async fn trigger_connected<'a, Tl, Nl>(
     &self,
     eval: Arc<Evaluator<Tl, Nl>>,
     port: usize,
   ) -> Result<(), EvalError>
   where
-    Tl: Logger + Send + Sync + 'static,
-    Nl: Logger + Send + Sync + 'static,
+    Tl: Logger,
+    Nl: Logger,
   {
     for (id, _) in &self.instance.control_flow_out[port]
     {

@@ -3,10 +3,8 @@ use crate::language::nodes::NodeType;
 use crate::logging::Logger;
 use futures::{Sink, SinkExt};
 use serde::Serialize;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use tokio_websockets::{Message, WebSocketStream};
 use uuid::Uuid;
 
@@ -21,25 +19,24 @@ struct SendInfo
 pub struct NodeStateLogger
 {
   sender: UnboundedSender<String>,
-  handle: Option<JoinHandle<()>>,
-  shutdown_requested: Arc<AtomicBool>,
+  my_cancel: CancellationToken,
+  finished: CancellationToken,
 }
 
 unsafe impl Sync for NodeStateLogger {}
 
 impl NodeStateLogger
 {
-  async fn runner_task<
+  async fn runner_loop<
     T: tokio::io::AsyncWrite + tokio::io::AsyncWriteExt + Send + Unpin + 'static,
   >(
-    mut stream: WebSocketStream<T>,
-    mut reciever: UnboundedReceiver<String>,
-    shutdown_requested: Arc<AtomicBool>,
+    stream: &mut WebSocketStream<T>,
+    reciever: &mut UnboundedReceiver<String>,
   ) where
     WebSocketStream<T>: futures::Sink<Message>,
   {
     let mut messages = vec![];
-    while !shutdown_requested.load(std::sync::atomic::Ordering::Acquire)
+    loop
     {
       messages.clear();
       reciever.recv_many(&mut messages, 4096).await;
@@ -48,8 +45,30 @@ impl NodeStateLogger
         let _ = stream.send(Message::text(x.clone())).await;
       }
     }
-    let _ = stream.close().await;
-    println!("Closing down runner");
+  }
+  async fn runner_task<
+    T: tokio::io::AsyncWrite + tokio::io::AsyncWriteExt + Send + Unpin + 'static,
+  >(
+    mut stream: WebSocketStream<T>,
+    mut reciever: UnboundedReceiver<String>,
+    canceled: CancellationToken,
+    finished: CancellationToken,
+  ) where
+    WebSocketStream<T>: futures::Sink<Message>,
+  {
+    tokio::select! {
+      _ = canceled.cancelled() => {
+        println!("Closing down runner");
+        reciever.close();
+        while let Some(msg) = reciever.recv().await
+        {
+          let _ = stream.send(Message::text(msg)).await;
+        }
+        let _ = stream.close().await;
+        finished.cancel();
+      },
+      _ = Self::runner_loop(&mut stream, &mut reciever) => {finished.cancel();}
+    };
   }
 
   pub fn new<T: tokio::io::AsyncWrite + tokio::io::AsyncWriteExt + Send + Unpin + 'static>(
@@ -59,16 +78,18 @@ impl NodeStateLogger
     WebSocketStream<T>: Sink<Message>,
   {
     let (sender, reciever) = unbounded_channel();
-    let shutdown_requested = Arc::new(AtomicBool::new(false));
-    let handle = Some(tokio::task::spawn(Self::runner_task(
+    let canceled = CancellationToken::new();
+    let finished = CancellationToken::new();
+    tokio::task::spawn(Self::runner_task(
       stream,
       reciever,
-      shutdown_requested.clone(),
-    )));
+      canceled.clone(),
+      finished.clone(),
+    ));
     Self {
       sender,
-      handle,
-      shutdown_requested,
+      my_cancel: canceled,
+      finished,
     }
   }
 
@@ -82,18 +103,10 @@ impl NodeStateLogger
     .unwrap()
   }
 
-  pub async fn write_node_state(&self, node_id: Uuid, state: NodeState, node_type: NodeType)
+  pub async fn shutdown(&self)
   {
-    self
-      .log(&Self::node_string(node_id, state, node_type))
-      .await;
-  }
-  pub async fn shutdown(&mut self)
-  {
-    self
-      .shutdown_requested
-      .store(true, std::sync::atomic::Ordering::Release);
-    self.handle.take().unwrap().await.unwrap();
+    self.my_cancel.cancel();
+    self.finished.cancelled().await;
   }
 }
 
