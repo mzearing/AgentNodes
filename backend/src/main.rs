@@ -32,21 +32,12 @@ async fn main()
     return;
   }
 
-  let tcp = TcpStream::connect("localhost:3001").await.unwrap();
-  let (ws, _) = ClientBuilder::new()
-    .uri("ws://localhost:3001")
-    .unwrap()
-    .connect_on(tcp)
-    .await
-    .unwrap();
-  let node_logger = Arc::new(NodeStateLogger::new(ws));
-
   // console_subscriber::init();
-  let eval = Evaluator::new(
+  let eval = Evaluator::<NodeStateLogger, NodeStateLogger>::new(
     cli.filename.unwrap().to_str().unwrap().to_string(),
     None,
-    Some(node_logger.clone()),
-    Some(node_logger.clone()),
+    None,
+    None,
   )
   .unwrap();
   let instance = eval.instantiate(vec![]).await;
@@ -66,6 +57,4 @@ async fn main()
   }
 
   instance.shutdown().await;
-
-  node_logger.shutdown().await;
 }
