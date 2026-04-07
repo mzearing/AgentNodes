@@ -96,17 +96,7 @@ const Console: React.FC<ConsoleProps> = ({ isVisible, onToggle }) => {
   };
 
   if (!isVisible) {
-    return (
-      <div className={styles.consoleDocked}>
-        <button 
-          className={styles.toggleButton} 
-          onClick={onToggle}
-          title="Show Console"
-        >
-          Console
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (

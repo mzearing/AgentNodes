@@ -43,45 +43,27 @@
   --xy-background-color-dots: var(--color-pattern);
 }
 
-/* Strong connection styling - filled arrow */
-.reactFlow :global(.react-flow__edge.strong-connection) {
-  --edge-width: 2px;
-}
-
-.reactFlow :global(.react-flow__edge.strong-connection path) {
-  stroke: var(--edge-color, #3b82f6);
-  stroke-width: var(--edge-width);
-}
-
+/* Strong connection styling */
 .reactFlow :global(.react-flow__edge.strong-connection .react-flow__edge-path) {
   stroke: var(--edge-color, #3b82f6);
-  stroke-width: var(--edge-width);
+  stroke-width: 2px;
 }
 
-.reactFlow :global(.react-flow__edge.strong-connection marker-end) path {
-  fill: var(--edge-color, #3b82f6);
-  stroke: var(--edge-color, #3b82f6);
-}
-
-/* Weak connection styling - outlined arrow */
-.reactFlow :global(.react-flow__edge.weak-connection) {
-  --edge-width: 1.5px;
-}
-
-.reactFlow :global(.react-flow__edge.weak-connection path) {
-  stroke: var(--edge-color, #9ca3af);
-  stroke-width: var(--edge-width);
-  stroke-dasharray: 5, 5;
-}
-
+/* Weak connection styling - dashed */
 .reactFlow :global(.react-flow__edge.weak-connection .react-flow__edge-path) {
   stroke: var(--edge-color, #9ca3af);
-  stroke-width: var(--edge-width);
+  stroke-width: 1.5px;
   stroke-dasharray: 5, 5;
 }
 
-.reactFlow :global(.react-flow__edge.weak-connection marker-end) path {
-  fill: none;
-  stroke: var(--edge-color, #9ca3af);
-  stroke-width: 1.5px;
+/* Selected edge styling — thicken and preserve color */
+.reactFlow :global(.react-flow__edge.selected .react-flow__edge-path) {
+  stroke-width: 3.5px;
+  stroke: var(--edge-color, var(--color-primary));
+}
+
+/* Control flow connection styling — dashed */
+.reactFlow :global(.react-flow__edge.control-flow-connection .react-flow__edge-path) {
+  stroke-dasharray: 8, 4;
+  stroke-width: 2.5px;
 }

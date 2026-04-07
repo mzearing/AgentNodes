@@ -1,0 +1,27 @@
+{
+  "id": "node-1773944807413",
+  "name": "Test",
+  "inputs": [
+    "Input"
+  ],
+  "inputTypes": [
+    [
+      0
+    ]
+  ],
+  "outputs": [
+    "Output"
+  ],
+  "outputTypes": [
+    [
+      0
+    ]
+  ],
+  "variadicOutputs": false,
+  "variadicInputs": false,
+  "multitypeInputs": false,
+  "multitypeOutputs": false,
+  "constantData": [],
+  "solo": false,
+  "path": ""
+}

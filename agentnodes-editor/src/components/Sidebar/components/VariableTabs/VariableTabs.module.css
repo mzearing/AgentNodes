@@ -113,18 +113,18 @@
   user-select: none;
   min-width: 48px;
   text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .dragger:hover {
   background-color: var(--color-surface-hover);
   border-color: var(--color-border-hover);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .dragger:active {
@@ -255,5 +255,5 @@
   background-color: var(--color-primary);
   color: white;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
 }

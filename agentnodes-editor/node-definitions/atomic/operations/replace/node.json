@@ -1,7 +1,7 @@
 {
   "id": "replace",
   "name": "Replace",
-  "inputs": ["Source", "Pattern", "Replacement"],
+  "inputs": ["Pattern", "Replacement", "Source"],
   "outputs": ["Result"],
   "inputTypes": [3, 3, 3],
   "outputTypes": [3],

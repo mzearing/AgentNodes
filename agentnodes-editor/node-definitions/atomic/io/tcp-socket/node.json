@@ -4,7 +4,7 @@
   "inputs": ["Host", "Port"],
   "outputs": ["Handle"],
   "inputTypes": [3, 1],
-  "outputTypes": [0],
+  "outputTypes": [5],
   "variadicInputs": false,
   "variadicOutputs": false,
   "solo": false

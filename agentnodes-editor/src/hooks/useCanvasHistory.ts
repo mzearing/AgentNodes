@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { Node, Edge } from '@xyflow/react';
 import { Variable } from '../types/project';
 
@@ -31,6 +31,7 @@ export const useCanvasHistory = () => {
 
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const lastSavedState = useRef<string | null>(null);
+  const [savedFileHash, setSavedFileHash] = useState<string | null>(null);
 
   /**
    * Save current state to history with debouncing
@@ -110,6 +111,9 @@ export const useCanvasHistory = () => {
         projectName: previous.projectName
       };
 
+      // Keep lastSavedState in sync with the restored state
+      lastSavedState.current = hashState(previous);
+
       return {
         past: newPast,
         present: previous,
@@ -141,6 +145,9 @@ export const useCanvasHistory = () => {
         projectName: next.projectName
       };
 
+      // Keep lastSavedState in sync with the restored state
+      lastSavedState.current = hashState(next);
+
       return {
         past: [...prevHistory.past, prevHistory.present],
         present: next,
@@ -166,22 +173,29 @@ export const useCanvasHistory = () => {
   }, [history.future.length]);
 
   /**
-   * Clear all history
+   * Cancel any pending debounced save
    */
-  const clearHistory = useCallback(() => {
+  const cancelPendingSave = useCallback(() => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
       debounceTimer.current = null;
     }
-    
+  }, []);
+
+  /**
+   * Clear all history
+   */
+  const clearHistory = useCallback(() => {
+    cancelPendingSave();
+
     lastSavedState.current = null;
-    
+
     setHistory({
       past: [],
       present: null,
       future: []
     });
-  }, []);
+  }, [cancelPendingSave]);
 
   /**
    * Initialize history with current state
@@ -221,6 +235,22 @@ export const useCanvasHistory = () => {
     };
   }, [history, canUndo, canRedo]);
 
+  /**
+   * Mark the current state as saved to disk
+   */
+  const markSaved = useCallback((nodes: Node[], edges: Edge[], variables: Variable[] = [], projectName?: string) => {
+    const hash = hashState({ nodes, edges, variables, projectName, timestamp: 0 });
+    setSavedFileHash(hash);
+  }, []);
+
+  /**
+   * Whether the current state differs from the last saved-to-disk state
+   */
+  const isDirty = useMemo(() => {
+    if (!history.present || savedFileHash === null) return false;
+    return hashState(history.present) !== savedFileHash;
+  }, [history.present, savedFileHash]);
+
   return {
     saveState,
     undo,
@@ -228,8 +258,11 @@ export const useCanvasHistory = () => {
     canUndo,
     canRedo,
     clearHistory,
+    cancelPendingSave,
     initializeHistory,
-    getHistoryInfo
+    getHistoryInfo,
+    markSaved,
+    isDirty
   };
 };
 
@@ -251,7 +284,9 @@ const hashState = (state: CanvasState): string => {
       outputs: n.data?.outputs,
       constantValues: n.data?.constantValues,
       variableId: n.data?.variableId,
-      variableName: n.data?.variableName
+      variableName: n.data?.variableName,
+      controlFlowInput: n.data?.controlFlowInput,
+      controlFlowOutput: n.data?.controlFlowOutput
     })),
     // Include edge properties for connection strength changes
     edgeData: state.edges.map(e => ({

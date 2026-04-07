@@ -18,7 +18,7 @@
   padding: var(--spacing-xl);
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .title {
@@ -87,7 +87,7 @@
   background: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .confirmButton--warning {
@@ -110,8 +110,8 @@
 }
 
 .confirmButton--danger:hover {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: var(--color-error);
+  border-color: var(--color-error);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }

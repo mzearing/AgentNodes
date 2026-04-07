@@ -55,7 +55,7 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
       const newInput: InputHandle = {
         id: `input-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         name: `Input ${inputs.length + 1}`,
-        type: IOType.None
+        type: IOType.Integer
       };
       const newInputs = [...inputs, newInput];
       onInputsChange(newInputs);
@@ -145,16 +145,17 @@ const NodeTargets: React.FC<NodeTargetsProps> = ({ inputs, variadic = false, mul
   // Function to get available type options for specific inputs based on type arrays
   const getAvailableTypeOptions = (inputIndex: number): DropdownOption[] => {
     if (!multitype || !availableTypes) {
-      return allTypeOptions;
+      return allTypeOptions.filter(option => option.value !== 'None');
     }
-    
+
     const availableTypesForInput = availableTypes[inputIndex];
     if (!availableTypesForInput || availableTypesForInput.length === 0) {
-      return allTypeOptions;
+      return allTypeOptions.filter(option => option.value !== 'None');
     }
-    
-    // Filter type options to only show available ones
+
+    // Filter type options to only show available ones, always exclude None
     return allTypeOptions.filter(option => {
+      if (option.value === 'None') return false;
       const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
       const typeIndex = typeNames.indexOf(option.value);
       return availableTypesForInput.includes(typeIndex as IOType);

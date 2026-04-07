@@ -3,7 +3,7 @@
   "name": "Is None",
   "inputs": ["Value"],
   "outputs": ["Result"],
-  "inputTypes": [[0, 1, 2, 3, 4]],
+  "inputTypes": [[1, 2, 3, 4]],
   "outputTypes": [4],
   "variadicInputs": false,
   "variadicOutputs": false,

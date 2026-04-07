@@ -120,7 +120,9 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
           variableId,
           variableName,
           isVariableNode: true,
-          isGetter
+          isGetter,
+          controlFlowInput: { id: `cf-in-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` },
+          controlFlowOutput: { id: `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` },
         };
 
         const newNode: Node = {
@@ -246,7 +248,10 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         solo: finalSolo,
         metadataPath: groupId && category ? `${category.toLowerCase()}/${groupId}` : undefined,
         constantData: finalConstantData,
-        constantValues: finalConstantData && finalConstantData.length > 0 ? initializeConstantValues(finalConstantData) : undefined
+        constantValues: finalConstantData && finalConstantData.length > 0 ? initializeConstantValues(finalConstantData) : undefined,
+        // Add control flow handles: input for all except start, output for all except finish
+        controlFlowInput: nodeId !== 'start' ? { id: `cf-in-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` } : undefined,
+        controlFlowOutput: nodeId !== 'finish' ? { id: `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` } : undefined,
       };
 
       const newNode: Node = {

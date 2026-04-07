@@ -2,6 +2,7 @@ import { ReactFlowJsonObject, Node, Edge } from '@xyflow/react';
 import { IOType } from '../types/project';
 import { v4 as uuidv4 } from 'uuid';
 import { determineConnectionStrength } from '../utils/connectionUtils';
+import { configurationService } from './configurationService';
 
 export interface CompilationResult {
   success: boolean;
@@ -30,9 +31,9 @@ export type NodeType =
   | { Atomic: { BinOp: string } }
   | { Atomic: { UnaryOp: string } }
   | { Atomic: { Control: string } }
-  | { Atomic: { Control: { WaitForInit: [string, string, number] } } }
-  | { Atomic: { Control: { While: [string, string, number] } } }
-  | { Atomic: { Control: { If: [string, string, number] } } }
+  | { Atomic: { Control: { WaitForInit: [string, string, number, boolean] } } }
+  | { Atomic: { Control: { While: [string, string, number, boolean] } } }
+  | { Atomic: { Control: { If: [string, string, number, boolean] } } }
   | { Atomic: { Variable: [string, string] } }
   | { Atomic: { Io: string | { Open: string } } }
   | { Atomic: { Cast: string } }
@@ -41,12 +42,29 @@ export type NodeType =
   | { Complex: string };
 
 export class CompilationService {
-  
+  private currentOutputDir: string | undefined;
+
+  private computeRelativePath(fromDir: string, toFile: string): string {
+    const fromParts = fromDir.replace(/^\.\//, '').split('/').filter(Boolean);
+    const toParts = toFile.replace(/^\.\//, '').split('/').filter(Boolean);
+    let common = 0;
+    while (common < fromParts.length && common < toParts.length && fromParts[common] === toParts[common]) {
+      common++;
+    }
+    const ups = fromParts.length - common;
+    const remaining = toParts.slice(common);
+    return [...Array(ups).fill('..'), ...remaining].join('/');
+  }
+
   /**
    * Compiles a canvas (React Flow data) into the backend format
    */
-  async compile(canvasData: ReactFlowJsonObject<Node, Edge>, isComplexNode = false): Promise<CompilationResult> {
+  async compile(canvasData: ReactFlowJsonObject<Node, Edge>, isComplexNode = false, outputPath?: string): Promise<CompilationResult> {
     try {
+      // Store the output directory for relative path computation
+      if (outputPath) {
+        this.currentOutputDir = outputPath.substring(0, outputPath.lastIndexOf('/'));
+      }
       console.log('CompilationService.compile called with:', canvasData);
       
       // Debug: Log the actual node mappings and connections
@@ -163,12 +181,14 @@ export class CompilationService {
         end_node: endNode
       };
       
+      this.currentOutputDir = undefined;
       return { success: true, data: compiledProgram };
-      
+
     } catch (error) {
-      return { 
-        success: false, 
-        errors: [`Compilation failed: ${error instanceof Error ? error.message : 'Unknown error'}`] 
+      this.currentOutputDir = undefined;
+      return {
+        success: false,
+        errors: [`Compilation failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
       };
     }
   }
@@ -188,14 +208,11 @@ export class CompilationService {
     }
     
     // Map output types - special handling for finish, print, and variable nodes
-    let outputs: string[];
+    let outputs: (string | object)[];
     if (nodeId === 'finish') {
       // For finish nodes, outputs should match the program outputs (based on inputs)
       const nodeInputs = (node.data as any)?.inputs || [];
       outputs = this.mapIOTypes(nodeInputs);
-    } else if (nodeId === 'print') {
-      // Print nodes always output ["None"] regardless of UI definition
-      outputs = ['None'];
     } else if ((nodeId as string)?.startsWith('variable_set_')) {
       // Variable setters have no outputs
       outputs = [];
@@ -207,7 +224,7 @@ export class CompilationService {
       // For complex nodes, read outputs from compiled.json
       try {
         const groupId = (metadataPath as string).split('/')[1];
-        const compiledPath = `node-definitions/complex/${groupId}/${nodeId}/compiled.json`;
+        const compiledPath = `${configurationService.getNodeDefinitionsPath()}/complex/${groupId}/${nodeId}/compiled.json`;
         // Use Electron API to read the compiled.json file
         if (window.electronAPI?.readFile) {
           const compiledContent = await window.electronAPI.readFile(compiledPath);
@@ -223,13 +240,12 @@ export class CompilationService {
     } else {
       const nodeOutputs = (node.data as any)?.outputs || [];
       outputs = this.mapIOTypes(nodeOutputs);
-      
-      // Debug: Log output mapping for agent nodes
-      if ((nodeId as string)?.includes('agent')) {
-        console.log(`DEBUG: Node ${nodeId} (${node.id}) output mapping:`);
-        console.log(`  Raw outputs from node.data:`, JSON.stringify(nodeOutputs, null, 2));
-        console.log(`  Mapped outputs:`, JSON.stringify(outputs, null, 2));
-      }
+    }
+
+    // Append "None" for control flow output (separate from data outputs)
+    const nodeData = node.data as any;
+    if (nodeData?.controlFlowOutput) {
+      outputs.push('None');
     }
     
     // Find input connections (strength determination now handled by shared logic)
@@ -273,10 +289,12 @@ export class CompilationService {
     
     // Handle specific atomic nodes with operation selection
     if (nodeId === 'binary-operation') {
-      // Extract operation from constantValues (should be a string like "Add", "Sub", etc.)
+      const opMap: Record<string, string> = {
+        '+': 'Add', '-': 'Sub', '*': 'Mul', '/': 'Div', '**': 'Pow', '%': 'Mod',
+        'Add': 'Add', 'Sub': 'Sub', 'Mul': 'Mul', 'Div': 'Div', 'Pow': 'Pow', 'Mod': 'Mod'
+      };
       const operation = constantValues?.[0]?.value || 'Add';
-      const validOps = ['Add', 'Sub', 'Mul', 'Div', 'Pow', 'Mod'];
-      const finalOp = validOps.includes(operation) ? operation : 'Add';
+      const finalOp = opMap[operation] || 'Add';
       return { Atomic: { BinOp: finalOp } };
     }
     
@@ -289,10 +307,12 @@ export class CompilationService {
     }
     
     if (nodeId === 'logical-operation') {
-      // Extract operation from constantValues
+      const opMap: Record<string, string> = {
+        'and': 'And', 'or': 'Or', 'xor': 'Xor', 'not': 'Not', 'eq': 'Eq',
+        'And': 'And', 'Or': 'Or', 'Xor': 'Xor', 'Not': 'Not', 'Eq': 'Eq'
+      };
       const operation = constantValues?.[0]?.value || 'And';
-      const validOps = ['And', 'Or', 'Xor', 'Not', 'Eq'];
-      const finalOp = validOps.includes(operation) ? operation : 'And';
+      const finalOp = opMap[operation] || 'And';
       return { Atomic: { LogicalOp: finalOp } };
     }
     
@@ -370,7 +390,13 @@ export class CompilationService {
     // Handle complex nodes
     if (metadataPath?.startsWith('complex/')) {
       const groupId = metadataPath.split('/')[1];
-      return { Complex: `./node-definitions/complex/${groupId}/${nodeId}/compiled.json` };
+      const nodeDefPath = configurationService.getNodeDefinitionsPath();
+      const childPath = `${nodeDefPath}/complex/${groupId}/${nodeId}/compiled.json`;
+      if (this.currentOutputDir) {
+        return { Complex: this.computeRelativePath(this.currentOutputDir, childPath) };
+      }
+      // Fallback: assume parent is directly under nodeDefinitionsPath
+      return { Complex: `complex/${groupId}/${nodeId}/compiled.json` };
     }
     
     // Handle agent operations
@@ -393,34 +419,52 @@ export class CompilationService {
   }
 
   private findInputConnections(
-    nodeId: string, 
-    edges: Edge[], 
+    nodeId: string,
+    edges: Edge[],
     nodeIdMap: Map<string, string>,
     allNodes: Node[]
   ): Array<[any, string, number, boolean]> {
-    
+
     const connections: Array<[any, string, number, boolean]> = [];
-    
+
     // Find all edges that target this node
     const incomingEdges = edges.filter(edge => edge.target === nodeId);
-    
+
     for (const edge of incomingEdges) {
       const sourceUuid = nodeIdMap.get(edge.source);
       if (!sourceUuid) continue;
-      
-      // Parse output index from sourceHandle (format: "output-timestamp-index-randomId")
-      const outputIndex = this.parseOutputIndex(edge.sourceHandle);
-      
-      // Parse input type from targetHandle and target node
-      const inputType = this.parseInputType(edge.targetHandle, edge.target, allNodes);
-      
-      // Determine connection strength using shared logic
+
+      // Check if this is a control flow connection
       const targetNode = allNodes.find(node => node.id === edge.target);
+      const targetData = targetNode?.data as any;
+      const isTargetControlFlow = targetData?.controlFlowInput?.id === edge.targetHandle;
+
+      // Check if source is a control flow output
+      const sourceNode = allNodes.find(node => node.id === edge.source);
+      const sourceData = sourceNode?.data as any;
+      const isSourceControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle;
+
+      if (isTargetControlFlow && isSourceControlFlow) {
+        // Control flow connection: source output index is the last index (after data outputs)
+        const sourceOutputs = sourceData?.outputs || [];
+        const cfOutputIndex = sourceOutputs.length; // control flow output is appended after data outputs
+
+        // Determine connection strength
+        const isStrong = targetNode ? determineConnectionStrength(targetNode, edge.targetHandle) : true;
+
+        connections.push(['None', sourceUuid, cfOutputIndex, isStrong]);
+        continue;
+      }
+
+      // Regular data connection
+      const outputIndex = this.parseOutputIndex(edge.sourceHandle);
+      const inputType = this.parseInputType(edge.targetHandle, edge.target, allNodes);
+
       const isStrong = targetNode ? determineConnectionStrength(targetNode, edge.targetHandle) : true;
-      
+
       connections.push([inputType, sourceUuid, outputIndex, isStrong]);
     }
-    
+
     return connections;
   }
   
@@ -438,12 +482,23 @@ export class CompilationService {
   private parseInputType(targetHandle: string, targetNodeId: string, allNodes: Node[]): any {
     // Find the target node
     const targetNode = allNodes.find(node => node.id === targetNodeId);
-    if (!targetNode || !(targetNode.data as any)?.inputs) {
+    if (!targetNode) {
       return 'Integer'; // Fallback
     }
-    
-    const inputs = (targetNode.data as any).inputs;
-    
+
+    const nodeData = targetNode.data as any;
+
+    // Check if target handle is a control flow input
+    if (nodeData?.controlFlowInput?.id === targetHandle) {
+      return 'None';
+    }
+
+    if (!nodeData?.inputs) {
+      return 'Integer'; // Fallback
+    }
+
+    const inputs = nodeData.inputs;
+
     // Find the input by matching the handle ID to input.id
     let inputIndex = 0;
     for (let i = 0; i < inputs.length; i++) {
@@ -452,24 +507,14 @@ export class CompilationService {
         break;
       }
     }
-    
+
     const input = inputs[inputIndex];
     if (!input) {
       return 'Integer'; // Fallback
     }
-    
-    // Debug: Log finish node input types
-    if (targetNode.data?.nodeId === 'finish') {
-      console.log(`DEBUG: Finish node matched targetHandle "${targetHandle}" to input[${inputIndex}]`);
-      console.log(`DEBUG: Input type:`, input.type, 'mapped to:', this.mapIOTypeToBackend(input.type));
-      console.log(`DEBUG: Input name:`, input.name);
-    }
-    
+
     // Map the input type to backend schema types
     return this.mapIOTypeToBackend(input.type);
-    
-    // Fallback to default type
-    return 'Integer';
   }
   
   private mapIOTypes(outputs: any[]): any[] {
@@ -518,11 +563,9 @@ export class CompilationService {
     const fromTypeStr = this.normalizeType(fromType);
     const toTypeStr = this.normalizeType(toType);
     
-    // None type compatibility rules:
-    // - Any type can be cast to None (for trigger/control flow purposes)
-    // - None can only be cast to other None inputs (control flow only)
-    if (toTypeStr === 'None') return true; // Any type can trigger None inputs
-    if (fromTypeStr === 'None' && toTypeStr !== 'None') return false; // None outputs only go to None inputs
+    // None type: only None <-> None (strict control flow separation)
+    if (toTypeStr === 'None') return fromTypeStr === 'None';
+    if (fromTypeStr === 'None') return false;
     
     
     // Special handling for Agent types
@@ -545,9 +588,8 @@ export class CompilationService {
     
     // Additional implicit conversions supported by backend arithmetic operations:
     // These are handled automatically by the backend in binary operations
-    if (toTypeStr === 'String' && (fromTypeStr === 'Integer' || fromTypeStr === 'Float' || fromTypeStr === 'Boolean')) {
-      return true; // Any type can be implicitly converted to string in string concatenation
-    }
+    // String casts removed: backend try_cast doesn't support Cast("String").
+    // String concatenation is handled natively by the backend's Add operator.
     
     return false;
   }
@@ -602,12 +644,7 @@ export class CompilationService {
             console.log(`Source node type:`, JSON.stringify(sourceInstance.node_type, null, 2));
           }
           
-          // Special case: None inputs accept any type directly without cast nodes
-          if (expectedTypeStr === 'None') {
-            // Connect directly to None inputs - no cast node needed
-            newInputs.push([expectedType, sourceNodeId, sourceOutputIndex]);
-            console.log(`Direct connection from ${actualTypeStr} to ${expectedTypeStr} for node ${nodeId} input ${i} (trigger input)`);
-          } else if (this.canAutocast(actualType, expectedType)) {
+          if (this.canAutocast(actualType, expectedType)) {
             // Insert cast node with proper UUID
             const castNodeId = uuidv4(); // Use proper UUID instead of custom format
             const castInstance = this.createCastNode(actualType, expectedType);
@@ -661,31 +698,44 @@ export class CompilationService {
   }
   
   private findControlFlowBodyConnection(
-    node: Node, 
-    edges: Edge[], 
-    nodeIdMap: Map<string, string>, 
+    node: Node,
+    edges: Edge[],
+    nodeIdMap: Map<string, string>,
     allNodes: Node[]
-  ): [any, string, number] {
-    // Find outgoing edges from this control flow node (these represent the body/then branch)
+  ): [any, string, number, boolean] {
+    const nodeData = node.data as any;
+
+    // First, check for control flow output handle connections
+    if (nodeData?.controlFlowOutput) {
+      const cfOutId = nodeData.controlFlowOutput.id;
+      const cfEdge = edges.find(edge => edge.source === node.id && edge.sourceHandle === cfOutId);
+      if (cfEdge) {
+        const targetNodeId = nodeIdMap.get(cfEdge.target);
+        if (targetNodeId) {
+          // Control flow output index is after all data outputs
+          const dataOutputs = nodeData?.outputs || [];
+          const cfOutputIndex = dataOutputs.length;
+          return ['None', targetNodeId, cfOutputIndex, true];
+        }
+      }
+    }
+
+    // Fallback: find any outgoing edge (legacy behavior)
     const outgoingEdges = edges.filter(edge => edge.source === node.id);
-    
+
     if (outgoingEdges.length > 0) {
-      // Use the first outgoing connection as the body/then branch
       const targetEdge = outgoingEdges[0];
       const targetNodeId = nodeIdMap.get(targetEdge.target);
       const outputIndex = this.parseOutputIndex(targetEdge.sourceHandle);
-      
+
       if (targetNodeId) {
-        // Determine the type based on the target node's input type
-        const targetNode = allNodes.find(n => n.id === targetEdge.target);
         const inputType = this.parseInputType(targetEdge.targetHandle, targetEdge.target, allNodes);
-        
-        return [inputType, targetNodeId, outputIndex];
+        return [inputType, targetNodeId, outputIndex, true];
       }
     }
-    
+
     // Fallback to default connection
-    return ['None', '00000000-0000-0000-0000-000000000000', 0];
+    return ['None', '00000000-0000-0000-0000-000000000000', 0, true];
   }
 
 

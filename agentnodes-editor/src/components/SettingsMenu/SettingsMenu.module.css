@@ -4,19 +4,18 @@
 }
 
 .settingsButton {
-  padding: var(--spacing-md) var(--spacing-lg);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   border: 1px solid var(--color-border-secondary);
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-secondary);
   color: var(--color-text-secondary);
-  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 14px;
-  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
+  padding: 0;
 }
 
 .settingsButton:hover {
@@ -26,12 +25,12 @@
 
 .settingsButton:focus {
   outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 
 .settingsMenu {
   position: absolute;
-  top: calc(100% + var(--spacing-sm));
+  bottom: calc(100% + var(--spacing-sm));
   right: 0;
   min-width: 320px;
   background-color: var(--color-surface);

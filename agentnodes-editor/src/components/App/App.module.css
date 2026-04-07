@@ -4,9 +4,8 @@
   position: absolute;
   display: grid;
   grid-template-columns: 250px auto;
-  grid-template-rows: 70px 1fr 300px;
+  grid-template-rows: 1fr 300px;
   grid-template-areas:
-    'sidebar header'
     'sidebar canvas'
     'sidebar console';
 }
@@ -17,9 +16,8 @@
   position: absolute;
   display: grid;
   grid-template-columns: 250px auto;
-  grid-template-rows: 70px auto;
+  grid-template-rows: auto;
   grid-template-areas:
-    'sidebar header'
     'sidebar canvas';
 }
 
@@ -42,4 +40,119 @@
 
 .consoleArea {
   grid-area: console;
+}
+
+/* Top-right: horizontal bar flush to top-right edge */
+.topRightControls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-lg);
+  align-items: center;
+  padding: var(--spacing-lg);
+  background-color: var(--color-surface-secondary);
+  border-bottom: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  border-radius: 0 0 0 var(--radius-md);
+}
+
+/* Bottom-right: vertical bar flush to bottom-right edge */
+.bottomRightControls {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  align-items: center;
+  padding: var(--spacing-lg);
+  background-color: var(--color-surface-secondary);
+  border-top: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  border-radius: var(--radius-md) 0 0 0;
+}
+
+.bottomRightAboveConsole {
+  bottom: 300px;
+}
+
+.floatingButton {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-secondary);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.floatingButton:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.saveButtonDirty {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.4);
+}
+
+.saveButtonDirty:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  box-shadow: 0 0 12px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.floatingButtonActive {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
+.floatingButtonActive:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.playStopButton {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--color-success);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.playStopButton:hover {
+  filter: brightness(0.85);
+  transform: scale(1.05);
+}
+
+.playStopButton:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.playStopRunning {
+  background-color: var(--color-error);
+}
+
+.playStopRunning:hover {
+  filter: brightness(0.85);
 }

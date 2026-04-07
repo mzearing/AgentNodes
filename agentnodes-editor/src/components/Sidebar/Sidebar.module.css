@@ -29,7 +29,7 @@
 
 .sidebarContent::-webkit-scrollbar-thumb {
   background-color: var(--color-scrollbar-thumb);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .sidebarContent::-webkit-scrollbar-thumb:hover {

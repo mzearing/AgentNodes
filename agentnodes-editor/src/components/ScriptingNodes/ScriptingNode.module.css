@@ -4,17 +4,6 @@
   position: relative;
 }
 
-.inputSpacer {
-  visibility: hidden;
-  height: 0;
-  overflow: hidden;
-}
-
-.outputSpacer {
-  visibility: hidden;
-  height: 0;
-  overflow: hidden;
-}
 
 .scriptingNode {
   background: var(--color-surface);
@@ -27,6 +16,7 @@
   flex-direction: column;
   position: relative;
   min-height: 80px;
+  overflow: visible;
 }
 
 .scriptingNodeWrapper:hover .scriptingNode {
@@ -44,16 +34,71 @@
 }
 
 /* Override NodeHeader background when selected */
-.scriptingNodeWrapper.selected .scriptingNode > div:first-child {
+.scriptingNodeWrapper.selected [class*="nodeHeader"] {
   background-color: transparent !important;
 }
 
-/* Light up input/output boxes when node is selected */
+/* Light up input/output boxes, add buttons, and CF chevrons when node is selected */
 .scriptingNodeWrapper.selected [class*="inputBox"],
-.scriptingNodeWrapper.selected [class*="outputBox"] {
+.scriptingNodeWrapper.selected [class*="outputBox"],
+.scriptingNodeWrapper.selected [class*="addInputBox"],
+.scriptingNodeWrapper.selected [class*="addOutputBox"],
+.scriptingNodeWrapper.selected [class*="cfChevronBg"] {
   background-color: var(--color-surface-hover) !important;
 }
 
+
+/* Port rows — single row containing data tiles + CF tile */
+.inputPortRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;    /* bottoms aligned, CF extends upward */
+  gap: var(--spacing-md);
+  position: relative;
+}
+
+.outputPortRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;  /* tops aligned, CF extends downward */
+  gap: var(--spacing-md);
+  position: relative;
+}
+
+/* CF tile — sits in the row as the rightmost item */
+.cfTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+/* Background panel behind the chevron */
+.cfChevronBg {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Chevron shape indicator */
+.controlFlowChevron {
+  width: 20px;
+  height: 12px;
+  fill: var(--color-border);
+  transition: fill 0.15s ease;
+  pointer-events: none;
+}
+
+.cfTile:hover .controlFlowChevron {
+  fill: var(--color-border-hover);
+}
 
 .handle {
   width: 10px;

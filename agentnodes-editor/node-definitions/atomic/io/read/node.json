@@ -1,10 +1,10 @@
 {
   "id": "read",
   "name": "Read",
-  "inputs": ["Handle"],
+  "inputs": ["Handle", "Count"],
   "outputs": ["Data"],
-  "inputTypes": [5],
-  "outputTypes": [3],
+  "inputTypes": [5, 1],
+  "outputTypes": [6],
   "variadicInputs": false,
   "variadicOutputs": false,
   "multitypeInputs": false,

@@ -84,7 +84,7 @@ export const useNodeHandles = (nodeId: string) => {
     setNodes((nodes) => {
       const targetNode = nodes.find(node => node.id === nodeId);
       if (!targetNode) return nodes;
-      
+
       const updatedNode = {
         ...targetNode,
         data: {
@@ -92,8 +92,28 @@ export const useNodeHandles = (nodeId: string) => {
           constantValues: newValues,
         },
       };
-      
+
       // Only create new array if node actually changed
+      const nodeIndex = nodes.indexOf(targetNode);
+      const newNodes = [...nodes];
+      newNodes[nodeIndex] = updatedNode;
+      return newNodes;
+    });
+  }, [setNodes, nodeId]);
+
+  const updateLabel = useCallback((newLabel: string) => {
+    setNodes((nodes) => {
+      const targetNode = nodes.find(node => node.id === nodeId);
+      if (!targetNode) return nodes;
+
+      const updatedNode = {
+        ...targetNode,
+        data: {
+          ...targetNode.data,
+          label: newLabel,
+        },
+      };
+
       const nodeIndex = nodes.indexOf(targetNode);
       const newNodes = [...nodes];
       newNodes[nodeIndex] = updatedNode;
@@ -104,6 +124,7 @@ export const useNodeHandles = (nodeId: string) => {
   return {
     updateInputs,
     updateOutputs,
-    updateConstantValues
+    updateConstantValues,
+    updateLabel
   };
 };

@@ -1,10 +1,10 @@
 {
   "id": "get-line",
   "name": "Get Line",
-  "inputs": ["Handle", "Trigger"],
+  "inputs": ["Handle"],
   "outputs": ["Data"],
-  "inputTypes": [0, 0],
-  "outputTypes": [0],
+  "inputTypes": [5],
+  "outputTypes": [3],
   "variadicInputs": false,
   "variadicOutputs": false,
   "solo": false

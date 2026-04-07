@@ -17,7 +17,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import styles from './Canvas.module.css';
 import { nodeTypes, ScriptingNodeData, ConstantDataValue } from '../ScriptingNodes/ScriptingNode';
-import { useCanvasDrop, useKeyboardShortcuts, shortcuts, useCanvasHistory, useVariableNodeSync } from '../../hooks';
+import { useCanvasDrop, useKeyboardShortcuts, shortcuts, useCanvasHistory } from '../../hooks';
 import { copySelectedNodes, pasteNodes } from '../../utils/nodeClipboard';
 import { ProjectState, NodeMetadata, NodeSummary, IOType, Edge, Variable } from '../../types/project';
 import { nodeFileSystem } from '../../services/nodeFileSystem';
@@ -78,6 +78,7 @@ interface CanvasProps {
   onNodesChange: (nodes: Node[]) => void;
   onNodeAdd?: (node: Node) => void;
   projectName?: string;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 export interface CanvasMethods {
@@ -99,27 +100,21 @@ const initialEdges: Edge[] = [];
 
 // Helper function to check if automatic casting is supported (shared logic)
 const canAutocastTypes = (fromType: IOType, toType: IOType): boolean => {
-  // Debug logging for Agent types
-  // Debug logging removed for Agent types
-  
   // Same type - always valid
   if (fromType === toType) return true;
-  
-  // None type compatibility rules:
-  // - Any type can be cast to None (for trigger/control flow purposes)
-  // - None can only be cast to other None inputs (control flow only)
-  if (toType === IOType.None) return true; // Any type can trigger None inputs
-  if ((fromType as number) === IOType.None) return (toType as number) === IOType.None; // None outputs only go to None inputs
-  
+
+  // None type: only None <-> None (strict control flow separation)
+  if (fromType === IOType.None || toType === IOType.None) return false;
+
   // Other supported automatic casts:
-  if (fromType === IOType.Integer && toType === IOType.Float) return true; 
+  if (fromType === IOType.Integer && toType === IOType.Float) return true;
   if (fromType === IOType.Float && toType === IOType.Integer) return true;
-  
+
   // Additional implicit conversions for string concatenation:
   if (toType === IOType.String && (fromType === IOType.Integer || fromType === IOType.Float || fromType === IOType.Boolean)) {
     return true;
   }
-  
+
   return false;
 };
 
@@ -128,45 +123,66 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
   return edges.filter(edge => {
     const sourceNode = nodes.find(node => node.id === edge.source);
     const targetNode = nodes.find(node => node.id === edge.target);
-    
+
     if (!sourceNode || !targetNode) {
       return false;
     }
-    
-    const sourceHandle = (sourceNode.data as ScriptingNodeData)?.outputs?.find(output => output.id === edge.sourceHandle);
-    const targetHandle = (targetNode.data as ScriptingNodeData)?.inputs?.find(input => input.id === edge.targetHandle);
-    
+
+    const sourceData = sourceNode.data as ScriptingNodeData;
+    const targetData = targetNode.data as ScriptingNodeData;
+
+    // Check if this is a control flow connection
+    const isSourceControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle;
+    const isTargetControlFlow = targetData?.controlFlowInput?.id === edge.targetHandle;
+
+    if (isSourceControlFlow || isTargetControlFlow) {
+      // Both ends must be control flow handles for a valid control flow connection
+      return isSourceControlFlow && isTargetControlFlow;
+    }
+
+    // Regular data port validation
+    const sourceHandle = sourceData?.outputs?.find(output => output.id === edge.sourceHandle);
+    const targetHandle = targetData?.inputs?.find(input => input.id === edge.targetHandle);
+
     if (!sourceHandle || !targetHandle) {
       return false;
     }
-    
+
     // Type validation - allow exact matches or auto-castable types
     const sourceType = Array.isArray(sourceHandle.type) ? sourceHandle.type[0] : (sourceHandle.type ?? IOType.None);
     const targetType = Array.isArray(targetHandle.type) ? targetHandle.type[0] : (targetHandle.type ?? IOType.None);
-    
+
     if (!canAutocastTypes(sourceType, targetType)) {
       return false;
     }
-    
+
     return true;
   }).map(edge => {
     // Determine connection strength using shared logic
     const targetNode = nodes.find(node => node.id === edge.target);
+    const sourceNode = nodes.find(node => node.id === edge.source);
     const strong = targetNode ? determineConnectionStrength(targetNode, edge.targetHandle) : true;
-    
+
+    // Preserve control-flow-connection class for CF edges
+    const sourceData = sourceNode?.data as ScriptingNodeData | undefined;
+    const isControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle;
+    const baseClass = getConnectionStyleClass(strong);
+    const className = isControlFlow ? `${baseClass} control-flow-connection` : baseClass;
+
     return {
       ...edge,
       strong,
-      className: getConnectionStyleClass(strong)
+      className
     };
   });
 };
 
-const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({ 
-  nodes: propNodes, 
-  onNodesChange: propOnNodesChange, 
+const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
+  nodes: propNodes,
+  onNodesChange: propOnNodesChange,
   onNodeAdd,
-  projectName: _projectName = 'Untitled Project'
+  projectName: _projectName = 'Untitled Project',
+  onDirtyChange
 }, ref) => {
 
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -188,11 +204,14 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     redo,
     canUndo,
     canRedo,
-    initializeHistory
+    cancelPendingSave,
+    initializeHistory,
+    markSaved,
+    isDirty
   } = useCanvasHistory();
 
-  // Variable node synchronization
-  const variableNodeSync = useVariableNodeSync(propNodes, propOnNodesChange);
+  // Guard: skip history save/init effects during undo/redo
+  const isUndoRedoRef = React.useRef(false);
 
   // Save project functionality
   const saveProject = useCallback(async (): Promise<boolean> => {
@@ -475,6 +494,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       
       
       if (success) {
+        markSaved(updatedCanvasState.nodes, updatedCanvasState.edges, projectState.variables || [], projectState.openedNodeName);
         // Note: Recursive dependency updates are handled automatically by the canvasRefreshEmitter
         // system in App.tsx when nodeFileSystem.writeNode() triggers dependency updates
         return true;
@@ -556,7 +576,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   }, []);
 
   // Load project functionality
-  // Migration function to ensure all nodes have type properties
+  // Migration function to ensure all nodes have type properties and control flow handles
   const migrateNodesWithTypes = useCallback((nodes: Node[]) => {
     return nodes.map(node => {
       if (node.type === 'scripting-node') {
@@ -580,6 +600,51 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
             value: getDefaultValueForType(type)
           }));
         }
+
+        // Migration: Add control flow handles if missing
+        const nodeId = scriptingData.nodeId;
+        if (!scriptingData.controlFlowInput && nodeId !== 'start') {
+          scriptingData.controlFlowInput = {
+            id: `cf-in-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+          };
+        }
+        if (!scriptingData.controlFlowOutput && nodeId !== 'finish') {
+          scriptingData.controlFlowOutput = {
+            id: `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+          };
+        }
+
+        // Migration: Remove None-typed data outputs (they are now control flow)
+        // Track removed output IDs for edge migration
+        if (scriptingData.outputs) {
+          const noneOutputs = scriptingData.outputs.filter(o => o.type === IOType.None);
+          if (noneOutputs.length > 0) {
+            // Store the old None output IDs so edges can be redirected
+            (scriptingData as Record<string, unknown>)._migratedNoneOutputIds = noneOutputs.map(o => o.id);
+            scriptingData.outputs = scriptingData.outputs.filter(o => o.type !== IOType.None);
+          }
+        }
+
+        // Migration: Remove None-typed data inputs
+        if (scriptingData.inputs) {
+          const noneInputs = scriptingData.inputs.filter(i => i.type === IOType.None);
+          if (noneInputs.length > 0) {
+            (scriptingData as Record<string, unknown>)._migratedNoneInputIds = noneInputs.map(i => i.id);
+            scriptingData.inputs = scriptingData.inputs.filter(i => i.type !== IOType.None);
+          }
+        }
+
+        // Migration: Remove None from availableInputTypes/availableOutputTypes
+        if (scriptingData.availableInputTypes) {
+          scriptingData.availableInputTypes = scriptingData.availableInputTypes.map(types =>
+            types ? types.filter(t => t !== IOType.None) : types
+          );
+        }
+        if (scriptingData.availableOutputTypes) {
+          scriptingData.availableOutputTypes = scriptingData.availableOutputTypes.map(types =>
+            types ? types.filter(t => t !== IOType.None) : types
+          );
+        }
       }
       return node;
     });
@@ -588,26 +653,59 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   const loadProject = useCallback(async (newProjectState: ProjectState): Promise<boolean> => {
     try {
       if (newProjectState.hasNodeLoaded && newProjectState.canvasStateCache) {
-        // Migrate nodes to ensure they have type properties
+        // Migrate nodes to ensure they have type properties and control flow handles
         const migratedNodes = migrateNodesWithTypes(newProjectState.canvasStateCache.nodes);
-        
+
+        // Migrate edges: redirect old None-typed data port edges to control flow handles
+        const migratedEdges = newProjectState.canvasStateCache.edges.map(edge => {
+          let newEdge = { ...edge };
+
+          // Check if source handle was a migrated None output
+          const sourceNode = migratedNodes.find(n => n.id === edge.source);
+          if (sourceNode) {
+            const sourceData = sourceNode.data as ScriptingNodeData;
+            const migratedOutputIds = (sourceData as Record<string, unknown>)?._migratedNoneOutputIds as string[] | undefined;
+            if (migratedOutputIds && migratedOutputIds.includes(edge.sourceHandle ?? '')) {
+              if (sourceData.controlFlowOutput) {
+                newEdge = { ...newEdge, sourceHandle: sourceData.controlFlowOutput.id };
+              }
+            }
+          }
+
+          // Check if target handle was a migrated None input
+          const targetNode = migratedNodes.find(n => n.id === edge.target);
+          if (targetNode) {
+            const targetData = targetNode.data as ScriptingNodeData;
+            const migratedInputIds = (targetData as Record<string, unknown>)?._migratedNoneInputIds as string[] | undefined;
+            if (migratedInputIds && migratedInputIds.includes(edge.targetHandle ?? '')) {
+              if (targetData.controlFlowInput) {
+                newEdge = { ...newEdge, targetHandle: targetData.controlFlowInput.id };
+              }
+            }
+          }
+
+          return newEdge;
+        });
+
+        // Clean up temporary migration markers
+        migratedNodes.forEach(node => {
+          const data = node.data as Record<string, unknown>;
+          delete data._migratedNoneOutputIds;
+          delete data._migratedNoneInputIds;
+        });
+
         // Validate and clean connections to remove any invalid type connections
-        const validatedEdges = validateAndCleanConnections(migratedNodes, newProjectState.canvasStateCache.edges);
-        
-        // Log if any connections were removed
-        const removedCount = newProjectState.canvasStateCache.edges.length - validatedEdges.length;
-        if (removedCount > 0) {
-          // Connections were removed during project load
-        }
-        
+        const validatedEdges = validateAndCleanConnections(migratedNodes, migratedEdges);
+
         // Load the canvas state from the saved data
         propOnNodesChange(migratedNodes);
         setEdges(validatedEdges);
         setProjectState(newProjectState);
-        
+        markSaved(migratedNodes, validatedEdges, newProjectState.variables || [], newProjectState.openedNodeName);
+
         // Sync the node ID counter to prevent ID conflicts when adding new nodes
         canvasDrop.syncNodeIdCounter(migratedNodes);
-        
+
         return true;
       } else {
         alert('Invalid project state');
@@ -705,6 +803,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   
   // Initialize history when project loads
   React.useEffect(() => {
+    if (isUndoRedoRef.current) return;
     if (projectState.hasNodeLoaded && propNodes.length > 0) {
       initializeHistory(propNodes, edges, projectState.variables || [], projectState.openedNodeName);
     }
@@ -712,6 +811,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
 
   // Save history when nodes or edges change
   React.useEffect(() => {
+    if (isUndoRedoRef.current) return;
     if (projectState.hasNodeLoaded && propNodes.length > 0) {
       saveHistoryState(propNodes, edges, projectState.variables || [], projectState.openedNodeName);
     }
@@ -737,21 +837,25 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   const handlePaste = React.useCallback(() => {
     const result = pasteNodes(propNodes, edges);
     if (result) {
+      // Flush any pending debounced save to capture pre-paste state
+      saveHistoryState(propNodes, edges, projectState.variables || [], projectState.openedNodeName, true);
+
       const allNodes = [...propNodes, ...result.nodes];
       const allEdges = [...edges, ...result.edges];
-      
+
       // Clear selection from existing nodes
       const updatedNodes = allNodes.map(node => ({
         ...node,
         selected: result.nodes.some(newNode => newNode.id === node.id)
       }));
-      
+
+      // Save post-paste state immediately so undo can revert it
+      saveHistoryState(updatedNodes, allEdges, projectState.variables || [], projectState.openedNodeName, true);
+
       propOnNodesChange(updatedNodes);
       setEdges(allEdges);
-      
-      console.log(`Pasted ${result.nodes.length} node(s) and ${result.edges.length} edge(s)`);
     }
-  }, [propNodes, edges, propOnNodesChange, setEdges]);
+  }, [propNodes, edges, propOnNodesChange, setEdges, saveHistoryState, projectState.variables, projectState.openedNodeName]);
 
   // Comprehensive state synchronization after undo/redo
   const synchronizeState = React.useCallback(async (restoredState: { nodes: Node[]; edges: Edge[]; variables: Variable[]; projectName?: string }) => {
@@ -768,92 +872,82 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     };
     setProjectState(updatedProjectState);
 
-    // Sync variable nodes if variables changed
-    if (restoredState.variables && restoredState.variables.length > 0) {
-      for (const variable of restoredState.variables) {
-        variableNodeSync.updateVariableNodes(variable);
-      }
-    }
+    // Do NOT call updateVariableNodes during undo/redo — the restored nodes
+    // already contain the correct variable node state, and updateVariableNodes
+    // uses a stale nodesRef that would overwrite the restored nodes.
 
     // Trigger refresh events for UI synchronization
     canvasRefreshEmitter.emit();
     sidebarRefreshEmitter.emit();
-  }, [projectState, setProjectState, variableNodeSync]);
+  }, [projectState, setProjectState]);
 
   // Handle undo operation
   const handleUndo = React.useCallback(async () => {
     if (canUndo()) {
+      // Cancel any pending debounced save that could overwrite history after undo
+      cancelPendingSave();
+
       const result = undo();
       if (result) {
-        // Migrate nodes to ensure they have proper type properties
-        const migratedNodes = migrateNodesWithTypes(result.nodes);
-        
-        // Validate and clean connections to ensure type compatibility
-        const validatedEdges = validateAndCleanConnections(migratedNodes, result.edges);
-        
-        // Apply the changes
-        propOnNodesChange(migratedNodes);
-        setEdges(validatedEdges);
-        
+        isUndoRedoRef.current = true;
+
+        // History already stores fully migrated nodes — apply directly
+        propOnNodesChange(result.nodes);
+        setEdges(result.edges);
+
         // Synchronize the full state including variables
-        await synchronizeState({
-          ...result,
-          nodes: migratedNodes,
-          edges: validatedEdges
-        });
-        
-        console.log('Undo successful with full state sync');
+        await synchronizeState(result);
       }
     }
-  }, [canUndo, undo, propOnNodesChange, setEdges, synchronizeState, migrateNodesWithTypes, validateAndCleanConnections]);
+  }, [canUndo, undo, cancelPendingSave, propOnNodesChange, setEdges, synchronizeState]);
 
   // Handle redo operation
   const handleRedo = React.useCallback(async () => {
     if (canRedo()) {
+      // Cancel any pending debounced save that could overwrite history after redo
+      cancelPendingSave();
+
       const result = redo();
       if (result) {
-        // Migrate nodes to ensure they have proper type properties
-        const migratedNodes = migrateNodesWithTypes(result.nodes);
-        
-        // Validate and clean connections to ensure type compatibility
-        const validatedEdges = validateAndCleanConnections(migratedNodes, result.edges);
-        
-        // Apply the changes
-        propOnNodesChange(migratedNodes);
-        setEdges(validatedEdges);
-        
+        isUndoRedoRef.current = true;
+
+        // History already stores fully migrated nodes — apply directly
+        propOnNodesChange(result.nodes);
+        setEdges(result.edges);
+
         // Synchronize the full state including variables
-        await synchronizeState({
-          ...result,
-          nodes: migratedNodes,
-          edges: validatedEdges
-        });
-        
-        console.log('Redo successful with full state sync');
+        await synchronizeState(result);
       }
     }
-  }, [canRedo, redo, propOnNodesChange, setEdges, synchronizeState, migrateNodesWithTypes, validateAndCleanConnections]);
+  }, [canRedo, redo, cancelPendingSave, propOnNodesChange, setEdges, synchronizeState]);
 
   // Handle delete operation
   const handleDelete = React.useCallback(() => {
     const selectedNodes = getSelectedNodes();
-    if (selectedNodes.length > 0) {
-      const selectedNodeIds = new Set(selectedNodes.map(node => node.id));
-      
-      // Remove selected nodes
-      const remainingNodes = propNodes.filter(node => !node.selected);
-      
-      // Remove edges connected to deleted nodes
-      const remainingEdges = edges.filter(edge => 
-        !selectedNodeIds.has(edge.source) && !selectedNodeIds.has(edge.target)
-      );
-      
-      propOnNodesChange(remainingNodes);
-      setEdges(remainingEdges);
-      
-      console.log(`Deleted ${selectedNodes.length} node(s)`);
-    }
-  }, [getSelectedNodes, propNodes, edges, propOnNodesChange, setEdges]);
+    const selectedEdges = edges.filter(e => e.selected);
+
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+
+    // Flush any pending debounced save to capture pre-delete state
+    saveHistoryState(propNodes, edges, projectState.variables || [], projectState.openedNodeName, true);
+
+    const selectedNodeIds = new Set(selectedNodes.map(node => node.id));
+    const selectedEdgeIds = new Set(selectedEdges.map(edge => edge.id));
+
+    // Remove selected nodes
+    const remainingNodes = propNodes.filter(node => !node.selected);
+
+    // Remove edges connected to deleted nodes AND selected edges
+    const remainingEdges = edges.filter(edge =>
+      !selectedNodeIds.has(edge.source) && !selectedNodeIds.has(edge.target) && !selectedEdgeIds.has(edge.id)
+    );
+
+    // Save post-delete state immediately so undo can revert it
+    saveHistoryState(remainingNodes, remainingEdges, projectState.variables || [], projectState.openedNodeName, true);
+
+    propOnNodesChange(remainingNodes);
+    setEdges(remainingEdges);
+  }, [getSelectedNodes, propNodes, edges, propOnNodesChange, setEdges, saveHistoryState, projectState.variables, projectState.openedNodeName]);
 
   // Set up keyboard shortcuts
   useKeyboardShortcuts([
@@ -867,16 +961,18 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   ]);
 
   // Add effect to validate and clean edges when nodes change
+  // Skip during undo/redo — restored edges from history are already valid
   React.useEffect(() => {
+    if (isUndoRedoRef.current) return;
     setEdges(currentEdges => {
       const validatedEdges = validateAndCleanConnections(propNodes, currentEdges);
       // Check if any edge styling needs to be updated (not just length changes)
-      const hasChanges = validatedEdges.length !== currentEdges.length || 
+      const hasChanges = validatedEdges.length !== currentEdges.length ||
         validatedEdges.some((edge, index) => {
           const currentEdge = currentEdges[index];
           return !currentEdge || edge.strong !== currentEdge.strong || edge.className !== currentEdge.className;
         });
-      
+
       if (hasChanges) {
         return validatedEdges;
       }
@@ -885,7 +981,9 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
   }, [propNodes, setEdges]);
 
   // Add effect to mark starting point nodes
+  // Skip during undo/redo — restored nodes already have correct starting point state
   React.useEffect(() => {
+    if (isUndoRedoRef.current) return;
     // Helper function to recursively check if all connections in entire graph are strong
     const hasOnlyStrongConnections = (nodeId: string, visited = new Set<string>()): boolean => {
       // Avoid infinite loops in case of cycles
@@ -991,6 +1089,18 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
     }
   }, [edges, propNodes, propOnNodesChange]);
 
+  // Clear the undo/redo guard after all guarded effects have run.
+  // React executes effects in declaration order, so this runs last.
+  React.useEffect(() => {
+    if (isUndoRedoRef.current) {
+      isUndoRedoRef.current = false;
+    }
+  });
+
+  // Propagate dirty state changes to parent
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const isValidConnection = useCallback(
     (connection: Connection) => {
@@ -998,105 +1108,96 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       if (connection.source === connection.target) {
         return false;
       }
-      
+
       // Type validation for connections
       const sourceNode = propNodes.find(node => node.id === connection.source);
       const targetNode = propNodes.find(node => node.id === connection.target);
-      
+
       if (sourceNode && targetNode) {
-        const sourceHandle = (sourceNode.data as ScriptingNodeData)?.outputs?.find(output => output.id === connection.sourceHandle);
-        const targetHandle = (targetNode.data as ScriptingNodeData)?.inputs?.find(input => input.id === connection.targetHandle);
-        
+        const sourceData = sourceNode.data as ScriptingNodeData;
+        const targetData = targetNode.data as ScriptingNodeData;
+
+        // Check if source or target is a control flow handle
+        const isSourceControlFlow = sourceData?.controlFlowOutput?.id === connection.sourceHandle;
+        const isTargetControlFlow = targetData?.controlFlowInput?.id === connection.targetHandle;
+
+        // Control flow handles can only connect to other control flow handles
+        if (isSourceControlFlow || isTargetControlFlow) {
+          return isSourceControlFlow && isTargetControlFlow;
+        }
+
+        // Regular data port validation
+        const sourceHandle = sourceData?.outputs?.find(output => output.id === connection.sourceHandle);
+        const targetHandle = targetData?.inputs?.find(input => input.id === connection.targetHandle);
+
         if (sourceHandle && targetHandle) {
-          // Handle cases where type might be an array or a single value
           const sourceType = Array.isArray(sourceHandle.type) ? sourceHandle.type[0] : (sourceHandle.type ?? IOType.None);
           const targetType = Array.isArray(targetHandle.type) ? targetHandle.type[0] : (targetHandle.type ?? IOType.None);
-          
-          // Allow connections if types match exactly or can be auto-cast
+
           if (!canAutocastTypes(sourceType, targetType)) {
             return false;
           }
-          
-          // If auto-cast is needed, log it for user feedback
-          if (sourceType !== targetType) {
-            // Type conversion will happen automatically
-          }
         }
       }
-      
+
       return true;
     },
     [propNodes]
   );
 
-  // Function to toggle edge strength
-  const toggleEdgeStrength = useCallback((edgeId: string) => {
-    setEdges((eds) => 
-      eds.map((edge) => {
-        if (edge.id === edgeId) {
-          const newStrong = !edge.strong;
-          
-          // Get source type for coloring
-          const sourceNode = propNodes.find(node => node.id === edge.source);
-          const sourceHandle = (sourceNode?.data as ScriptingNodeData)?.outputs?.find(output => output.id === edge.sourceHandle);
-          const sourceType = sourceHandle?.type ?? IOType.None;
-          const typeColor = getTypeColor(Array.isArray(sourceType) ? sourceType[0] : sourceType);
-          
-          return {
-            ...edge,
-            strong: newStrong,
-            className: getConnectionStyleClass(newStrong),
-            style: {
-              stroke: typeColor,
-              '--edge-color': typeColor
-            } as React.CSSProperties
-          };
-        }
-        return edge;
-      })
-    );
-  }, [setEdges, propNodes]);
-
-  // Handle edge double-click to toggle strength
-  const onEdgeDoubleClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
-    toggleEdgeStrength(edge.id);
-  }, [toggleEdgeStrength]);
-
   const onConnect = useCallback(
     (params: Edge | Connection) => {
-      setEdges((eds) => {
-        // Remove any existing connection to the same input handle
-        const filteredEdges = eds.filter(edge => 
-          !(edge.target === params.target && edge.targetHandle === params.targetHandle)
-        );
-        
-        // Determine connection strength using shared logic
-        const targetNode = propNodes.find(node => node.id === params.target);
-        const strong = targetNode ? determineConnectionStrength(targetNode, params.targetHandle) : true;
-        
+      // Remove any existing connection to the same input handle
+      const filteredEdges = edges.filter(edge =>
+        !(edge.target === params.target && edge.targetHandle === params.targetHandle)
+      );
+
+      // Check if this is a control flow connection
+      const sourceNode = propNodes.find(node => node.id === params.source);
+      const sourceData = sourceNode?.data as ScriptingNodeData;
+      const isControlFlow = sourceData?.controlFlowOutput?.id === params.sourceHandle;
+
+      // Determine connection strength using shared logic
+      const targetNode = propNodes.find(node => node.id === params.target);
+      const strong = targetNode ? determineConnectionStrength(targetNode, params.targetHandle) : true;
+
+      let typeColor: string;
+      let edgeClassName: string;
+
+      if (isControlFlow) {
+        // Control flow edges use the None type color and distinct class
+        typeColor = getTypeColor(IOType.None);
+        edgeClassName = `${getConnectionStyleClass(strong)} control-flow-connection`;
+      } else {
         // Get source type for coloring
-        const sourceNode = propNodes.find(node => node.id === params.source);
-        const sourceHandle = (sourceNode?.data as ScriptingNodeData)?.outputs?.find(output => output.id === params.sourceHandle);
+        const sourceHandle = sourceData?.outputs?.find(output => output.id === params.sourceHandle);
         const sourceType = sourceHandle?.type ?? IOType.None;
-        const typeColor = getTypeColor(Array.isArray(sourceType) ? sourceType[0] : sourceType);
-        
-        // Create edge with proper strong/weak styling and type color
-        const newEdge: Edge = {
-          ...params,
-          id: 'id' in params ? params.id : `${params.source}-${params.target}`,
-          strong,
-          className: getConnectionStyleClass(strong),
-          style: {
-            stroke: typeColor,
-            '--edge-color': typeColor
-          } as React.CSSProperties
-        };
-        
-        // Add the new connection
-        return addEdge(newEdge, filteredEdges);
-      });
+        typeColor = getTypeColor(Array.isArray(sourceType) ? sourceType[0] : sourceType);
+        edgeClassName = getConnectionStyleClass(strong);
+      }
+
+      // Create edge with proper strong/weak styling and type color
+      const newEdge: Edge = {
+        ...params,
+        id: 'id' in params ? params.id : `${params.source}-${params.sourceHandle}-${params.target}-${params.targetHandle}`,
+        strong,
+        className: edgeClassName,
+        style: {
+          stroke: typeColor,
+          '--edge-color': typeColor
+        } as React.CSSProperties
+      };
+
+      // Compute the new edges
+      const newEdges = addEdge(newEdge, filteredEdges);
+
+      // Flush pre-connect state and save post-connect state immediately
+      saveHistoryState(propNodes, edges, projectState.variables || [], projectState.openedNodeName, true);
+      saveHistoryState(propNodes, newEdges, projectState.variables || [], projectState.openedNodeName, true);
+
+      setEdges(newEdges);
     },
-    [setEdges, propNodes]
+    [edges, setEdges, propNodes, saveHistoryState, projectState.variables, projectState.openedNodeName]
   );
 
 
@@ -1122,7 +1223,6 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
           onNodesChange={wrappedOnNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onEdgeDoubleClick={onEdgeDoubleClick}
           isValidConnection={isValidConnection}
           onInit={canvasDrop.setReactFlowInstance}
           onDrop={canvasDrop.onDrop}
@@ -1130,6 +1230,7 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
           nodeTypes={nodeTypes}
           className={styles.reactFlow}
           proOptions={{hideAttribution: true}}
+          deleteKeyCode={null}
           nodesDraggable={true}
           nodesConnectable={true}
           nodesFocusable={true}

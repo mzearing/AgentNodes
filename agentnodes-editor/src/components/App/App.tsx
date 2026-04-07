@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Node } from '@xyflow/react';
 import styles from './App.module.css';
-import Header from '../Header/Header';
 import Canvas, { CanvasMethods } from '../Canvas/Canvas';
 import Sidebar from '../Sidebar/Sidebar';
 import Console from '../Console/Console';
+import SettingsMenu from '../SettingsMenu/SettingsMenu';
 import { ProjectState } from '../../types/project';
 import { sidebarRefreshEmitter, canvasRefreshEmitter } from '../../hooks/useSidebarData';
 import { compilationService } from '../../services/compilationService';
@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [isConsoleVisible, setIsConsoleVisible] = useState<boolean>(false);
   const [isProcessRunning, setIsProcessRunning] = useState<boolean>(false);
   const canvasRef = useRef<CanvasMethods>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
 
   const handleNodesChange = (newNodes: Node[]) => {
     setNodes(newNodes);
@@ -77,7 +78,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleCompile = useCallback(async () => {
+  const handleCompile = useCallback(async (): Promise<boolean> => {
     if (canvasRef.current) {
       const canvasData = canvasRef.current.getCanvasData();
       const projectState = canvasRef.current.getProjectState();
@@ -86,22 +87,23 @@ const App: React.FC = () => {
         console.log('Starting compilation with canvas data:', canvasData);
         // Check if we're compiling a complex node
         const isComplexNode = projectState.openedNodePath?.includes('/complex/');
-        const result = await compilationService.compile(canvasData, isComplexNode);
+        const compiledFilePath = configurationService.getCompilationPath(projectState.openedNodePath, projectState.openedNodeId);
+        const result = await compilationService.compile(canvasData, isComplexNode, compiledFilePath);
         console.log('Compilation result:', result);
-        
+
         if (result.success && result.data) {
           try {
             // Save compiled.json to the specific node's folder
             const dataStr = JSON.stringify(result.data, null, 2);
-            const compiledFilePath = configurationService.getCompilationPath(projectState.openedNodePath, projectState.openedNodeId);
-            
+
             if (window.electronAPI?.writeFile) {
               await window.electronAPI.writeFile(compiledFilePath, dataStr);
-              
+
               // Clear compilation cache for the compiled node to ensure UI updates
               nodeCompilationStatusService.clearCache();
-              
-              alert(`Compilation successful! File saved to ${compiledFilePath}`);
+
+              console.log(`Compilation successful! File saved to ${compiledFilePath}`);
+              return true;
             } else {
               // Fallback to download if electron API not available
               const blob = new Blob([dataStr], { type: 'application/json' });
@@ -114,28 +116,33 @@ const App: React.FC = () => {
               document.body.removeChild(link);
               URL.revokeObjectURL(url);
               alert('Compilation successful! File downloaded (Electron API not available).');
+              return true;
             }
           } catch (error) {
             console.error('Failed to save compiled file:', error);
             alert(`Failed to save compiled file: ${error}`);
+            return false;
           }
         } else {
           const errorMessage = result.errors?.join('\n') || 'Unknown compilation error';
           console.error('Compilation failed:', result.errors);
           alert(`Compilation failed:\n${errorMessage}`);
-          
+
           // Log errors to console for debugging
           if (result.errors) {
             result.errors.forEach(error => {
               processManagerService.addCompilationError(error);
             });
           }
+          return false;
         }
       } else {
         alert('No canvas data or project state available. Please load a project first.');
+        return false;
       }
     } else {
       alert('Canvas not available');
+      return false;
     }
   }, [projectName]);
 
@@ -148,7 +155,7 @@ const App: React.FC = () => {
     await configurationService.setNodeDefinitionsPath(newPath);
     setNodePath(newPath);
     console.log('Node definitions path changed to:', newPath);
-    
+
     // Refresh sidebar to load nodes from new path
     sidebarRefreshEmitter.emit();
   }, []);
@@ -183,23 +190,16 @@ const App: React.FC = () => {
       return;
     }
 
-    const compiledFilePath = configurationService.getCompilationPath(
-      projectState.openedNodePath, 
-      projectState.openedNodeId
-    );
-
-    // Check if compiled file exists
-    try {
-      if (window.electronAPI?.readFile) {
-        await window.electronAPI.readFile(compiledFilePath);
-      } else {
-        alert('Compiled file verification not available. Make sure to compile before running.');
-        return;
-      }
-    } catch (error) {
-      alert('Compiled file not found. Please compile the project first.');
+    // Auto-compile before running
+    const compileSuccess = await handleCompile();
+    if (!compileSuccess) {
       return;
     }
+
+    const compiledFilePath = configurationService.getCompilationPath(
+      projectState.openedNodePath,
+      projectState.openedNodeId
+    );
 
     setIsConsoleVisible(true);
     const success = await processManagerService.startProcess(executablePath, [
@@ -209,7 +209,7 @@ const App: React.FC = () => {
     if (success) {
       setIsProcessRunning(true);
     }
-  }, [isProcessRunning]);
+  }, [isProcessRunning, handleCompile]);
 
   const handleStopProcess = useCallback(async () => {
     if (!isProcessRunning) {
@@ -265,7 +265,7 @@ const App: React.FC = () => {
       const currentExecutablePath = configurationService.getExecutablePath();
       setNodePath(currentPath);
       setExecutablePath(currentExecutablePath);
-      
+
       // Initial sidebar refresh to load nodes from configured path
       sidebarRefreshEmitter.emit();
     };
@@ -288,24 +288,8 @@ const App: React.FC = () => {
 
   return (
     <div className={isConsoleVisible ? styles.app : styles.appWithoutConsole}>
-      <Header 
-        projectName={projectName}
-        onProjectNameChange={handleProjectNameChange}
-        onSaveProject={handleSaveProject}
-        canvasData={canvasRef.current?.getCanvasData()}
-        onCompile={handleCompile}
-        currentPath={nodePath}
-        currentExecutablePath={executablePath}
-        onPathChange={handlePathChange}
-        onExecutablePathChange={handleExecutablePathChange}
-        onRunProcess={handleRunProcess}
-        onStopProcess={handleStopProcess}
-        onToggleConsole={handleToggleConsole}
-        isProcessRunning={isProcessRunning}
-        isConsoleVisible={isConsoleVisible}
-      />
-      <Sidebar 
-        nodes={nodes} 
+      <Sidebar
+        nodes={nodes}
         onLoadProject={handleLoadProject}
         onRefreshFunctionReady={handleSidebarRefreshReady}
         onNodesChange={handleNodesChange}
@@ -313,11 +297,12 @@ const App: React.FC = () => {
         onProjectStateChange={handleProjectStateChange}
       />
       <div className={hasProjectLoaded ? '' : styles.hiddenCanvas}>
-        <Canvas 
-          ref={canvasRef} 
-          nodes={nodes} 
-          onNodesChange={handleNodesChange} 
+        <Canvas
+          ref={canvasRef}
+          nodes={nodes}
+          onNodesChange={handleNodesChange}
           projectName={projectName}
+          onDirtyChange={setHasUnsavedChanges}
         />
       </div>
       {!hasProjectLoaded && (
@@ -327,12 +312,58 @@ const App: React.FC = () => {
       )}
       {isConsoleVisible && (
         <div className={styles.consoleArea}>
-          <Console 
+          <Console
             isVisible={isConsoleVisible}
             onToggle={handleToggleConsole}
           />
         </div>
       )}
+
+      <div className={styles.topRightControls}>
+        <button
+          className={`${styles.floatingButton} ${hasUnsavedChanges ? styles.saveButtonDirty : ''}`}
+          onClick={() => { handleSaveProject(); handleCompile(); }}
+          title="Save and compile project"
+        >
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4.414a1 1 0 0 0-.293-.707l-2.414-2.414A1 1 0 0 0 11.586 1H2zm1 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4zm1 5h8v4H4V9z" />
+          </svg>
+        </button>
+        <button
+          className={`${styles.playStopButton} ${isProcessRunning ? styles.playStopRunning : ''}`}
+          onClick={isProcessRunning ? handleStopProcess : handleRunProcess}
+          title={isProcessRunning ? "Stop process" : "Run process"}
+        >
+          {isProcessRunning ? (
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+              <rect x="3" y="3" width="10" height="10" rx="1" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M4 2.5a.5.5 0 0 1 .77-.42l9 5.5a.5.5 0 0 1 0 .84l-9 5.5A.5.5 0 0 1 4 13.5V2.5z" />
+            </svg>
+          )}
+        </button>
+      </div>
+
+      <div className={`${styles.bottomRightControls} ${isConsoleVisible ? styles.bottomRightAboveConsole : ''}`}>
+        <button
+          className={`${styles.floatingButton} ${isConsoleVisible ? styles.floatingButtonActive : ''}`}
+          onClick={handleToggleConsole}
+          title={isConsoleVisible ? "Hide console" : "Show console"}
+        >
+          <svg width="22" height="22" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 6 8 10 4 14" />
+            <line x1="10" y1="14" x2="14" y2="14" />
+          </svg>
+        </button>
+        <SettingsMenu
+          currentPath={nodePath}
+          currentExecutablePath={executablePath}
+          onPathChange={handlePathChange}
+          onExecutablePathChange={handleExecutablePathChange}
+        />
+      </div>
     </div>
   );
 };

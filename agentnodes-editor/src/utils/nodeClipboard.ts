@@ -97,7 +97,21 @@ class NodeClipboard {
             };
           });
         }
-        
+
+        // Map old control flow handle IDs to new ones
+        if (scriptingData.controlFlowInput) {
+          const oldId = scriptingData.controlFlowInput.id;
+          const newHandleId = `cf-in-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          handleIdMapping.set(oldId, newHandleId);
+          scriptingData.controlFlowInput = { id: newHandleId };
+        }
+        if (scriptingData.controlFlowOutput) {
+          const oldId = scriptingData.controlFlowOutput.id;
+          const newHandleId = `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          handleIdMapping.set(oldId, newHandleId);
+          scriptingData.controlFlowOutput = { id: newHandleId };
+        }
+
         updatedData = scriptingData;
       }
       
@@ -114,23 +128,35 @@ class NodeClipboard {
     });
 
     // Create new edges with updated node IDs and handle IDs
+    // Track generated IDs to avoid duplicates within the same paste
+    const generatedEdgeIds = new Set<string>();
     const newEdges = clipboardEdges.map(edge => {
       const newSourceId = idMapping.get(edge.source);
       const newTargetId = idMapping.get(edge.target);
-      
+
       if (!newSourceId || !newTargetId) {
         return null; // Skip edges if source/target not found
       }
 
       // Update handle IDs if they exist in the mapping
-      const newSourceHandle = edge.sourceHandle ? 
+      const newSourceHandle = edge.sourceHandle ?
         (handleIdMapping.get(edge.sourceHandle) || edge.sourceHandle) : edge.sourceHandle;
-      const newTargetHandle = edge.targetHandle ? 
+      const newTargetHandle = edge.targetHandle ?
         (handleIdMapping.get(edge.targetHandle) || edge.targetHandle) : edge.targetHandle;
+
+      // Generate unique edge ID, avoiding both existing and already-generated IDs
+      const existingIds = new Set([...allEdges.map(e => e.id), ...generatedEdgeIds]);
+      let counter = 1;
+      let newEdgeId: string;
+      do {
+        newEdgeId = `${newSourceId}-${newSourceHandle}-${newTargetId}-${newTargetHandle}-${counter}`;
+        counter++;
+      } while (existingIds.has(newEdgeId));
+      generatedEdgeIds.add(newEdgeId);
 
       return {
         ...edge,
-        id: this.generateUniqueEdgeId(allEdges, newSourceId, newTargetId),
+        id: newEdgeId,
         source: newSourceId,
         target: newTargetId,
         sourceHandle: newSourceHandle,
@@ -189,46 +215,6 @@ class NodeClipboard {
     return newId;
   }
 
-  /**
-   * Generate a unique edge ID
-   */
-  private generateUniqueEdgeId(existingEdges: Edge[], sourceId: string, targetId: string): string {
-    const existingIds = new Set(existingEdges.map(edge => edge.id));
-    let counter = 1;
-    let newId: string;
-
-    do {
-      newId = `${sourceId}-${targetId}-${counter}`;
-      counter++;
-    } while (existingIds.has(newId));
-
-    return newId;
-  }
-
-  /**
-   * Update handle IDs in pasted nodes to avoid conflicts
-   */
-  private updateNodeHandleIds(nodeData: ScriptingNodeData): ScriptingNodeData {
-    const updatedData = { ...nodeData };
-
-    // Update input handle IDs
-    if (updatedData.inputs) {
-      updatedData.inputs = updatedData.inputs.map((input, index) => ({
-        ...input,
-        id: `input-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`
-      }));
-    }
-
-    // Update output handle IDs  
-    if (updatedData.outputs) {
-      updatedData.outputs = updatedData.outputs.map((output, index) => ({
-        ...output,
-        id: `output-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 11)}`
-      }));
-    }
-
-    return updatedData;
-  }
 }
 
 // Export a singleton instance

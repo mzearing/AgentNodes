@@ -57,7 +57,7 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
       const newOutput: OutputHandle = {
         id: `output-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         name: `Output ${outputs.length + 1}`,
-        type: IOType.None
+        type: IOType.Integer
       };
       const newOutputs = [...outputs, newOutput];
       onOutputsChange(newOutputs);
@@ -145,16 +145,17 @@ const NodeSources: React.FC<NodeSourcesProps> = ({ outputs, variadic = false, mu
   // Function to get available type options for specific outputs based on type arrays
   const getAvailableTypeOptions = (outputIndex: number): DropdownOption[] => {
     if (!multitype || !availableTypes) {
-      return allTypeOptions;
+      return allTypeOptions.filter(option => option.value !== 'None');
     }
-    
+
     const availableTypesForOutput = availableTypes[outputIndex];
     if (!availableTypesForOutput || availableTypesForOutput.length === 0) {
-      return allTypeOptions;
+      return allTypeOptions.filter(option => option.value !== 'None');
     }
-    
-    // Filter type options to only show available ones
+
+    // Filter type options to only show available ones, always exclude None
     return allTypeOptions.filter(option => {
+      if (option.value === 'None') return false;
       const typeNames = ['None', 'Integer', 'Float', 'String', 'Boolean', 'Handle', 'Array', 'Byte', 'Object', 'Agent'];
       const typeIndex = typeNames.indexOf(option.value);
       return availableTypesForOutput.includes(typeIndex as IOType);

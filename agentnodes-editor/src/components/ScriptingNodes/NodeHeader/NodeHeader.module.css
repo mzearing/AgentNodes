@@ -16,14 +16,14 @@
 }
 
 .nodeHeader:hover {
-    background-color: var(--color-surface-hover, rgba(255, 255, 255, 0.08));
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background-color: var(--color-surface-hover);
+    box-shadow: var(--shadow-sm);
 }
 
 .nodeHeader:active {
     cursor: grabbing;
-    background-color: var(--color-surface-active, rgba(255, 255, 255, 0.12));
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    background-color: var(--color-surface-active);
+    box-shadow: var(--shadow-sm);
 }
 
 .nodeTitle {
@@ -32,7 +32,30 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-md);
+}
+
+.nodeTitle.editable {
+    cursor: text;
+}
+
+.nodeTitleInput {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--spacing-sm);
+    outline: none;
+    margin-bottom: var(--spacing-md);
+    width: 100%;
+    text-align: center;
+}
+
+.nodeTitleInput:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-alpha);
 }
 
 .dragIndicator {
