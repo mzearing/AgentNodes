@@ -1,0 +1,101 @@
+{
+  "inputs": [
+    "Integer",
+    "Integer"
+  ],
+  "outputs": [
+    "Integer"
+  ],
+  "defaults": {},
+  "instances": {
+    "18534836-e71a-47a2-9c38-1e094bdf26d0": {
+      "node_type": {
+        "Atomic": {
+          "Control": "Start"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "aad9b842-fe0c-42a5-8d64-85e7354a54be",
+        "aad9b842-fe0c-42a5-8d64-85e7354a54be"
+      ],
+      "control_flow_in": [],
+      "control_flow_out": [
+        [
+          [
+            "aad9b842-fe0c-42a5-8d64-85e7354a54be",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "aad9b842-fe0c-42a5-8d64-85e7354a54be": {
+      "node_type": {
+        "Atomic": {
+          "BinOp": "Add"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "5e52c820-9542-4807-902f-ea31822b33fe"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "18534836-e71a-47a2-9c38-1e094bdf26d0",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "5e52c820-9542-4807-902f-ea31822b33fe",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "18534836-e71a-47a2-9c38-1e094bdf26d0",
+          0
+        ],
+        [
+          "Integer",
+          "18534836-e71a-47a2-9c38-1e094bdf26d0",
+          1
+        ]
+      ]
+    },
+    "5e52c820-9542-4807-902f-ea31822b33fe": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "8cde10a5-262f-495b-9103-70c567891520"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "aad9b842-fe0c-42a5-8d64-85e7354a54be",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [],
+      "inputs": [
+        [
+          "Integer",
+          "aad9b842-fe0c-42a5-8d64-85e7354a54be",
+          0
+        ]
+      ]
+    }
+  },
+  "end_node": "5e52c820-9542-4807-902f-ea31822b33fe"
+}

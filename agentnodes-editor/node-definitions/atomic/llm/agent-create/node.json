@@ -1,14 +1,15 @@
 {
   "id": "agent-create",
   "name": "Create Agent",
-  "inputs": ["Model", "Functions", "Temperature"],
+  "inputs": ["Model", "Temperature"],
   "outputs": ["Agent"],
-  "inputTypes": [3, 6, 2],
+  "inputTypes": [3, 2],
   "outputTypes": [9],
   "variadicInputs": false,
   "variadicOutputs": false,
   "multitypeInputs": false,
   "multitypeOutputs": false,
   "constantData": [3],
+  "constantOptions": [["OpenAi"]],
   "solo": false
 }

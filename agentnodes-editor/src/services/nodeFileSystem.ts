@@ -258,7 +258,7 @@ export class NodeFileSystemService {
     return false;
   }
 
-  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; inputTypes?: IOType[]; outputTypes?: IOType[]; variadicInputs?: boolean; variadicOutputs?: boolean; multitypeInputs?: boolean; multitypeOutputs?: boolean; solo?: boolean; constantData?: IOType[] } | null> {
+  async getFreshNodeData(nodeId: string, groupId: string, category: Category): Promise<{ inputs: string[]; outputs: string[]; inputTypes?: IOType[]; outputTypes?: IOType[]; variadicInputs?: boolean; variadicOutputs?: boolean; multitypeInputs?: boolean; multitypeOutputs?: boolean; solo?: boolean; constantData?: IOType[]; constantOptions?: string[][] } | null> {
     try {
       if (window.electronAPI?.readFile) {
         const categoryPath = category.toLowerCase() as 'complex' | 'atomic';
@@ -280,7 +280,8 @@ export class NodeFileSystemService {
             multitypeInputs: node.summary.multitypeInputs,
             multitypeOutputs: node.summary.multitypeOutputs,
             solo: undefined, // Complex nodes are not solo nodes
-            constantData: node.summary.constantData || []
+            constantData: node.summary.constantData || [],
+            constantOptions: node.summary.constantOptions || undefined
           };
         } else {
           // Atomic node - get data directly
@@ -294,7 +295,8 @@ export class NodeFileSystemService {
             multitypeInputs: node.multitypeInputs,
             multitypeOutputs: node.multitypeOutputs,
             solo: node.solo,
-            constantData: node.constantData || []
+            constantData: node.constantData || [],
+            constantOptions: node.constantOptions || undefined
           };
         }
       }
@@ -438,6 +440,7 @@ export class NodeFileSystemService {
           multitypeInputs: node.multitypeInputs ?? detectMultitype(node.inputTypes),
           multitypeOutputs: node.multitypeOutputs ?? detectMultitype(node.outputTypes),
           constantData: node.constantData || [],
+          constantOptions: node.constantOptions || undefined,
           solo: node.solo || false,
           path
         };

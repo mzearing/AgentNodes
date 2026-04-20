@@ -87,6 +87,15 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Label for multi-CF-out handles (e.g. F/T for If node) */
+.cfLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
 /* Chevron shape indicator */
 .controlFlowChevron {
   width: 20px;

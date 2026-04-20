@@ -143,7 +143,7 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
 
       if (!nodeData) return;
 
-      const { nodeId, groupId, category, label, inputs, outputs, inputTypes, outputTypes, variadicInputs, variadicOutputs, multitypeInputs, multitypeOutputs, solo, constantData } = JSON.parse(nodeData);
+      const { nodeId, groupId, category, label, inputs, outputs, inputTypes, outputTypes, variadicInputs, variadicOutputs, multitypeInputs, multitypeOutputs, solo, constantData, constantOptions } = JSON.parse(nodeData);
       
       let finalInputs = inputs;
       let finalOutputs = outputs;
@@ -155,6 +155,7 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
       let finalMultitypeOutputs = multitypeOutputs;
       let finalSolo = solo;
       let finalConstantData = constantData || [];
+      let finalConstantOptions = constantOptions;
 
       if (groupId && category) {
         try {
@@ -175,7 +176,8 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
               finalMultitypeOutputs = freshNodeData.multitypeOutputs;
               finalSolo = freshNodeData.solo;
               finalConstantData = freshNodeData.constantData || [];
-              
+              finalConstantOptions = freshNodeData.constantOptions;
+
               console.log(`Updated node "${label}" with fresh data:`, {
                 inputs: finalInputs,
                 outputs: finalOutputs,
@@ -217,8 +219,12 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
       }));
 
       // Initialize constant values based on constantData
-      const initializeConstantValues = (constantData: IOType[]) => {
-        return constantData.map((type) => {
+      const initializeConstantValues = (constantData: IOType[], options?: string[][]) => {
+        return constantData.map((type, i) => {
+          // If dropdown options exist for this slot, default to the first option
+          if (options?.[i]) {
+            return { type, value: options[i][0] };
+          }
           switch (type) {
             case IOType.Integer:
               return { type, value: 0 };
@@ -248,10 +254,16 @@ export const useCanvasDrop = (nodes: Node[], onNodesChange: (nodes: Node[]) => v
         solo: finalSolo,
         metadataPath: groupId && category ? `${category.toLowerCase()}/${groupId}` : undefined,
         constantData: finalConstantData,
-        constantValues: finalConstantData && finalConstantData.length > 0 ? initializeConstantValues(finalConstantData) : undefined,
+        constantOptions: finalConstantOptions || undefined,
+        constantValues: finalConstantData && finalConstantData.length > 0 ? initializeConstantValues(finalConstantData, finalConstantOptions) : undefined,
         // Add control flow handles: input for all except start, output for all except finish
+        // If node gets dual CF outputs (False/True), all others get single CF output
         controlFlowInput: nodeId !== 'start' ? { id: `cf-in-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` } : undefined,
-        controlFlowOutput: nodeId !== 'finish' ? { id: `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` } : undefined,
+        controlFlowOutput: nodeId !== 'finish' && nodeId !== 'if-condition' ? { id: `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` } : undefined,
+        controlFlowOutputs: nodeId === 'if-condition' ? [
+          { id: `cf-out-false-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` },
+          { id: `cf-out-true-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` }
+        ] : undefined,
       };
 
       const newNode: Node = {

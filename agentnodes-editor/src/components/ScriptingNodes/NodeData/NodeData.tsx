@@ -9,6 +9,7 @@ interface ConstantDataValue {
 
 interface NodeDataProps {
   constantData: IOType[];
+  constantOptions?: string[][];
   constantValues?: ConstantDataValue[];
   onConstantValuesChange?: (values: ConstantDataValue[]) => void;
 }
@@ -30,6 +31,7 @@ const getDefaultValue = (type: IOType): string | number | boolean => {
 
 const NodeData: React.FC<NodeDataProps> = ({
   constantData,
+  constantOptions,
   constantValues = [],
   onConstantValuesChange
 }) => {
@@ -55,7 +57,22 @@ const NodeData: React.FC<NodeDataProps> = ({
 
   const renderInput = React.useCallback((type: IOType, index: number) => {
     const value = getValue(index, type);
-    
+
+    // Render dropdown if constantOptions exist for this slot
+    if (constantOptions?.[index]) {
+      return (
+        <select
+          value={String(value)}
+          onChange={(e) => handleValueChange(index, e.target.value, type)}
+          className={styles.selectInput}
+        >
+          {constantOptions[index].map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      );
+    }
+
     switch (type) {
       case IOType.Integer:
         return (
@@ -101,7 +118,7 @@ const NodeData: React.FC<NodeDataProps> = ({
       default:
         return null;
     }
-  }, [getValue, handleValueChange]);
+  }, [getValue, handleValueChange, constantOptions]);
 
   if (constantData.length === 0 || constantData.every(type => type === IOType.None)) {
     return null;

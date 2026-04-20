@@ -1,7 +1,6 @@
 import { ReactFlowJsonObject, Node, Edge } from '@xyflow/react';
 import { IOType } from '../types/project';
 import { v4 as uuidv4 } from 'uuid';
-import { determineConnectionStrength } from '../utils/connectionUtils';
 import { configurationService } from './configurationService';
 
 export interface CompilationResult {
@@ -11,8 +10,8 @@ export interface CompilationResult {
 }
 
 export interface CompiledProgram {
-  inputs: string[];
-  outputs: string[];
+  inputs: any[];
+  outputs: any[];
   defaults: Record<string, any>;
   instances: Record<string, CompiledInstance>;
   end_node: string;
@@ -21,19 +20,20 @@ export interface CompiledProgram {
 export interface CompiledInstance {
   node_type: NodeType;
   default_overrides: Record<string, any>;
-  outputs: any[];
-  inputs: Array<[any, string, number, boolean]>; // Updated to include strong boolean
+  outputs: string[];                              // UUID strings, one per downstream data consumer
+  control_flow_in: Array<Array<[string, number]>>;
+  control_flow_out: Array<Array<[string, number]>>;
+  inputs: Array<[any, string, number]>;           // 3-tuples: [DataType, sourceUuid, sourcePort]
 }
 
-export type NodeType = 
+export type NodeType =
   | { Atomic: string }
   | { Atomic: { Value: any } }
   | { Atomic: { BinOp: string } }
   | { Atomic: { UnaryOp: string } }
   | { Atomic: { Control: string } }
-  | { Atomic: { Control: { WaitForInit: [string, string, number, boolean] } } }
-  | { Atomic: { Control: { While: [string, string, number, boolean] } } }
-  | { Atomic: { Control: { If: [string, string, number, boolean] } } }
+  | { Atomic: { Control: { Loop: string } } }
+  | { Atomic: { Control: { Loop: { Continue: string } } } }
   | { Atomic: { Variable: [string, string] } }
   | { Atomic: { Io: string | { Open: string } } }
   | { Atomic: { Cast: string } }
@@ -57,122 +57,508 @@ export class CompilationService {
   }
 
   /**
-   * Compiles a canvas (React Flow data) into the backend format
+   * Compiles a canvas (React Flow data) into the backend format.
+   *
+   * Multi-pass pipeline:
+   *   1. UUID assignment (+ synthesized Loop::Continue UUIDs for while-loop nodes)
+   *   2. Build node metadata (node type, data output types, CF out port count)
+   *   3. Classify edges → build CF and data connection maps
+   *   3.5. Eliminate Break nodes (rewire CF edges through them)
+   *   4. Synthesize Loop::Continue instances
+   *   5. Fix End node outputs count
+   *   6. Insert automatic casts
+   *   7. Assemble final instances
    */
   async compile(canvasData: ReactFlowJsonObject<Node, Edge>, isComplexNode = false, outputPath?: string): Promise<CompilationResult> {
     try {
-      // Store the output directory for relative path computation
       if (outputPath) {
         this.currentOutputDir = outputPath.substring(0, outputPath.lastIndexOf('/'));
       }
-      console.log('CompilationService.compile called with:', canvasData);
-      
-      // Debug: Log the actual node mappings and connections
-      console.log('DEBUG: All nodes in canvas:');
-      canvasData.nodes.forEach((node: any) => {
-        console.log(`  ${node.id} (${node.data?.nodeId}): ${node.data?.name || 'unnamed'}`);
-      });
-      
-      console.log('DEBUG: All edges in canvas:');
-      canvasData.edges.forEach((edge: any) => {
-        console.log(`  ${edge.source}[${edge.sourceHandle}] → ${edge.target}[${edge.targetHandle}]`);
-      });
+
       const errors: string[] = [];
-      let instances: Record<string, CompiledInstance> = {};
-      const nodeIdMap = new Map<string, string>(); // Maps canvas node IDs to UUIDs
-      
-      // Validate canvas data structure
-      if (!canvasData || !canvasData.nodes || !Array.isArray(canvasData.nodes)) {
+
+      // --- Validation ---
+      if (!canvasData?.nodes || !Array.isArray(canvasData.nodes)) {
         return { success: false, errors: ['Invalid canvas data: missing or invalid nodes array'] };
       }
-      
-      if (!canvasData.edges || !Array.isArray(canvasData.edges)) {
+      if (!canvasData?.edges || !Array.isArray(canvasData.edges)) {
         return { success: false, errors: ['Invalid canvas data: missing or invalid edges array'] };
       }
-      
-      // Start and finish nodes are optional for compilation
-      
-      // First pass: Create UUIDs for all nodes and identify variables
-      const variableNodes: Node[] = [];
+
+      // ====== Pass 1: UUID assignment ======
+      const nodeIdMap = new Map<string, string>();       // canvasId → UUID
+      const loopContinueMap = new Map<string, string>(); // canvasId (while-loop) → continueUUID
+      const breakNodeSet = new Set<string>();            // canvas IDs of break nodes
+
       for (const node of canvasData.nodes) {
+        if (!node.id) { errors.push('Node is missing id property'); continue; }
+        if (!node.data?.nodeId) { errors.push(`Node ${node.id} is missing nodeId`); continue; }
+
         const uuid = uuidv4();
         nodeIdMap.set(node.id, uuid);
-        console.log(`DEBUG: Canvas node ${node.id} (${node.data?.nodeId}) → UUID ${uuid}`);
-        
-        // Basic validation
-        if (!node.data?.nodeId) {
-          errors.push(`Node ${node.id} is missing nodeId`);
-          continue;
+
+        // Variable nodes in complex nodes are forbidden
+        const nd = node.data as any;
+        if (nd.isVariableNode && isComplexNode) {
+          errors.push(`Variable nodes (${nd.label || 'Unknown'}) are not supported inside complex node groups.`);
         }
-        
-        if (!node.id) {
-          errors.push(`Node is missing id property`);
-          continue;
+
+        // For while-loop nodes, pre-generate Continue UUID
+        if (nd.nodeId === 'while-loop') {
+          loopContinueMap.set(node.id, uuidv4());
         }
-        
-        // Collect variable get/set nodes
-        const nodeData = node.data as any;
-        if (nodeData.isVariableNode) {
-          variableNodes.push(node);
-          
-          // Error if trying to use variables in complex nodes
-          if (isComplexNode) {
-            errors.push(`Variable nodes (${nodeData.label || 'Unknown'}) are not supported inside complex node groups. Variables can only be used in main programs.`);
-          }
+
+        // Track break nodes for elimination
+        if (nd.nodeId === 'break') {
+          breakNodeSet.add(node.id);
         }
       }
-      
-      // Don't create separate declaration nodes - variables will be handled during compilation
-      
-      // Validate edges reference valid nodes
+
+      // Validate edge endpoints
       for (const edge of canvasData.edges) {
-        if (!nodeIdMap.has(edge.source)) {
-          errors.push(`Edge references invalid source node: ${edge.source}`);
-        }
-        if (!nodeIdMap.has(edge.target)) {
-          errors.push(`Edge references invalid target node: ${edge.target}`);
-        }
+        if (!nodeIdMap.has(edge.source)) errors.push(`Edge references invalid source node: ${edge.source}`);
+        if (!nodeIdMap.has(edge.target)) errors.push(`Edge references invalid target node: ${edge.target}`);
       }
-      
-      // Early return if there are validation errors
-      if (errors.length > 0) {
-        return { success: false, errors };
+
+      if (errors.length > 0) return { success: false, errors };
+
+      // ====== Pass 2: Build node metadata ======
+      // Per-UUID data: nodeType, dataOutputTypes (for type-checking), cfOutPortCount
+      interface NodeMeta {
+        nodeType: NodeType;
+        dataOutputTypes: any[];   // backend type strings for each data output port
+        cfOutPortCount: number;   // number of CF out ports (0 for End, 2 for If, 1 for most)
       }
-      
-      // Second pass: Compile each node (skip variable nodes in complex nodes)
+
+      const metaMap = new Map<string, NodeMeta>();       // UUID → metadata
+
       for (const node of canvasData.nodes) {
         const uuid = nodeIdMap.get(node.id);
         if (!uuid) continue;
-        
-        // Skip variable nodes when compiling complex nodes
-        const nodeData = node.data as any;
-        if (isComplexNode && nodeData.isVariableNode) {
-          continue;
-        }
-        
-        const compiledInstance = await this.compileNode(node, canvasData.edges, nodeIdMap, canvasData.nodes);
-        if (compiledInstance.success && compiledInstance.instance) {
-          instances[uuid] = compiledInstance.instance;
+
+        const nd = node.data as any;
+        if (isComplexNode && nd.isVariableNode) continue;
+
+        const nodeId = nd.nodeId as string;
+        const metadataPath = nd.metadataPath as string | undefined;
+        const constantValues = nd.constantValues;
+
+        // Determine node type (simplified — no edge params needed)
+        const nodeType = this.determineNodeType(nodeId, metadataPath, constantValues, node);
+
+        // Determine data output types (for type-checking / auto-cast)
+        let dataOutputTypes: any[];
+        if (nodeId === 'finish') {
+          dataOutputTypes = this.mapIOTypes(nd.inputs || []);
+        } else if (nodeId.startsWith('variable_set_')) {
+          dataOutputTypes = [];
+        } else if (nodeId.startsWith('variable_get_')) {
+          dataOutputTypes = this.mapIOTypes(nd.outputs || []);
+        } else if (metadataPath?.startsWith('complex/')) {
+          // Read output types from compiled.json for type-checking
+          try {
+            const groupId = metadataPath.split('/')[1];
+            const compiledPath = `${configurationService.getNodeDefinitionsPath()}/complex/${groupId}/${nodeId}/compiled.json`;
+            if (window.electronAPI?.readFile) {
+              const content = await window.electronAPI.readFile(compiledPath);
+              const compiled = JSON.parse(content);
+              dataOutputTypes = compiled.outputs || [];
+            } else {
+              throw new Error('Electron API not available');
+            }
+          } catch {
+            dataOutputTypes = ['None'];
+          }
         } else {
-          errors.push(...(compiledInstance.errors || [`Failed to compile node ${node.id}`]));
+          dataOutputTypes = this.mapIOTypes(nd.outputs || []);
+        }
+
+        // CF out port count
+        let cfOutPortCount: number;
+        if (nodeId === 'finish') {
+          cfOutPortCount = 0;
+        } else if (nodeId === 'if-condition') {
+          cfOutPortCount = nd.controlFlowOutputs?.length || 2;
+        } else if (nodeId === 'while-loop') {
+          // Loop::Start has 1 CF out (→ body)
+          cfOutPortCount = 1;
+        } else if (nd.controlFlowOutput) {
+          cfOutPortCount = 1;
+        } else {
+          cfOutPortCount = 0;
+        }
+
+        // while-loop (Loop::Start) has no data outputs
+        if (nodeId === 'while-loop') {
+          dataOutputTypes = [];
+        }
+
+        metaMap.set(uuid, { nodeType, dataOutputTypes, cfOutPortCount });
+      }
+
+      // ====== Pass 3: Classify edges and build connection maps ======
+      // Per-UUID accumulators
+      const outputsMap = new Map<string, string[]>();                     // UUID → consumer UUIDs
+      const inputsMap = new Map<string, Array<[any, string, number]>>(); // UUID → data inputs
+      const cfInMap = new Map<string, Array<Array<[string, number]>>>();  // UUID → cf_in ports
+      const cfOutMap = new Map<string, Array<Array<[string, number]>>>(); // UUID → cf_out ports
+
+      // Also accumulate for synthesized Continue nodes
+      const continueNodeCfIn = new Map<string, Array<[string, number]>>(); // continueUUID → cf_in[0] sources
+
+      // Initialize accumulators for all nodes
+      for (const [canvasId, uuid] of nodeIdMap) {
+        outputsMap.set(uuid, []);
+        inputsMap.set(uuid, []);
+
+        const canvasNode = canvasData.nodes.find(n => n.id === canvasId);
+        const canvasNodeId = (canvasNode?.data as any)?.nodeId;
+
+        // Start node has no CF-in ports (auto-triggers); all others have 1 CF-in port
+        if (canvasNodeId === 'start') {
+          cfInMap.set(uuid, []);
+        } else {
+          cfInMap.set(uuid, [[]]);
+        }
+
+        // Initialize cf_out based on port count
+        const meta = metaMap.get(uuid);
+        const cfOutCount = meta?.cfOutPortCount ?? 0;
+        cfOutMap.set(uuid, Array.from({ length: cfOutCount }, () => []));
+      }
+
+      // Initialize Continue node accumulators
+      for (const [_canvasId, contUuid] of loopContinueMap) {
+        continueNodeCfIn.set(contUuid, []);
+      }
+
+      // Classify each edge
+      for (const edge of canvasData.edges) {
+        const sourceCanvasId = edge.source;
+        const targetCanvasId = edge.target;
+        const sourceUuid = nodeIdMap.get(sourceCanvasId)!;
+        const targetUuid = nodeIdMap.get(targetCanvasId)!;
+        if (!sourceUuid || !targetUuid) continue;
+
+        const sourceNode = canvasData.nodes.find(n => n.id === sourceCanvasId);
+        const targetNode = canvasData.nodes.find(n => n.id === targetCanvasId);
+        if (!sourceNode || !targetNode) continue;
+
+        const sourceData = sourceNode.data as any;
+        const targetData = targetNode.data as any;
+
+        // Is this a CF edge?
+        const isSourceCF = sourceData.controlFlowOutput?.id === edge.sourceHandle ||
+          (sourceData.controlFlowOutputs?.some((h: any) => h.id === edge.sourceHandle) ?? false);
+        const isTargetCF = targetData.controlFlowInput?.id === edge.targetHandle;
+
+        if (isSourceCF && isTargetCF) {
+          // --- Control flow edge ---
+          // Determine source CF port index
+          let sourceCfPort = 0;
+          if (sourceData.controlFlowOutputs) {
+            const idx = sourceData.controlFlowOutputs.findIndex((h: any) => h.id === edge.sourceHandle);
+            if (idx >= 0) sourceCfPort = idx;
+          }
+          // Target CF port is always 0
+
+          const targetNodeId = targetData.nodeId as string;
+
+          if (targetNodeId === 'while-loop' && loopContinueMap.has(targetCanvasId)) {
+            // Special case: if target is a while-loop, redirect CF to its Continue node
+            const contUuid = loopContinueMap.get(targetCanvasId)!;
+            // Add to continue node's cf_in
+            const contIn = continueNodeCfIn.get(contUuid)!;
+            contIn.push([sourceUuid, sourceCfPort]);
+            // Add to source's cf_out
+            const srcOut = cfOutMap.get(sourceUuid)!;
+            if (srcOut[sourceCfPort]) {
+              srcOut[sourceCfPort].push([contUuid, 0]);
+            }
+          } else {
+            // Normal CF edge
+            // Add [targetUuid, 0] to source's cf_out[sourceCfPort]
+            const srcOut = cfOutMap.get(sourceUuid)!;
+            if (srcOut[sourceCfPort]) {
+              srcOut[sourceCfPort].push([targetUuid, 0]);
+            }
+            // Add [sourceUuid, sourceCfPort] to target's cf_in[0]
+            const tgtIn = cfInMap.get(targetUuid)!;
+            tgtIn[0].push([sourceUuid, sourceCfPort]);
+          }
+        } else if (!isSourceCF && !isTargetCF) {
+          // --- Data edge ---
+          const outputIndex = this.parseOutputIndex(edge.sourceHandle, sourceCanvasId, canvasData.nodes);
+          const inputType = this.parseInputType(edge.targetHandle, targetCanvasId, canvasData.nodes);
+
+          // Add to target's inputs
+          inputsMap.get(targetUuid)!.push([inputType, sourceUuid, outputIndex]);
+          // Add consumer UUID to source's outputs
+          outputsMap.get(sourceUuid)!.push(targetUuid);
+        }
+        // Mixed CF/data edges are invalid — silently ignore
+      }
+
+      // ====== Pass 3.5: Eliminate Break nodes ======
+      // Break is a canvas-level concept — rewire CF edges through it and remove it.
+      for (const breakCanvasId of breakNodeSet) {
+        const breakUuid = nodeIdMap.get(breakCanvasId)!;
+        const breakCfIn = cfInMap.get(breakUuid)?.[0] || [];   // sources
+        const breakCfOut = cfOutMap.get(breakUuid)?.[0] || [];  // targets
+
+        // Rewire: in each source's cf_out, replace [breakUuid, 0] with break's targets
+        for (const [srcUuid, srcPort] of breakCfIn) {
+          const srcOut = cfOutMap.get(srcUuid);
+          if (srcOut?.[srcPort]) {
+            srcOut[srcPort] = srcOut[srcPort]
+              .filter(([uuid]) => uuid !== breakUuid)
+              .concat(breakCfOut);
+          }
+        }
+
+        // Rewire: in each target's cf_in, replace [breakUuid, *] with break's sources
+        for (const [tgtUuid, tgtPort] of breakCfOut) {
+          const tgtIn = cfInMap.get(tgtUuid);
+          if (tgtIn?.[tgtPort]) {
+            tgtIn[tgtPort] = tgtIn[tgtPort]
+              .filter(([uuid]) => uuid !== breakUuid)
+              .concat(breakCfIn);
+          }
+        }
+
+        // Remove break from all maps
+        metaMap.delete(breakUuid);
+        outputsMap.delete(breakUuid);
+        inputsMap.delete(breakUuid);
+        cfInMap.delete(breakUuid);
+        cfOutMap.delete(breakUuid);
+      }
+
+      // ====== Pass 4: Synthesize Loop::Continue nodes ======
+      for (const [canvasId, contUuid] of loopContinueMap) {
+        const loopStartUuid = nodeIdMap.get(canvasId)!;
+        const contCfIn = continueNodeCfIn.get(contUuid) || [];
+
+        // Continue triggers Start programmatically (trigger_processing), not via CF wiring.
+        // So Continue's control_flow_out is empty.
+        metaMap.set(contUuid, {
+          nodeType: { Atomic: { Control: { Loop: { Continue: loopStartUuid } } } },
+          dataOutputTypes: [],
+          cfOutPortCount: 0
+        });
+
+        outputsMap.set(contUuid, []);
+        inputsMap.set(contUuid, []);
+        cfInMap.set(contUuid, [contCfIn]);
+        cfOutMap.set(contUuid, []);  // empty — trigger is programmatic
+
+        // Add Continue→Start wiring in Start's cf_in
+        const startCfIn = cfInMap.get(loopStartUuid);
+        if (startCfIn && startCfIn.length > 0) {
+          startCfIn[0].push([contUuid, 0]);
         }
       }
-      
-      // Third pass: Insert automatic cast nodes where needed
-      const { updatedInstances, castErrors } = this.insertAutomaticCasts(instances, nodeIdMap);
-      instances = updatedInstances;
-      errors.push(...castErrors);
-      
-      // Determine program inputs and outputs by examining start and finish nodes
-      const { inputs, outputs } = this.extractProgramInterface(canvasData.nodes);
-      
-      // Find the end node (finish node or furthest node in graph)
-      const endNode = this.findEndNode(canvasData.nodes, canvasData.edges, nodeIdMap);
-      
+
+      // ====== Pass 5: Fix End node outputs count ======
+      // The evaluator iterates `0..outputs.len()` to collect program outputs.
+      // End node's outputs array must have length = number of program outputs.
+      const finishNode = canvasData.nodes.find(n => (n.data as any)?.nodeId === 'finish');
+      if (finishNode) {
+        const finishUuid = nodeIdMap.get(finishNode.id)!;
+        const programOutputCount = ((finishNode.data as any)?.inputs || []).length;
+        const placeholders: string[] = [];
+        for (let i = 0; i < programOutputCount; i++) {
+          placeholders.push(uuidv4());
+        }
+        outputsMap.set(finishUuid, placeholders);
+      }
+
+      // ====== Pass 6: Insert automatic casts ======
+      // Build a type lookup map: UUID → data output types
+      const outputTypesMap = new Map<string, any[]>();
+      for (const [uuid, meta] of metaMap) {
+        outputTypesMap.set(uuid, meta.dataOutputTypes);
+      }
+
+      // Build reverse map: UUID → canvas node (for multitype checks)
+      const uuidToCanvasNode = new Map<string, Node>();
+      for (const [canvasId, uuid] of nodeIdMap) {
+        const canvasNode = canvasData.nodes.find(n => n.id === canvasId);
+        if (canvasNode) uuidToCanvasNode.set(uuid, canvasNode);
+      }
+
+      // Process each node's inputs
+      const castInstances: Record<string, CompiledInstance> = {};
+      for (const [uuid] of metaMap) {
+        const nodeInputs = inputsMap.get(uuid)!;
+        const newInputs: Array<[any, string, number]> = [];
+
+        for (let i = 0; i < nodeInputs.length; i++) {
+          const [expectedType, sourceUuid, sourcePort] = nodeInputs[i];
+          const sourceTypes = outputTypesMap.get(sourceUuid);
+          const actualType = sourceTypes?.[sourcePort] || 'None';
+
+          if (!this.typesEqual(expectedType, actualType)) {
+            // Check multitype compatibility before attempting auto-cast.
+            // If the target port is multitype and accepts the source's actual type,
+            // use the actual type directly (no cast needed).
+            let multitypeResolved = false;
+            const targetCanvasNode = uuidToCanvasNode.get(uuid);
+            const targetNd = targetCanvasNode?.data as any;
+            if (targetNd?.multitypeInputs && targetNd?.availableInputTypes) {
+              const backendToIOType = this.createBackendToIOTypeMap();
+              const actualIOType = backendToIOType.get(this.normalizeType(actualType));
+              if (actualIOType !== undefined) {
+                // Find which input port this is (by matching order in inputsMap)
+                // Input ports are accumulated per-edge, so we use the handle ordering
+                const targetInputHandles = targetNd.inputs || [];
+                if (i < targetInputHandles.length) {
+                  const availableTypes: number[] | undefined = targetNd.availableInputTypes[i];
+                  if (availableTypes && availableTypes.includes(actualIOType)) {
+                    newInputs.push([actualType, sourceUuid, sourcePort]);
+                    multitypeResolved = true;
+                  }
+                }
+              }
+            }
+
+            // Also check if the source has multitype outputs that include the expected type
+            if (!multitypeResolved) {
+              const sourceCanvasNode = uuidToCanvasNode.get(sourceUuid);
+              const sourceNd = sourceCanvasNode?.data as any;
+              if (sourceNd?.multitypeOutputs && sourceNd?.availableOutputTypes) {
+                const backendToIOType = this.createBackendToIOTypeMap();
+                const expectedIOType = backendToIOType.get(this.normalizeType(expectedType));
+                if (expectedIOType !== undefined && sourcePort < (sourceNd.outputs || []).length) {
+                  const availableTypes: number[] | undefined = sourceNd.availableOutputTypes[sourcePort];
+                  if (availableTypes && availableTypes.includes(expectedIOType)) {
+                    // The source can produce the expected type — use expected type
+                    newInputs.push([expectedType, sourceUuid, sourcePort]);
+                    // Also update the source's output type map for downstream checks
+                    const srcTypes = outputTypesMap.get(sourceUuid);
+                    if (srcTypes && sourcePort < srcTypes.length) {
+                      srcTypes[sourcePort] = expectedType;
+                    }
+                    multitypeResolved = true;
+                  }
+                }
+              }
+            }
+
+            if (!multitypeResolved) {
+              if (this.canAutocast(actualType, expectedType)) {
+                const castUuid = uuidv4();
+                const castType = this.isComplexType(expectedType) ? this.normalizeType(expectedType) : expectedType;
+
+                // Create cast instance
+                castInstances[castUuid] = {
+                  node_type: { Atomic: { Cast: castType } },
+                  default_overrides: {},
+                  outputs: [uuid],      // consumer is the current node
+                  control_flow_in: [],
+                  control_flow_out: [],
+                  inputs: [[actualType, sourceUuid, sourcePort]]
+                };
+
+                // Update output types for the cast node (so downstream casts can reference it)
+                outputTypesMap.set(castUuid, [expectedType]);
+
+                // Remove consumer UUID from source's outputs, add cast UUID instead
+                const srcOutputs = outputsMap.get(sourceUuid)!;
+                const consumerIdx = srcOutputs.indexOf(uuid);
+                if (consumerIdx >= 0) srcOutputs[consumerIdx] = castUuid;
+                else srcOutputs.push(castUuid);
+
+                // Update input to point to cast node
+                newInputs.push([expectedType, castUuid, 0]);
+              } else {
+                errors.push(
+                  `Type mismatch: expected ${this.normalizeType(expectedType)}, got ${this.normalizeType(actualType)}. No automatic cast available.`
+                );
+                newInputs.push(nodeInputs[i]);
+              }
+            }
+          } else {
+            newInputs.push(nodeInputs[i]);
+          }
+        }
+
+        inputsMap.set(uuid, newInputs);
+      }
+
       if (errors.length > 0) {
+        this.currentOutputDir = undefined;
         return { success: false, errors };
       }
-      
+
+      // ====== Pass 6.5: Patch agent-create inputs ======
+      // The backend's AgentArgs::from_values expects [Model, Functions, Temperature]
+      // but the editor omits the Functions input (unimplemented in backend).
+      // Insert a None placeholder at index 1 so Temperature lands at index 2.
+      // The None Value node must be wired into the CF chain (before CreateAgent)
+      // so the backend triggers it and populates its output.
+      for (const [uuid, meta] of metaMap) {
+        const nt = meta.nodeType as any;
+        if (nt?.Atomic?.AgentOp?.Create) {
+          const nodeInputs = inputsMap.get(uuid)!;
+          const noneUuid = uuidv4();
+
+          // Read CreateAgent's CF-in sources (port 0)
+          const agentCfIn = cfInMap.get(uuid) || [[]];
+          const cfInSources: Array<[string, number]> = agentCfIn[0] || [];
+
+          // Wire None node into CF chain: sources → None → CreateAgent
+          castInstances[noneUuid] = {
+            node_type: { Atomic: { Value: null } },
+            default_overrides: {},
+            outputs: [uuid],
+            control_flow_in: cfInSources.length > 0 ? [cfInSources] : [],
+            control_flow_out: [[[uuid, 0]]],
+            inputs: []
+          };
+
+          // Update CreateAgent's CF-in to reference None instead of original sources
+          cfInMap.set(uuid, [[[noneUuid, 0]]]);
+
+          // Update original sources' CF-out to point to None instead of CreateAgent
+          for (const [srcUuid, srcPort] of cfInSources) {
+            const srcCfOut = cfOutMap.get(srcUuid);
+            if (srcCfOut?.[srcPort]) {
+              srcCfOut[srcPort] = srcCfOut[srcPort].map(
+                ([tgtUuid, tgtPort]) =>
+                  tgtUuid === uuid ? [noneUuid, tgtPort] as [string, number] : [tgtUuid, tgtPort]
+              );
+            }
+          }
+
+          outputTypesMap.set(noneUuid, ['None']);
+          nodeInputs.splice(1, 0, ['None', noneUuid, 0]);
+        }
+      }
+
+      // ====== Pass 7: Assemble final instances ======
+      let instances: Record<string, CompiledInstance> = {};
+
+      for (const [uuid, meta] of metaMap) {
+        instances[uuid] = {
+          node_type: meta.nodeType,
+          default_overrides: {},
+          outputs: outputsMap.get(uuid) || [],
+          control_flow_in: cfInMap.get(uuid) || [],
+          control_flow_out: cfOutMap.get(uuid) || [],
+          inputs: inputsMap.get(uuid) || []
+        };
+      }
+
+      // Add cast instances
+      Object.assign(instances, castInstances);
+
+      // Extract program interface
+      const { inputs, outputs } = this.extractProgramInterface(canvasData.nodes);
+
+      // Find end node
+      const endNode = this.findEndNode(canvasData.nodes, canvasData.edges, nodeIdMap);
+
       const compiledProgram: CompiledProgram = {
         inputs,
         outputs,
@@ -180,7 +566,7 @@ export class CompilationService {
         instances,
         end_node: endNode
       };
-      
+
       this.currentOutputDir = undefined;
       return { success: true, data: compiledProgram };
 
@@ -192,202 +578,75 @@ export class CompilationService {
       };
     }
   }
-  
-  private async compileNode(
-    node: Node, 
-    edges: Edge[], 
-    nodeIdMap: Map<string, string>,
-    allNodes: Node[]
-  ): { success: boolean; instance?: CompiledInstance; errors?: string[] } {
-    
-    const nodeId = node.data?.nodeId;
-    const metadataPath = node.data?.metadataPath;
-    
-    if (!nodeId) {
-      return { success: false, errors: [`Node ${node.id} missing nodeId`] };
-    }
-    
-    // Map output types - special handling for finish, print, and variable nodes
-    let outputs: (string | object)[];
-    if (nodeId === 'finish') {
-      // For finish nodes, outputs should match the program outputs (based on inputs)
-      const nodeInputs = (node.data as any)?.inputs || [];
-      outputs = this.mapIOTypes(nodeInputs);
-    } else if ((nodeId as string)?.startsWith('variable_set_')) {
-      // Variable setters have no outputs
-      outputs = [];
-    } else if ((nodeId as string)?.startsWith('variable_get_')) {
-      // Variable getters output the type they store
-      const nodeOutputs = (node.data as any)?.outputs || [];
-      outputs = this.mapIOTypes(nodeOutputs);
-    } else if ((metadataPath as string)?.startsWith('complex/')) {
-      // For complex nodes, read outputs from compiled.json
-      try {
-        const groupId = (metadataPath as string).split('/')[1];
-        const compiledPath = `${configurationService.getNodeDefinitionsPath()}/complex/${groupId}/${nodeId}/compiled.json`;
-        // Use Electron API to read the compiled.json file
-        if (window.electronAPI?.readFile) {
-          const compiledContent = await window.electronAPI.readFile(compiledPath);
-          const compiledData = JSON.parse(compiledContent);
-          outputs = compiledData.outputs || [];
-        } else {
-          throw new Error('Electron API not available');
-        }
-      } catch (error) {
-        console.warn(`Failed to read outputs for complex node ${nodeId}:`, error);
-        outputs = ['None']; // Fallback
-      }
-    } else {
-      const nodeOutputs = (node.data as any)?.outputs || [];
-      outputs = this.mapIOTypes(nodeOutputs);
-    }
 
-    // Append "None" for control flow output (separate from data outputs)
-    const nodeData = node.data as any;
-    if (nodeData?.controlFlowOutput) {
-      outputs.push('None');
-    }
-    
-    // Find input connections (strength determination now handled by shared logic)
-    let inputConnections: Array<[any, string, number, boolean]>;
-    
-    if ((nodeId as string)?.startsWith('variable_get_')) {
-      // Variable getters have no inputs
-      inputConnections = [];
-    } else {
-      // All other nodes get connections with strength determined by shared logic
-      inputConnections = this.findInputConnections(node.id, edges, nodeIdMap, allNodes);
-    }
-    
-    // Determine node type based on metadata and nodeId, passing node info for connection-based types
-    const nodeType = this.determineNodeType(nodeId as string, metadataPath as string, (node.data as any)?.constantValues, node, edges, nodeIdMap, allNodes);
-    
-    const instance: CompiledInstance = {
-      node_type: nodeType,
-      default_overrides: {},
-      outputs,
-      inputs: inputConnections
-    };
-    
-    return { success: true, instance };
-  }
-  
-  private determineNodeType(nodeId: string, metadataPath?: string, constantValues?: any[], node?: Node, edges?: Edge[], nodeIdMap?: Map<string, string>, allNodes?: Node[]): NodeType {
-    // Handle control flow nodes
-    if (nodeId === 'start') {
-      return { Atomic: { Control: 'Start' } };
-    }
-    
-    if (nodeId === 'finish') {
-      return { Atomic: { Control: 'End' } };
-    }
-    
-    // Handle constant value nodes
-    if (metadataPath === 'atomic/constants' && constantValues && constantValues.length > 0) {
+  // ─── Node type determination (no edge params needed) ───
+
+  private determineNodeType(nodeId: string, metadataPath?: string, constantValues?: any[], node?: Node): NodeType {
+    if (nodeId === 'start') return { Atomic: { Control: 'Start' } };
+    if (nodeId === 'finish') return { Atomic: { Control: 'End' } };
+
+    if (metadataPath === 'atomic/constants' && constantValues?.length) {
       return { Atomic: { Value: constantValues[0].value } };
     }
-    
-    // Handle specific atomic nodes with operation selection
+
     if (nodeId === 'binary-operation') {
       const opMap: Record<string, string> = {
         '+': 'Add', '-': 'Sub', '*': 'Mul', '/': 'Div', '**': 'Pow', '%': 'Mod',
         'Add': 'Add', 'Sub': 'Sub', 'Mul': 'Mul', 'Div': 'Div', 'Pow': 'Pow', 'Mod': 'Mod'
       };
-      const operation = constantValues?.[0]?.value || 'Add';
-      const finalOp = opMap[operation] || 'Add';
-      return { Atomic: { BinOp: finalOp } };
+      return { Atomic: { BinOp: opMap[constantValues?.[0]?.value] || 'Add' } };
     }
-    
+
     if (nodeId === 'unary-operation') {
-      // Extract operation from constantValues 
-      const operation = constantValues?.[0]?.value || 'Neg';
-      const validOps = ['Neg'];
-      const finalOp = validOps.includes(operation) ? operation : 'Neg';
-      return { Atomic: { UnaryOp: finalOp } };
+      const op = constantValues?.[0]?.value || 'Neg';
+      return { Atomic: { UnaryOp: ['Neg'].includes(op) ? op : 'Neg' } };
     }
-    
+
     if (nodeId === 'logical-operation') {
       const opMap: Record<string, string> = {
-        'and': 'And', 'or': 'Or', 'xor': 'Xor', 'not': 'Not', 'eq': 'Eq',
-        'And': 'And', 'Or': 'Or', 'Xor': 'Xor', 'Not': 'Not', 'Eq': 'Eq'
+        'and': 'And', 'or': 'Or', 'xor': 'Xor', 'not': 'Not', 'eq': 'Eq', 'neq': 'Neq',
+        'And': 'And', 'Or': 'Or', 'Xor': 'Xor', 'Not': 'Not', 'Eq': 'Eq', 'Neq': 'Neq'
       };
-      const operation = constantValues?.[0]?.value || 'And';
-      const finalOp = opMap[operation] || 'And';
-      return { Atomic: { LogicalOp: finalOp } };
+      return { Atomic: { LogicalOp: opMap[constantValues?.[0]?.value] || 'And' } };
     }
-    
-    if (nodeId === 'print') {
-      return { Atomic: 'Print' };
+
+    if (nodeId === 'print') return { Atomic: 'Print' };
+    if (nodeId === 'replace') return { Atomic: 'Replace' };
+    if (nodeId === 'is-none') return { Atomic: 'IsNone' };
+
+    if (nodeId.startsWith('variable_set_')) {
+      const name = (node?.data as any)?.variableName || nodeId.replace('variable_set_', '');
+      return { Atomic: { Variable: ['Set', name] } };
     }
-    
-    if (nodeId === 'replace') {
-      return { Atomic: 'Replace' };
+    if (nodeId.startsWith('variable_get_')) {
+      const name = (node?.data as any)?.variableName || nodeId.replace('variable_get_', '');
+      return { Atomic: { Variable: ['Get', name] } };
     }
-    
-    if (nodeId === 'is-none') {
-      return { Atomic: 'IsNone' };
-    }
-    
-    // Handle variable setter nodes
-    if (nodeId?.startsWith('variable_set_')) {
-      const variableName = (node?.data as any)?.variableName || nodeId.replace('variable_set_', '');
-      return { Atomic: { Variable: ["Set", variableName] } };
-    }
-    
-    // Handle variable getter nodes
-    if ((nodeId as string)?.startsWith('variable_get_')) {
-      const variableName = (node?.data as any)?.variableName || nodeId.replace('variable_get_', '');
-      return { Atomic: { Variable: ["Get", variableName] } };
-    }
-    
-    // IO operations
-    if (nodeId === 'tcp-socket') {
-      return { Atomic: { Io: { Open: 'TcpSocket' } } };
-    }
-    
-    if (nodeId === 'file-open') {
-      return { Atomic: { Io: { Open: 'File' } } };
-    }
-    
-    if (nodeId === 'get-line') {
-      return { Atomic: { Io: 'GetLine' } };
-    }
-    
-    if (nodeId === 'write') {
-      return { Atomic: { Io: 'Write' } };
-    }
-    
-    if (nodeId === 'read') {
-      return { Atomic: { Io: 'Read' } };
-    }
-    
-    if (nodeId === 'console-input') {
-      return { Atomic: { Io: 'ConsoleInput' } };
-    }
-    
-    // Control flow nodes with connections
-    if (nodeId === 'while-loop') {
-      // While loops need [DataType, uuid, usize] format for body execution
-      // Use syntactic sugar: automatically resolve the body connection
-      const bodyConnection = this.findControlFlowBodyConnection(node!, edges!, nodeIdMap!, allNodes!);
-      return { Atomic: { Control: { While: bodyConnection } } };
-    }
-    
-    if (nodeId === 'if-condition') {
-      // If conditions need [DataType, uuid, usize] format for then branch
-      // Use syntactic sugar: automatically resolve the then branch connection
-      const thenConnection = this.findControlFlowBodyConnection(node!, edges!, nodeIdMap!, allNodes!);
-      return { Atomic: { Control: { If: thenConnection } } };
-    }
-    
+
+    // IO
+    if (nodeId === 'tcp-socket') return { Atomic: { Io: { Open: 'TcpSocket' } } };
+    if (nodeId === 'file-open') return { Atomic: { Io: { Open: 'File' } } };
+    if (nodeId === 'get-line') return { Atomic: { Io: 'GetLine' } };
+    if (nodeId === 'write') return { Atomic: { Io: 'Write' } };
+    if (nodeId === 'read') return { Atomic: { Io: 'Read' } };
+    if (nodeId === 'console-input') return { Atomic: { Io: 'ConsoleInput' } };
+
+    // Control: Loop::Start (while-loop canvas node becomes Loop::Start)
+    if (nodeId === 'while-loop') return { Atomic: { Control: { Loop: 'Start' } } };
+
+    // Break: placeholder (eliminated in Pass 3.5 before final output)
+    if (nodeId === 'break') return { Atomic: { Control: 'Start' } }; // never reaches output
+
+    // Control: If (uses custom_control, no payload)
+    if (nodeId === 'if-condition') return { Atomic: { Control: 'If' } };
+
+    // Skip wait-for-init (removed from backend)
     if (nodeId === 'wait-for-init') {
-      // Wait for init needs [DataType, uuid, usize] format
-      // Use syntactic sugar: automatically resolve the target connection
-      const targetConnection = this.findControlFlowBodyConnection(node!, edges!, nodeIdMap!, allNodes!);
-      return { Atomic: { Control: { WaitForInit: targetConnection } } };
+      console.warn('wait-for-init node encountered — skipping (removed from backend)');
+      return { Atomic: { Control: 'Start' } }; // fallback
     }
-    
-    // Handle complex nodes
+
+    // Complex nodes
     if (metadataPath?.startsWith('complex/')) {
       const groupId = metadataPath.split('/')[1];
       const nodeDefPath = configurationService.getNodeDefinitionsPath();
@@ -395,134 +654,66 @@ export class CompilationService {
       if (this.currentOutputDir) {
         return { Complex: this.computeRelativePath(this.currentOutputDir, childPath) };
       }
-      // Fallback: assume parent is directly under nodeDefinitionsPath
       return { Complex: `complex/${groupId}/${nodeId}/compiled.json` };
     }
-    
-    // Handle agent operations
+
+    // Agent operations
     if (nodeId === 'agent-create') {
-      // Extract agent type from constantValues or default to OpenAi
-      const agentType = constantValues?.[0]?.value || 'OpenAi';
-      return { Atomic: { AgentOp: { Create: agentType } } };
+      return { Atomic: { AgentOp: { Create: constantValues?.[0]?.value || 'OpenAi' } } };
     }
-    
-    if (nodeId === 'agent-send') {
-      return { Atomic: { AgentOp: 'Send' } };
-    }
-    
-    if (nodeId === 'agent-receive') {
-      return { Atomic: { AgentOp: 'Recieve' } };
-    }
-    
-    // Default to atomic with the nodeId
+    if (nodeId === 'agent-send') return { Atomic: { AgentOp: 'Send' } };
+    if (nodeId === 'agent-receive') return { Atomic: { AgentOp: 'Recieve' } };
+
     return { Atomic: nodeId };
   }
 
-  private findInputConnections(
-    nodeId: string,
-    edges: Edge[],
-    nodeIdMap: Map<string, string>,
-    allNodes: Node[]
-  ): Array<[any, string, number, boolean]> {
+  // ─── Helpers ───
 
-    const connections: Array<[any, string, number, boolean]> = [];
+  private parseOutputIndex(sourceHandle: string | null | undefined, sourceNodeId?: string, allNodes?: Node[]): number {
+    if (!sourceHandle) return 0;
 
-    // Find all edges that target this node
-    const incomingEdges = edges.filter(edge => edge.target === nodeId);
-
-    for (const edge of incomingEdges) {
-      const sourceUuid = nodeIdMap.get(edge.source);
-      if (!sourceUuid) continue;
-
-      // Check if this is a control flow connection
-      const targetNode = allNodes.find(node => node.id === edge.target);
-      const targetData = targetNode?.data as any;
-      const isTargetControlFlow = targetData?.controlFlowInput?.id === edge.targetHandle;
-
-      // Check if source is a control flow output
-      const sourceNode = allNodes.find(node => node.id === edge.source);
-      const sourceData = sourceNode?.data as any;
-      const isSourceControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle;
-
-      if (isTargetControlFlow && isSourceControlFlow) {
-        // Control flow connection: source output index is the last index (after data outputs)
-        const sourceOutputs = sourceData?.outputs || [];
-        const cfOutputIndex = sourceOutputs.length; // control flow output is appended after data outputs
-
-        // Determine connection strength
-        const isStrong = targetNode ? determineConnectionStrength(targetNode, edge.targetHandle) : true;
-
-        connections.push(['None', sourceUuid, cfOutputIndex, isStrong]);
-        continue;
+    // Look up the actual port index by matching handle ID in the node's outputs
+    if (sourceNodeId && allNodes) {
+      const sourceNode = allNodes.find(node => node.id === sourceNodeId);
+      if (sourceNode) {
+        const nodeData = sourceNode.data as any;
+        if (nodeData?.outputs) {
+          const idx = nodeData.outputs.findIndex((out: any) => out.id === sourceHandle);
+          if (idx >= 0) return idx;
+        }
       }
-
-      // Regular data connection
-      const outputIndex = this.parseOutputIndex(edge.sourceHandle);
-      const inputType = this.parseInputType(edge.targetHandle, edge.target, allNodes);
-
-      const isStrong = targetNode ? determineConnectionStrength(targetNode, edge.targetHandle) : true;
-
-      connections.push([inputType, sourceUuid, outputIndex, isStrong]);
     }
 
-    return connections;
-  }
-  
-  private parseOutputIndex(sourceHandle: string): number {
-    // Handle format: "output-timestamp-index-randomId"
+    // Fallback: parse from handle ID format "output-{x}-{index}-{y}"
     const parts = sourceHandle.split('-');
     if (parts.length >= 3) {
-      const indexPart = parts[2];
-      const index = parseInt(indexPart, 10);
+      const index = parseInt(parts[2], 10);
       return isNaN(index) ? 0 : index;
     }
     return 0;
   }
-  
-  private parseInputType(targetHandle: string, targetNodeId: string, allNodes: Node[]): any {
-    // Find the target node
+
+  private parseInputType(targetHandle: string | null | undefined, targetNodeId: string, allNodes: Node[]): any {
+    if (!targetHandle) return 'Integer';
     const targetNode = allNodes.find(node => node.id === targetNodeId);
-    if (!targetNode) {
-      return 'Integer'; // Fallback
-    }
+    if (!targetNode) return 'Integer';
 
     const nodeData = targetNode.data as any;
-
-    // Check if target handle is a control flow input
-    if (nodeData?.controlFlowInput?.id === targetHandle) {
-      return 'None';
-    }
-
-    if (!nodeData?.inputs) {
-      return 'Integer'; // Fallback
-    }
+    if (nodeData?.controlFlowInput?.id === targetHandle) return 'None';
+    if (!nodeData?.inputs) return 'Integer';
 
     const inputs = nodeData.inputs;
+    const input = inputs.find((inp: any) => inp.id === targetHandle) || inputs[0];
+    if (!input) return 'Integer';
 
-    // Find the input by matching the handle ID to input.id
-    let inputIndex = 0;
-    for (let i = 0; i < inputs.length; i++) {
-      if (inputs[i].id === targetHandle) {
-        inputIndex = i;
-        break;
-      }
-    }
-
-    const input = inputs[inputIndex];
-    if (!input) {
-      return 'Integer'; // Fallback
-    }
-
-    // Map the input type to backend schema types
     return this.mapIOTypeToBackend(input.type);
   }
-  
-  private mapIOTypes(outputs: any[]): any[] {
-    return outputs.map(output => this.mapIOTypeToBackend(output.type));
+
+  private mapIOTypes(handles: any[]): any[] {
+    return handles.map(h => this.mapIOTypeToBackend(h.type));
   }
-  
+
   private mapIOTypeToBackend(ioType: number): string | object {
-    // Map IOType enum values to backend schema types
     switch (ioType) {
       case IOType.Integer: return 'Integer';
       case IOType.Float: return 'Float';
@@ -532,21 +723,17 @@ export class CompilationService {
       case IOType.Array: return 'Array';
       case IOType.Byte: return 'Byte';
       case IOType.Object: return 'Object';
-      case IOType.Agent: return { 'Agent': 'OpenAi' }; // Use proper Agent complex type
+      case IOType.Agent: return { 'Agent': 'OpenAi' };
       case IOType.None:
       default: return 'None';
     }
   }
 
-  
   private normalizeType(type: any): string {
-    // Convert complex types to comparable string format for type checking only
-    if (typeof type === 'object' && type !== null) {
-      return JSON.stringify(type);
-    }
+    if (typeof type === 'object' && type !== null) return JSON.stringify(type);
     return String(type);
   }
-  
+
   private isComplexType(type: any): boolean {
     return typeof type === 'object' && type !== null;
   }
@@ -556,225 +743,188 @@ export class CompilationService {
   }
 
   private canAutocast(fromType: any, toType: any): boolean {
-    // Return true if backend supports automatic casting from one type to another
     if (this.typesEqual(fromType, toType)) return true;
-    
-    // Normalize types for comparison
-    const fromTypeStr = this.normalizeType(fromType);
-    const toTypeStr = this.normalizeType(toType);
-    
-    // None type: only None <-> None (strict control flow separation)
-    if (toTypeStr === 'None') return fromTypeStr === 'None';
-    if (fromTypeStr === 'None') return false;
-    
-    
-    // Special handling for Agent types
+
+    const fromStr = this.normalizeType(fromType);
+    const toStr = this.normalizeType(toType);
+
+    if (toStr === 'None') return fromStr === 'None';
+    if (fromStr === 'None') return false;
+
     if (this.isComplexType(fromType) && this.isComplexType(toType)) {
-      // Allow Agent to Agent type compatibility
-      if (fromTypeStr.includes('"Agent"') && toTypeStr.includes('"Agent"')) {
-        return true; // Agent types are compatible with each other
-      }
-      return false; // Other complex types cannot be autocast
+      if (fromStr.includes('"Agent"') && toStr.includes('"Agent"')) return true;
+      return false;
     }
-    
-    // Complex types (objects) generally cannot be autocast to/from simple types
-    if (this.isComplexType(fromType) || this.isComplexType(toType)) {
-      return false; // No casting between complex and simple types
-    }
-    
-    // Note: The None->Boolean compatibility is overridden by the stricter None rule above
-    if (fromTypeStr === 'Integer' && toTypeStr === 'Float') return true; 
-    if (fromTypeStr === 'Float' && toTypeStr === 'Integer') return true;
-    
-    // Additional implicit conversions supported by backend arithmetic operations:
-    // These are handled automatically by the backend in binary operations
-    // String casts removed: backend try_cast doesn't support Cast("String").
-    // String concatenation is handled natively by the backend's Add operator.
-    
+    if (this.isComplexType(fromType) || this.isComplexType(toType)) return false;
+
+    if (fromStr === 'Integer' && toStr === 'Float') return true;
+    if (fromStr === 'Float' && toStr === 'Integer') return true;
+
     return false;
   }
-  
-  private createCastNode(fromType: any, toType: any): CompiledInstance {
-    // For cast nodes, we need to determine what cast type to use
-    // Complex types like Agent can't be cast, so this should rarely be used for Agent types
-    const castType = this.isComplexType(toType) ? this.normalizeType(toType) : toType;
-    return {
-      node_type: { Atomic: { Cast: castType } },
-      default_overrides: {},
-      outputs: [toType], // Preserve original format for outputs
-      inputs: [[fromType, '', 0, true]] // Will be filled by connection logic, default to strong
-    };
+
+  private createBackendToIOTypeMap(): Map<string, number> {
+    const map = new Map<string, number>();
+    map.set('Integer', IOType.Integer);
+    map.set('Float', IOType.Float);
+    map.set('String', IOType.String);
+    map.set('Boolean', IOType.Boolean);
+    map.set('Handle', IOType.Handle);
+    map.set('Array', IOType.Array);
+    map.set('Byte', IOType.Byte);
+    map.set('Object', IOType.Object);
+    map.set('None', IOType.None);
+    // Agent types are complex objects like {"Agent":"OpenAi"} — normalize to string key
+    map.set('{"Agent":"OpenAi"}', IOType.Agent);
+    return map;
   }
-  
-  private insertAutomaticCasts(
-    instances: Record<string, CompiledInstance>, 
-    _nodeIdMap: Map<string, string>
-  ): { updatedInstances: Record<string, CompiledInstance>, castErrors: string[] } {
-    const updatedInstances = { ...instances };
-    const castErrors: string[] = [];
-    
-    // Analyze each node's inputs to see if casts are needed
-    for (const [nodeId, instance] of Object.entries(updatedInstances)) {
-      const newInputs: Array<[any, string, number, boolean]> = [];
-      
-      for (let i = 0; i < instance.inputs.length; i++) {
-        const [expectedType, sourceNodeId, sourceOutputIndex, isStrong] = instance.inputs[i];
-        
-        // Find the source node and its output type
-        const sourceInstance = updatedInstances[sourceNodeId];
-        if (!sourceInstance) {
-          castErrors.push(`Cannot find source node ${sourceNodeId} for input ${i} of node ${nodeId}`);
-          newInputs.push(instance.inputs[i]);
-          continue;
-        }
-        
-        const actualType = sourceInstance.outputs[sourceOutputIndex] || 'None';
-        
-        // Check if cast is needed
-        if (!this.typesEqual(expectedType, actualType)) {
-          const expectedTypeStr = this.normalizeType(expectedType);
-          const actualTypeStr = this.normalizeType(actualType);
-          
-          // Debug: Log type information for Agent-related connections
-          if (expectedTypeStr.includes('Agent') || actualTypeStr.includes('Agent')) {
-            console.log(`DEBUG Agent connection: Node ${nodeId} input ${i} expects ${expectedTypeStr}, got ${actualTypeStr} from ${sourceNodeId}[${sourceOutputIndex}]`);
-            console.log(`Source instance outputs:`, JSON.stringify(sourceInstance.outputs, null, 2));
-            console.log(`Expected type object:`, JSON.stringify(expectedType, null, 2));
-            console.log(`Actual type object:`, JSON.stringify(actualType, null, 2));
-            console.log(`Source node type:`, JSON.stringify(sourceInstance.node_type, null, 2));
-          }
-          
-          if (this.canAutocast(actualType, expectedType)) {
-            // Insert cast node with proper UUID
-            const castNodeId = uuidv4(); // Use proper UUID instead of custom format
-            const castInstance = this.createCastNode(actualType, expectedType);
-            castInstance.inputs = [[actualType, sourceNodeId, sourceOutputIndex, isStrong]];
-            
-            updatedInstances[castNodeId] = castInstance;
-            newInputs.push([expectedType, castNodeId, 0, isStrong]);
-            
-            console.log(`Inserted automatic cast from ${actualTypeStr} to ${expectedTypeStr} for node ${nodeId} input ${i} (cast node: ${castNodeId})`);
-          } else {
-            // Type mismatch that can't be automatically resolved
-            castErrors.push(
-              `Type mismatch for node ${nodeId} input ${i}: expected ${expectedTypeStr}, got ${actualTypeStr}. ` +
-              `No automatic cast available.`
-            );
-            newInputs.push(instance.inputs[i]);
-          }
-        } else {
-          // Types match, no cast needed
-          newInputs.push(instance.inputs[i]);
-        }
+
+  /**
+   * Bakes user-provided input values into a compiled program by replacing
+   * Start node data outputs with Value constant nodes. This allows programs
+   * with inputs to run on a backend that always passes empty inputs.
+   */
+  bakeInputValues(program: CompiledProgram, values: any[]): CompiledProgram {
+    const modified: CompiledProgram = JSON.parse(JSON.stringify(program));
+
+    if (values.length === 0 || modified.inputs.length === 0) return modified;
+
+    // Find the Start node UUID
+    let startUuid: string | null = null;
+    for (const [uuid, instance] of Object.entries(modified.instances)) {
+      const nt = instance.node_type as any;
+      if (nt?.Atomic?.Control === 'Start') {
+        startUuid = uuid;
+        break;
       }
-      
-      // Update the instance with new inputs (potentially going through cast nodes)
-      updatedInstances[nodeId] = {
-        ...instance,
-        inputs: newInputs
+    }
+    if (!startUuid) return modified;
+
+    const startInstance = modified.instances[startUuid];
+
+    // Capture ALL of Start's original CF targets before we modify anything
+    const originalCfTargets: Array<[string, number]> = startInstance.control_flow_out[0] || [];
+
+    // Create Value nodes for each input
+    const valueUuids: string[] = [];
+    for (let i = 0; i < values.length; i++) {
+      const valueUuid = uuidv4();
+      valueUuids.push(valueUuid);
+
+      modified.instances[valueUuid] = {
+        node_type: { Atomic: { Value: values[i] } },
+        default_overrides: {},
+        outputs: [],
+        control_flow_in: [],
+        control_flow_out: [],
+        inputs: []
       };
     }
-    
-    return { updatedInstances, castErrors };
+
+    // Replace all data input references from Start → Value nodes
+    for (const instance of Object.values(modified.instances)) {
+      for (let j = 0; j < instance.inputs.length; j++) {
+        const [type, srcUuid, srcPort] = instance.inputs[j];
+        if (srcUuid === startUuid && srcPort < valueUuids.length) {
+          instance.inputs[j] = [type, valueUuids[srcPort], 0];
+        }
+      }
+    }
+
+    // Build outputs (consumer lists) for each Value node
+    for (let i = 0; i < valueUuids.length; i++) {
+      const consumers: string[] = [];
+      for (const [uuid, instance] of Object.entries(modified.instances)) {
+        for (const input of instance.inputs) {
+          if (input[1] === valueUuids[i] && !consumers.includes(uuid)) {
+            consumers.push(uuid);
+          }
+        }
+      }
+      modified.instances[valueUuids[i]].outputs = consumers;
+    }
+
+    // Clear Start's data outputs (they now come from Value nodes)
+    startInstance.outputs = [];
+
+    // Wire CF chain: Start → Value1 → Value2 → ... → (ALL original CF targets)
+    if (valueUuids.length > 0) {
+      // Start → first Value node
+      startInstance.control_flow_out = [[[valueUuids[0], 0]]];
+
+      for (let i = 0; i < valueUuids.length; i++) {
+        const prevUuid = i === 0 ? startUuid : valueUuids[i - 1];
+        const isLast = i === valueUuids.length - 1;
+
+        // CF in: from previous node
+        modified.instances[valueUuids[i]].control_flow_in = [[[prevUuid, 0]]];
+
+        // CF out: to next Value node, or to ALL original targets
+        if (isLast && originalCfTargets.length > 0) {
+          modified.instances[valueUuids[i]].control_flow_out = [originalCfTargets];
+        } else if (!isLast) {
+          modified.instances[valueUuids[i]].control_flow_out = [[[valueUuids[i + 1], 0]]];
+        } else {
+          modified.instances[valueUuids[i]].control_flow_out = [[]];
+        }
+      }
+
+      // Fix ALL original CF targets' cf_in: replace Start with last Value node
+      const lastValueUuid = valueUuids[valueUuids.length - 1];
+      for (const [targetUuid, targetPort] of originalCfTargets) {
+        const targetInstance = modified.instances[targetUuid];
+        if (targetInstance?.control_flow_in?.[targetPort]) {
+          targetInstance.control_flow_in[targetPort] =
+            targetInstance.control_flow_in[targetPort].map(
+              ([uuid, port]: [string, number]) =>
+                uuid === startUuid ? [lastValueUuid, 0] : [uuid, port]
+            );
+        }
+      }
+    }
+
+    // Clear program inputs (backend no longer needs to provide them)
+    modified.inputs = [];
+
+    return modified;
   }
-  
-  private extractProgramInterface(nodes: Node[]): { inputs: string[], outputs: string[] } {
-    let inputs: string[] = [];
-    let outputs: string[] = [];
-    
-    // Find start node for inputs
-    const startNode = nodes.find(node => node.data?.nodeId === 'start');
+
+  private extractProgramInterface(nodes: Node[]): { inputs: any[], outputs: any[] } {
+    let inputs: any[] = [];
+    let outputs: any[] = [];
+
+    const startNode = nodes.find(node => (node.data as any)?.nodeId === 'start');
     if (startNode && (startNode.data as any)?.outputs) {
       inputs = this.mapIOTypes((startNode.data as any).outputs);
     }
-    
-    // Find finish node for outputs  
-    const finishNode = nodes.find(node => node.data?.nodeId === 'finish');
+
+    const finishNode = nodes.find(node => (node.data as any)?.nodeId === 'finish');
     if (finishNode && (finishNode.data as any)?.inputs) {
       outputs = this.mapIOTypes((finishNode.data as any).inputs);
     }
-    
+
     return { inputs, outputs };
   }
-  
-  private findControlFlowBodyConnection(
-    node: Node,
-    edges: Edge[],
-    nodeIdMap: Map<string, string>,
-    allNodes: Node[]
-  ): [any, string, number, boolean] {
-    const nodeData = node.data as any;
-
-    // First, check for control flow output handle connections
-    if (nodeData?.controlFlowOutput) {
-      const cfOutId = nodeData.controlFlowOutput.id;
-      const cfEdge = edges.find(edge => edge.source === node.id && edge.sourceHandle === cfOutId);
-      if (cfEdge) {
-        const targetNodeId = nodeIdMap.get(cfEdge.target);
-        if (targetNodeId) {
-          // Control flow output index is after all data outputs
-          const dataOutputs = nodeData?.outputs || [];
-          const cfOutputIndex = dataOutputs.length;
-          return ['None', targetNodeId, cfOutputIndex, true];
-        }
-      }
-    }
-
-    // Fallback: find any outgoing edge (legacy behavior)
-    const outgoingEdges = edges.filter(edge => edge.source === node.id);
-
-    if (outgoingEdges.length > 0) {
-      const targetEdge = outgoingEdges[0];
-      const targetNodeId = nodeIdMap.get(targetEdge.target);
-      const outputIndex = this.parseOutputIndex(targetEdge.sourceHandle);
-
-      if (targetNodeId) {
-        const inputType = this.parseInputType(targetEdge.targetHandle, targetEdge.target, allNodes);
-        return [inputType, targetNodeId, outputIndex, true];
-      }
-    }
-
-    // Fallback to default connection
-    return ['None', '00000000-0000-0000-0000-000000000000', 0, true];
-  }
-
 
   private findEndNode(nodes: Node[], edges: Edge[], nodeIdMap: Map<string, string>): string {
-    // First, try to find a finish node
-    const finishNode = nodes.find(node => node.data?.nodeId === 'finish');
+    const finishNode = nodes.find(node => (node.data as any)?.nodeId === 'finish');
     if (finishNode) {
-      const endNodeUuid = nodeIdMap.get(finishNode.id);
-      if (endNodeUuid) {
-        return endNodeUuid;
-      }
+      const uuid = nodeIdMap.get(finishNode.id);
+      if (uuid) return uuid;
     }
-    
-    // If no finish node, find the node that has no outgoing connections (furthest in graph)
+
     const nodesWithOutgoing = new Set<string>();
-    
-    // Track all nodes that have outgoing edges
-    for (const edge of edges) {
-      nodesWithOutgoing.add(edge.source);
-    }
-    
-    // Find nodes with no outgoing edges
+    for (const edge of edges) nodesWithOutgoing.add(edge.source);
+
     const endCandidates = nodes.filter(node => !nodesWithOutgoing.has(node.id));
-    
     if (endCandidates.length > 0) {
-      // If multiple end candidates, prefer the one that's not a start node
-      const nonStartCandidate = endCandidates.find(node => node.data?.nodeId !== 'start');
-      const selectedEndNode = nonStartCandidate || endCandidates[0];
-      
-      const endNodeUuid = nodeIdMap.get(selectedEndNode.id);
-      if (endNodeUuid) {
-        return endNodeUuid;
-      }
+      const selected = endCandidates.find(n => (n.data as any)?.nodeId !== 'start') || endCandidates[0];
+      const uuid = nodeIdMap.get(selected.id);
+      if (uuid) return uuid;
     }
-    
-    // Fallback: return the UUID of the first node if no end node can be determined
-    const firstNode = nodes[0];
-    const fallbackUuid = nodeIdMap.get(firstNode?.id);
-    return fallbackUuid || '';
+
+    const fallback = nodeIdMap.get(nodes[0]?.id);
+    return fallback || '';
   }
 }
 

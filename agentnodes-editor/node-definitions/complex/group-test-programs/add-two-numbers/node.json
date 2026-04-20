@@ -1,0 +1,317 @@
+{
+  "summary": {
+    "path": "complex/group-test-programs/add-two-numbers",
+    "id": "add-two-numbers",
+    "name": "Add Two Numbers",
+    "inputs": [
+      "A",
+      "B"
+    ],
+    "inputTypes": [
+      [
+        1
+      ],
+      [
+        1
+      ]
+    ],
+    "outputs": [
+      "Result"
+    ],
+    "outputTypes": [
+      [
+        1
+      ]
+    ],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "constantData": [],
+    "solo": false
+  },
+  "dependencies": [],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_1",
+        "type": "scripting-node",
+        "position": {
+          "x": 100,
+          "y": 200
+        },
+        "data": {
+          "nodeId": "start",
+          "label": "Start",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-add-1-0",
+              "name": "A",
+              "type": 1
+            },
+            {
+              "id": "output-add-1-1",
+              "name": "B",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": true,
+          "multitypeInputs": false,
+          "multitypeOutputs": true,
+          "availableOutputTypes": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": [],
+          "controlFlowOutput": {
+            "id": "cf-out-add-1"
+          },
+          "isStartingPoint": true,
+          "connectedOutputs": [
+            "output-add-1-0",
+            "output-add-1-1",
+            "cf-out-add-1"
+          ]
+        },
+        "measured": {
+          "width": 300,
+          "height": 130
+        }
+      },
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 400,
+          "y": 200
+        },
+        "data": {
+          "nodeId": "binary-operation",
+          "label": "Binary Operation",
+          "inputs": [
+            {
+              "id": "input-add-2-0",
+              "name": "Left",
+              "type": 1
+            },
+            {
+              "id": "input-add-2-1",
+              "name": "Right",
+              "type": 1
+            }
+          ],
+          "outputs": [
+            {
+              "id": "output-add-2-0",
+              "name": "Result",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": true,
+          "availableInputTypes": [
+            [
+              1,
+              2,
+              3
+            ],
+            [
+              1,
+              2,
+              3
+            ]
+          ],
+          "availableOutputTypes": [
+            [
+              1,
+              2,
+              3
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/operations",
+          "constantData": [
+            3
+          ],
+          "constantOptions": [
+            [
+              "Add",
+              "Sub",
+              "Mul",
+              "Div",
+              "Pow",
+              "Mod"
+            ]
+          ],
+          "constantValues": [
+            {
+              "type": 3,
+              "value": "Add"
+            }
+          ],
+          "controlFlowInput": {
+            "id": "cf-in-add-2"
+          },
+          "controlFlowOutput": {
+            "id": "cf-out-add-2"
+          },
+          "connectedOutputs": [
+            "cf-out-add-2",
+            "output-add-2-0"
+          ],
+          "isStartingPoint": false
+        },
+        "measured": {
+          "width": 229,
+          "height": 177
+        }
+      },
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 700,
+          "y": 200
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [
+            {
+              "id": "input-add-3-0",
+              "name": "Result",
+              "type": 1
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": [],
+          "controlFlowInput": {
+            "id": "cf-in-add-3"
+          },
+          "connectedOutputs": [],
+          "isStartingPoint": false
+        },
+        "measured": {
+          "width": 220,
+          "height": 126
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_1",
+        "sourceHandle": "cf-out-add-1",
+        "target": "node_2",
+        "targetHandle": "cf-in-add-2",
+        "id": "node_1-cf-out-add-1-node_2-cf-in-add-2",
+        "strong": true,
+        "className": "strong-connection control-flow-connection",
+        "style": {
+          "stroke": "#4A5568",
+          "--edge-color": "#4A5568"
+        }
+      },
+      {
+        "source": "node_2",
+        "sourceHandle": "cf-out-add-2",
+        "target": "node_3",
+        "targetHandle": "cf-in-add-3",
+        "id": "node_2-cf-out-add-2-node_3-cf-in-add-3",
+        "strong": true,
+        "className": "strong-connection control-flow-connection",
+        "style": {
+          "stroke": "#4A5568",
+          "--edge-color": "#4A5568"
+        }
+      },
+      {
+        "source": "node_1",
+        "sourceHandle": "output-add-1-0",
+        "target": "node_2",
+        "targetHandle": "input-add-2-0",
+        "id": "node_1-output-add-1-0-node_2-input-add-2-0",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#BEE3F8",
+          "--edge-color": "#BEE3F8"
+        }
+      },
+      {
+        "source": "node_1",
+        "sourceHandle": "output-add-1-1",
+        "target": "node_2",
+        "targetHandle": "input-add-2-1",
+        "id": "node_1-output-add-1-1-node_2-input-add-2-1",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#BEE3F8",
+          "--edge-color": "#BEE3F8"
+        }
+      },
+      {
+        "source": "node_2",
+        "sourceHandle": "output-add-2-0",
+        "target": "node_3",
+        "targetHandle": "input-add-3-0",
+        "id": "node_2-output-add-2-0-node_3-input-add-3-0",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#BEE3F8",
+          "--edge-color": "#BEE3F8"
+        }
+      }
+    ],
+    "viewport": {
+      "x": 242.74738192557925,
+      "y": 244.27077015962416,
+      "zoom": 0.850274160064196
+    }
+  },
+  "variables": []
+}

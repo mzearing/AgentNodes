@@ -1,0 +1,82 @@
+{
+  "inputs": [
+    "Integer"
+  ],
+  "outputs": [],
+  "defaults": {},
+  "instances": {
+    "6ba02bc9-6ac2-479b-8435-f65249bbcbb0": {
+      "node_type": {
+        "Atomic": {
+          "Control": "Start"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [],
+      "control_flow_out": [
+        [
+          [
+            "484c73c3-1d26-43df-af65-b80ffda3f269",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "11594ca7-9274-4c5e-b242-a6942ca0d3bb": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [
+        [
+          [
+            "484c73c3-1d26-43df-af65-b80ffda3f269",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        []
+      ],
+      "inputs": [
+        [
+          "String",
+          "484c73c3-1d26-43df-af65-b80ffda3f269",
+          0
+        ]
+      ]
+    },
+    "484c73c3-1d26-43df-af65-b80ffda3f269": {
+      "node_type": {
+        "Atomic": {
+          "Value": "Hello"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "11594ca7-9274-4c5e-b242-a6942ca0d3bb"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "6ba02bc9-6ac2-479b-8435-f65249bbcbb0",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "11594ca7-9274-4c5e-b242-a6942ca0d3bb",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    }
+  },
+  "end_node": "11594ca7-9274-4c5e-b242-a6942ca0d3bb"
+}

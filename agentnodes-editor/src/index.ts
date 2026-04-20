@@ -206,11 +206,18 @@ ipcMain.handle('process:spawn', async (event, command: string, args: string[] = 
     });
 
     childProcess.stderr?.on('data', (data) => {
-      event.sender.send('process:output', {
-        type: 'stderr',
-        data: data.toString(),
-        timestamp: new Date()
-      });
+      const text = data.toString();
+      // Filter out Rust dbg!() macro output (e.g. "[src/eval/evaluator.rs:251:7] ...")
+      const filtered = text.split('\n')
+        .filter((line: string) => !line.match(/^\[.*\.rs:\d+:\d+\]/))
+        .join('\n');
+      if (filtered.trim()) {
+        event.sender.send('process:output', {
+          type: 'stderr',
+          data: filtered,
+          timestamp: new Date()
+        });
+      }
     });
 
     childProcess.on('exit', (code) => {

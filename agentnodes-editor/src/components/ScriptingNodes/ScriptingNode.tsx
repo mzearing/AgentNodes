@@ -47,10 +47,12 @@ export interface ScriptingNodeData extends Record<string, unknown> {
   solo?: boolean;
   metadataPath?: string;
   constantData?: IOType[];
+  constantOptions?: string[][];
   constantValues?: ConstantDataValue[];
   // Control flow handles (separate from data ports)
   controlFlowInput?: ControlFlowHandle;   // None-typed, present on all nodes except start
   controlFlowOutput?: ControlFlowHandle;  // None-typed, present on all nodes except finish
+  controlFlowOutputs?: ControlFlowHandle[]; // Multiple CF outputs (e.g. If node: [False, True])
   // Variable-specific properties
   variableId?: string;
   variableName?: string;
@@ -138,6 +140,7 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
           {hasConstants && (
             <NodeData
               constantData={scriptNodeData.constantData}
+              constantOptions={scriptNodeData.constantOptions}
               constantValues={scriptNodeData.constantValues}
               onConstantValuesChange={handleConstantValuesChange}
             />
@@ -154,7 +157,28 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
           isStartingPoint={isStartingPoint}
           connectedOutputs={connectedOutputs}
         />
-        {scriptNodeData.controlFlowOutput && (
+        {scriptNodeData.controlFlowOutputs && scriptNodeData.controlFlowOutputs.length > 0 ? (
+          scriptNodeData.controlFlowOutputs.map((cfOut, index) => {
+            const labels = ['F', 'T'];
+            return (
+              <div key={cfOut.id} className={styles.cfTile}>
+                <div className={styles.cfChevronBg}>
+                  <span className={styles.cfLabel}>{labels[index] || index}</span>
+                  <svg className={styles.controlFlowChevron} viewBox="0 0 20 12" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0,0 L10,12 L20,0 L15,0 L10,7 L5,0 Z" />
+                  </svg>
+                </div>
+                <HandleComponent
+                  id={cfOut.id}
+                  type="source"
+                  position={Position.Bottom}
+                  className={sourceStyles.outputHandle}
+                  style={cfHandleStyle}
+                />
+              </div>
+            );
+          })
+        ) : scriptNodeData.controlFlowOutput ? (
           <div className={styles.cfTile}>
             <div className={styles.cfChevronBg}>
               <svg className={styles.controlFlowChevron} viewBox="0 0 20 12" xmlns="http://www.w3.org/2000/svg">
@@ -169,7 +193,7 @@ const ScriptingNode: React.FC<NodeProps> = ({ data, selected, id }) => {
               style={cfHandleStyle}
             />
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

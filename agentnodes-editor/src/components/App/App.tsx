@@ -5,12 +5,13 @@ import Canvas, { CanvasMethods } from '../Canvas/Canvas';
 import Sidebar from '../Sidebar/Sidebar';
 import Console from '../Console/Console';
 import SettingsMenu from '../SettingsMenu/SettingsMenu';
-import { ProjectState } from '../../types/project';
+import { ProjectState, IOType } from '../../types/project';
 import { sidebarRefreshEmitter, canvasRefreshEmitter } from '../../hooks/useSidebarData';
-import { compilationService } from '../../services/compilationService';
+import { compilationService, CompiledProgram } from '../../services/compilationService';
 import { nodeCompilationStatusService } from '../../services/nodeCompilationStatus';
 import { configurationService } from '../../services/configurationService';
 import { processManagerService } from '../../services/processManagerService';
+import RunParametersDialog, { RunParam } from '../RunParametersDialog/RunParametersDialog';
 
 
 const App: React.FC = () => {
@@ -24,6 +25,12 @@ const App: React.FC = () => {
   const [isProcessRunning, setIsProcessRunning] = useState<boolean>(false);
   const canvasRef = useRef<CanvasMethods>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [showRunParamsDialog, setShowRunParamsDialog] = useState<boolean>(false);
+  const [pendingRunData, setPendingRunData] = useState<{
+    program: CompiledProgram;
+    filePath: string;
+    params: RunParam[];
+  } | null>(null);
 
   const handleNodesChange = (newNodes: Node[]) => {
     setNodes(newNodes);
@@ -178,28 +185,60 @@ const App: React.FC = () => {
       return;
     }
 
-    // Get current project state to find compiled.json file
     if (!canvasRef.current) {
       alert('Canvas not available');
       return;
     }
 
+    const canvasData = canvasRef.current.getCanvasData();
     const projectState = canvasRef.current.getProjectState();
-    if (!projectState || !projectState.openedNodePath || !projectState.openedNodeId) {
+    if (!canvasData || !projectState || !projectState.openedNodePath || !projectState.openedNodeId) {
       alert('No project loaded. Please load a project and compile it first.');
       return;
     }
 
-    // Auto-compile before running
-    const compileSuccess = await handleCompile();
-    if (!compileSuccess) {
-      return;
-    }
-
+    // Compile
+    const isComplexNode = projectState.openedNodePath?.includes('/complex/');
     const compiledFilePath = configurationService.getCompilationPath(
       projectState.openedNodePath,
       projectState.openedNodeId
     );
+    const result = await compilationService.compile(canvasData, isComplexNode, compiledFilePath);
+
+    if (!result.success || !result.data) {
+      const errorMessage = result.errors?.join('\n') || 'Unknown compilation error';
+      alert(`Compilation failed:\n${errorMessage}`);
+      if (result.errors) {
+        result.errors.forEach(error => processManagerService.addCompilationError(error));
+      }
+      return;
+    }
+
+    // Check if program has inputs
+    if (result.data.inputs.length > 0) {
+      // Extract input names and types from the Start node
+      const startNode = canvasData.nodes.find(n => (n.data as any)?.nodeId === 'start');
+      const startOutputs = (startNode?.data as any)?.outputs || [];
+      const params: RunParam[] = startOutputs.map((out: any) => ({
+        name: out.name || 'Input',
+        type: out.type ?? IOType.String
+      }));
+
+      setPendingRunData({ program: result.data, filePath: compiledFilePath, params });
+      setShowRunParamsDialog(true);
+      return;
+    }
+
+    // No inputs needed — write compiled file and run immediately
+    try {
+      if (window.electronAPI?.writeFile) {
+        await window.electronAPI.writeFile(compiledFilePath, JSON.stringify(result.data, null, 2));
+        nodeCompilationStatusService.clearCache();
+      }
+    } catch (error) {
+      alert(`Failed to save compiled file: ${error}`);
+      return;
+    }
 
     setIsConsoleVisible(true);
     const success = await processManagerService.startProcess(executablePath, [
@@ -209,7 +248,47 @@ const App: React.FC = () => {
     if (success) {
       setIsProcessRunning(true);
     }
-  }, [isProcessRunning, handleCompile]);
+  }, [isProcessRunning]);
+
+  const handleRunWithParams = useCallback(async (values: (string | number | boolean)[]) => {
+    setShowRunParamsDialog(false);
+    if (!pendingRunData) return;
+
+    const executablePath = configurationService.getExecutablePath();
+    if (!executablePath) return;
+
+    // Bake the input values into the compiled program
+    const bakedProgram = compilationService.bakeInputValues(pendingRunData.program, values);
+
+    try {
+      if (window.electronAPI?.writeFile) {
+        await window.electronAPI.writeFile(
+          pendingRunData.filePath,
+          JSON.stringify(bakedProgram, null, 2)
+        );
+        nodeCompilationStatusService.clearCache();
+      }
+    } catch (error) {
+      alert(`Failed to save compiled file: ${error}`);
+      setPendingRunData(null);
+      return;
+    }
+
+    setIsConsoleVisible(true);
+    const success = await processManagerService.startProcess(executablePath, [
+      pendingRunData.filePath,
+      '--print-output'
+    ]);
+    if (success) {
+      setIsProcessRunning(true);
+    }
+    setPendingRunData(null);
+  }, [pendingRunData]);
+
+  const handleCancelRunParams = useCallback(() => {
+    setShowRunParamsDialog(false);
+    setPendingRunData(null);
+  }, []);
 
   const handleStopProcess = useCallback(async () => {
     if (!isProcessRunning) {
@@ -364,6 +443,13 @@ const App: React.FC = () => {
           onExecutablePathChange={handleExecutablePathChange}
         />
       </div>
+
+      <RunParametersDialog
+        isOpen={showRunParamsDialog}
+        params={pendingRunData?.params || []}
+        onRun={handleRunWithParams}
+        onCancel={handleCancelRunParams}
+      />
     </div>
   );
 };

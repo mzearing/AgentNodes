@@ -49,6 +49,7 @@ export interface NodeSummary {
   multitypeInputs?: boolean;
   multitypeOutputs?: boolean;
   constantData: IOType[];
+  constantOptions?: string[][];
   solo: boolean;
 }
 

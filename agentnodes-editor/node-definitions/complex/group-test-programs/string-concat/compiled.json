@@ -1,0 +1,151 @@
+{
+  "inputs": [],
+  "outputs": [
+    "String"
+  ],
+  "defaults": {},
+  "instances": {
+    "28ba2db6-91b9-4419-93f1-5212e8ac8a0e": {
+      "node_type": {
+        "Atomic": {
+          "Control": "Start"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [],
+      "control_flow_out": [
+        [
+          [
+            "1dd3c0bf-d123-494f-998d-c224dae1bce2",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "baf01ad3-09ba-409d-be7b-fa2fffa309f8": {
+      "node_type": {
+        "Atomic": {
+          "BinOp": "Add"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "88dcb5fb-2fd1-4046-a2df-fa671af9c61f"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "79686ac2-0940-4e8d-82e0-2f40b42e4877",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "88dcb5fb-2fd1-4046-a2df-fa671af9c61f",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "String",
+          "1dd3c0bf-d123-494f-998d-c224dae1bce2",
+          0
+        ],
+        [
+          "String",
+          "79686ac2-0940-4e8d-82e0-2f40b42e4877",
+          0
+        ]
+      ]
+    },
+    "88dcb5fb-2fd1-4046-a2df-fa671af9c61f": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "41bc73fd-3f0e-4075-892f-3a3dc215f4b0"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "baf01ad3-09ba-409d-be7b-fa2fffa309f8",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [],
+      "inputs": [
+        [
+          "String",
+          "baf01ad3-09ba-409d-be7b-fa2fffa309f8",
+          0
+        ]
+      ]
+    },
+    "1dd3c0bf-d123-494f-998d-c224dae1bce2": {
+      "node_type": {
+        "Atomic": {
+          "Value": "Hello "
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "baf01ad3-09ba-409d-be7b-fa2fffa309f8"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "28ba2db6-91b9-4419-93f1-5212e8ac8a0e",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "79686ac2-0940-4e8d-82e0-2f40b42e4877",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "79686ac2-0940-4e8d-82e0-2f40b42e4877": {
+      "node_type": {
+        "Atomic": {
+          "Value": "World"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "baf01ad3-09ba-409d-be7b-fa2fffa309f8"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "1dd3c0bf-d123-494f-998d-c224dae1bce2",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "baf01ad3-09ba-409d-be7b-fa2fffa309f8",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    }
+  },
+  "end_node": "88dcb5fb-2fd1-4046-a2df-fa671af9c61f"
+}

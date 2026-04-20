@@ -1,27 +1,236 @@
 {
-  "id": "node-1773944807413",
-  "name": "Test",
-  "inputs": [
-    "Input"
-  ],
-  "inputTypes": [
-    [
-      0
-    ]
-  ],
-  "outputs": [
-    "Output"
-  ],
-  "outputTypes": [
-    [
-      0
-    ]
-  ],
-  "variadicOutputs": false,
-  "variadicInputs": false,
-  "multitypeInputs": false,
-  "multitypeOutputs": false,
-  "constantData": [],
-  "solo": false,
-  "path": ""
+  "summary": {
+    "path": "complex/group-1760638501429/node-1773944807413",
+    "id": "node-1773944807413",
+    "name": "Test",
+    "inputs": [
+      "Output"
+    ],
+    "inputTypes": [
+      [
+        1
+      ]
+    ],
+    "outputs": [],
+    "outputTypes": [],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "constantData": [],
+    "solo": false
+  },
+  "dependencies": [],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_1",
+        "type": "scripting-node",
+        "position": {
+          "x": 249.44391804868422,
+          "y": 221.9599051320794
+        },
+        "data": {
+          "nodeId": "start",
+          "label": "Start",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1775603270000-0-ydksrnd84",
+              "name": "Output",
+              "type": 1
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": true,
+          "multitypeInputs": false,
+          "multitypeOutputs": true,
+          "availableOutputTypes": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": [],
+          "controlFlowOutput": {
+            "id": "cf-out-1775603270000-wyw1rynt3"
+          },
+          "isStartingPoint": true,
+          "connectedOutputs": [
+            "output-1775603270000-0-ydksrnd84",
+            "cf-out-1775603270000-wyw1rynt3"
+          ]
+        },
+        "measured": {
+          "width": 228,
+          "height": 130
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 339.2010658055596,
+          "y": 670.1264594163823
+        },
+        "data": {
+          "nodeId": "print",
+          "label": "Print",
+          "inputs": [
+            {
+              "id": "input-1775603273059-0-btt72t0uy",
+              "name": "Value",
+              "type": 3
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/io",
+          "constantData": [],
+          "controlFlowInput": {
+            "id": "cf-in-1775603273059-jnfyby0kd"
+          },
+          "controlFlowOutput": {
+            "id": "cf-out-1775603273059-nd8xyzb4j"
+          },
+          "isStartingPoint": false,
+          "connectedOutputs": []
+        },
+        "measured": {
+          "width": 137,
+          "height": 140
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 321.0569277361378,
+          "y": 421.0569277361378
+        },
+        "data": {
+          "nodeId": "string-constant",
+          "label": "String Constant",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-1775603280891-0-s2q6layhf",
+              "name": "Value",
+              "type": 3
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "availableOutputTypes": [
+            [
+              3
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/constants",
+          "constantData": [
+            3
+          ],
+          "constantValues": [
+            {
+              "type": 3,
+              "value": "Hello"
+            }
+          ],
+          "controlFlowInput": {
+            "id": "cf-in-1775603280891-f2xltva8h"
+          },
+          "controlFlowOutput": {
+            "id": "cf-out-1775603280891-lpp9h88gn"
+          },
+          "isStartingPoint": false,
+          "connectedOutputs": []
+        },
+        "measured": {
+          "width": 178,
+          "height": 165
+        },
+        "selected": false,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_1",
+        "sourceHandle": "cf-out-1775603270000-wyw1rynt3",
+        "target": "node_3",
+        "targetHandle": "cf-in-1775603280891-f2xltva8h",
+        "id": "node_1-cf-out-1775603270000-wyw1rynt3-node_3-cf-in-1775603280891-f2xltva8h",
+        "strong": true,
+        "className": "strong-connection control-flow-connection",
+        "style": {
+          "stroke": "#4A5568",
+          "--edge-color": "#4A5568"
+        },
+        "selected": false
+      },
+      {
+        "source": "node_3",
+        "sourceHandle": "cf-out-1775603280891-lpp9h88gn",
+        "target": "node_2",
+        "targetHandle": "cf-in-1775603273059-jnfyby0kd",
+        "id": "node_3-cf-out-1775603280891-lpp9h88gn-node_2-cf-in-1775603273059-jnfyby0kd",
+        "strong": true,
+        "className": "strong-connection control-flow-connection",
+        "style": {
+          "stroke": "#4A5568",
+          "--edge-color": "#4A5568"
+        },
+        "selected": false
+      },
+      {
+        "source": "node_3",
+        "sourceHandle": "output-1775603280891-0-s2q6layhf",
+        "target": "node_2",
+        "targetHandle": "input-1775603273059-0-btt72t0uy",
+        "id": "node_3-output-1775603280891-0-s2q6layhf-node_2-input-1775603273059-0-btt72t0uy",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#FF8C00",
+          "--edge-color": "#FF8C00"
+        },
+        "selected": false
+      }
+    ],
+    "viewport": {
+      "x": 343.7681352919453,
+      "y": 158.69334781196483,
+      "zoom": 0.8021811663524866
+    }
+  },
+  "variables": []
 }

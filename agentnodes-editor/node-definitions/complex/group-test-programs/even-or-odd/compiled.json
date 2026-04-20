@@ -1,0 +1,342 @@
+{
+  "inputs": [
+    "Integer"
+  ],
+  "outputs": [],
+  "defaults": {},
+  "instances": {
+    "23e9a707-a144-4c09-865c-fa31a268853f": {
+      "node_type": {
+        "Atomic": {
+          "Control": "Start"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "9b676e5a-186c-4a40-8066-397c1a212084"
+      ],
+      "control_flow_in": [],
+      "control_flow_out": [
+        [
+          [
+            "de3a000f-6462-417c-b9cd-faba4ebb9e0a",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "9b676e5a-186c-4a40-8066-397c1a212084": {
+      "node_type": {
+        "Atomic": {
+          "BinOp": "Mod"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "70756ca3-04f0-45b7-9196-34784fbc8f10"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "de3a000f-6462-417c-b9cd-faba4ebb9e0a",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "966d709f-39bf-4913-b2c5-875776f4fdc7",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "23e9a707-a144-4c09-865c-fa31a268853f",
+          0
+        ],
+        [
+          "Integer",
+          "de3a000f-6462-417c-b9cd-faba4ebb9e0a",
+          0
+        ]
+      ]
+    },
+    "966d709f-39bf-4913-b2c5-875776f4fdc7": {
+      "node_type": {
+        "Atomic": {
+          "Value": 0
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "70756ca3-04f0-45b7-9196-34784fbc8f10"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "9b676e5a-186c-4a40-8066-397c1a212084",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "70756ca3-04f0-45b7-9196-34784fbc8f10",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "70756ca3-04f0-45b7-9196-34784fbc8f10": {
+      "node_type": {
+        "Atomic": {
+          "LogicalOp": "Eq"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "bd6f5bcc-a8b2-4d08-bf39-d0895e0cbc71"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "966d709f-39bf-4913-b2c5-875776f4fdc7",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "bd6f5bcc-a8b2-4d08-bf39-d0895e0cbc71",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "Integer",
+          "9b676e5a-186c-4a40-8066-397c1a212084",
+          0
+        ],
+        [
+          "Integer",
+          "966d709f-39bf-4913-b2c5-875776f4fdc7",
+          0
+        ]
+      ]
+    },
+    "bd6f5bcc-a8b2-4d08-bf39-d0895e0cbc71": {
+      "node_type": {
+        "Atomic": {
+          "Control": "If"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [
+        [
+          [
+            "70756ca3-04f0-45b7-9196-34784fbc8f10",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "010a547d-7d3f-4555-bcaf-1f19a71f420c",
+            0
+          ]
+        ],
+        [
+          [
+            "3f1079ed-752c-4fb0-b747-32745d04aa42",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "Boolean",
+          "70756ca3-04f0-45b7-9196-34784fbc8f10",
+          0
+        ]
+      ]
+    },
+    "3f1079ed-752c-4fb0-b747-32745d04aa42": {
+      "node_type": {
+        "Atomic": {
+          "Value": "Even"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "5ed72390-c9b8-4c0d-a761-e27e9deec90c"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "bd6f5bcc-a8b2-4d08-bf39-d0895e0cbc71",
+            1
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "5ed72390-c9b8-4c0d-a761-e27e9deec90c",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "5ed72390-c9b8-4c0d-a761-e27e9deec90c": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [
+        [
+          [
+            "3f1079ed-752c-4fb0-b747-32745d04aa42",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "5dd520c4-2fe5-4641-b5ba-2cdd9ec85612",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "String",
+          "3f1079ed-752c-4fb0-b747-32745d04aa42",
+          0
+        ]
+      ]
+    },
+    "010a547d-7d3f-4555-bcaf-1f19a71f420c": {
+      "node_type": {
+        "Atomic": {
+          "Value": "Odd"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "4677c815-150e-47c7-abed-054351d26f9b"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "bd6f5bcc-a8b2-4d08-bf39-d0895e0cbc71",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "4677c815-150e-47c7-abed-054351d26f9b",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "4677c815-150e-47c7-abed-054351d26f9b": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [
+        [
+          [
+            "010a547d-7d3f-4555-bcaf-1f19a71f420c",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "5dd520c4-2fe5-4641-b5ba-2cdd9ec85612",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "String",
+          "010a547d-7d3f-4555-bcaf-1f19a71f420c",
+          0
+        ]
+      ]
+    },
+    "5dd520c4-2fe5-4641-b5ba-2cdd9ec85612": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [
+        [
+          [
+            "5ed72390-c9b8-4c0d-a761-e27e9deec90c",
+            0
+          ],
+          [
+            "4677c815-150e-47c7-abed-054351d26f9b",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [],
+      "inputs": []
+    },
+    "de3a000f-6462-417c-b9cd-faba4ebb9e0a": {
+      "node_type": {
+        "Atomic": {
+          "Value": 2
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "9b676e5a-186c-4a40-8066-397c1a212084"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "23e9a707-a144-4c09-865c-fa31a268853f",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "9b676e5a-186c-4a40-8066-397c1a212084",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    }
+  },
+  "end_node": "5dd520c4-2fe5-4641-b5ba-2cdd9ec85612"
+}

@@ -1,0 +1,104 @@
+{
+  "inputs": [],
+  "outputs": [],
+  "defaults": {},
+  "instances": {
+    "8154b9b8-337b-4985-9049-71e49bf636db": {
+      "node_type": {
+        "Atomic": {
+          "Control": "Start"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [],
+      "control_flow_out": [
+        [
+          [
+            "7bafb742-fbf2-42b5-96d4-25adba977b47",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "7bafb742-fbf2-42b5-96d4-25adba977b47": {
+      "node_type": {
+        "Atomic": {
+          "Value": "Hello World"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [
+        "8510efc3-4aa2-427f-8c22-9141d8f733ab"
+      ],
+      "control_flow_in": [
+        [
+          [
+            "8154b9b8-337b-4985-9049-71e49bf636db",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "8510efc3-4aa2-427f-8c22-9141d8f733ab",
+            0
+          ]
+        ]
+      ],
+      "inputs": []
+    },
+    "8510efc3-4aa2-427f-8c22-9141d8f733ab": {
+      "node_type": {
+        "Atomic": "Print"
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [
+        [
+          [
+            "7bafb742-fbf2-42b5-96d4-25adba977b47",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [
+        [
+          [
+            "b4432ded-7595-4539-88ce-95a85806439a",
+            0
+          ]
+        ]
+      ],
+      "inputs": [
+        [
+          "String",
+          "7bafb742-fbf2-42b5-96d4-25adba977b47",
+          0
+        ]
+      ]
+    },
+    "b4432ded-7595-4539-88ce-95a85806439a": {
+      "node_type": {
+        "Atomic": {
+          "Control": "End"
+        }
+      },
+      "default_overrides": {},
+      "outputs": [],
+      "control_flow_in": [
+        [
+          [
+            "8510efc3-4aa2-427f-8c22-9141d8f733ab",
+            0
+          ]
+        ]
+      ],
+      "control_flow_out": [],
+      "inputs": []
+    }
+  },
+  "end_node": "b4432ded-7595-4539-88ce-95a85806439a"
+}

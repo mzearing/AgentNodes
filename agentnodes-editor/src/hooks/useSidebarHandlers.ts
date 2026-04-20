@@ -126,7 +126,8 @@ export const useSidebarHandlers = ({
       multitypeInputs: node.multitypeInputs,
       multitypeOutputs: node.multitypeOutputs,
       solo: node.solo,
-      constantData: node.constantData
+      constantData: node.constantData,
+      constantOptions: node.constantOptions
     };
     
     event.dataTransfer.setData('application/reactflow', JSON.stringify(dragData));

@@ -3,12 +3,13 @@
   "name": "Logical Operation",
   "inputs": ["Left", "Right"],
   "outputs": ["Result"],
-  "inputTypes": [[4], [4]],
+  "inputTypes": [[1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 2, 3, 4, 5, 6, 7, 8, 9]],
   "outputTypes": [4],
   "variadicInputs": false,
   "variadicOutputs": false,
-  "multitypeInputs": false,
+  "multitypeInputs": true,
   "multitypeOutputs": false,
   "constantData": [3],
+  "constantOptions": [["And", "Or", "Xor", "Not", "Eq", "Neq"]],
   "solo": false
 }

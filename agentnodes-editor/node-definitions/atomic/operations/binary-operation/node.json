@@ -3,12 +3,13 @@
   "name": "Binary Operation",
   "inputs": ["Left", "Right"],
   "outputs": ["Result"],
-  "inputTypes": [[1, 2], [1, 2]],
-  "outputTypes": [[1, 2]],
+  "inputTypes": [[1, 2, 3], [1, 2, 3]],
+  "outputTypes": [[1, 2, 3]],
   "variadicInputs": false,
   "variadicOutputs": false,
   "multitypeInputs": true,
   "multitypeOutputs": true,
   "constantData": [3],
+  "constantOptions": [["Add", "Sub", "Mul", "Div", "Pow", "Mod"]],
   "solo": false
 }

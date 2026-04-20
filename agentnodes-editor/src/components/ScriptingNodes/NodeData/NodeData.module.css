@@ -24,6 +24,7 @@
   min-height: 24px;
 }
 
+.selectInput,
 .numberInput,
 .textInput {
   background: var(--color-surface-secondary);
@@ -38,6 +39,7 @@
   transition: border-color 0.2s ease;
 }
 
+.selectInput:focus,
 .numberInput:focus,
 .textInput:focus {
   outline: none;
@@ -45,6 +47,7 @@
   box-shadow: 0 0 0 1px var(--color-primary);
 }
 
+.selectInput:hover,
 .numberInput:hover,
 .textInput:hover {
   border-color: var(--color-border-hover);

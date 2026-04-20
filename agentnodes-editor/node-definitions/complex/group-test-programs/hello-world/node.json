@@ -1,0 +1,263 @@
+{
+  "summary": {
+    "path": "complex/group-test-programs/hello-world",
+    "id": "hello-world",
+    "name": "Hello World",
+    "inputs": [],
+    "inputTypes": [],
+    "outputs": [],
+    "outputTypes": [],
+    "variadicOutputs": false,
+    "variadicInputs": false,
+    "constantData": [],
+    "solo": false
+  },
+  "dependencies": [],
+  "data": {
+    "nodes": [
+      {
+        "id": "node_1",
+        "type": "scripting-node",
+        "position": {
+          "x": 436.58335964786187,
+          "y": -227.2455440647944
+        },
+        "data": {
+          "nodeId": "start",
+          "label": "Start",
+          "inputs": [],
+          "outputs": [],
+          "variadicInputs": false,
+          "variadicOutputs": true,
+          "multitypeInputs": false,
+          "multitypeOutputs": true,
+          "availableOutputTypes": [],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": [],
+          "controlFlowOutput": {
+            "id": "cf-out-hw-1"
+          },
+          "isStartingPoint": true,
+          "connectedOutputs": [
+            "cf-out-hw-1",
+            "cf-out-hw-1"
+          ]
+        },
+        "measured": {
+          "width": 92,
+          "height": 108
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_2",
+        "type": "scripting-node",
+        "position": {
+          "x": 325.7937808784938,
+          "y": -28.378821370006037
+        },
+        "data": {
+          "nodeId": "string-constant",
+          "label": "String Constant",
+          "inputs": [],
+          "outputs": [
+            {
+              "id": "output-hw-2-0",
+              "name": "Value",
+              "type": 3
+            }
+          ],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": false,
+          "multitypeOutputs": false,
+          "availableOutputTypes": [
+            [
+              3
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/constants",
+          "constantData": [
+            3
+          ],
+          "constantValues": [
+            {
+              "type": 3,
+              "value": "Hello World"
+            }
+          ],
+          "controlFlowInput": {
+            "id": "cf-in-hw-2"
+          },
+          "controlFlowOutput": {
+            "id": "cf-out-hw-2"
+          },
+          "isStartingPoint": false,
+          "connectedOutputs": [
+            "output-hw-2-0"
+          ]
+        },
+        "measured": {
+          "width": 178,
+          "height": 165
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_3",
+        "type": "scripting-node",
+        "position": {
+          "x": 400,
+          "y": 200
+        },
+        "data": {
+          "nodeId": "print",
+          "label": "Print",
+          "inputs": [
+            {
+              "id": "input-hw-3-0",
+              "name": "Value",
+              "type": 3
+            }
+          ],
+          "outputs": [],
+          "variadicInputs": false,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ]
+          ],
+          "solo": false,
+          "metadataPath": "atomic/io",
+          "constantData": [],
+          "controlFlowInput": {
+            "id": "cf-in-hw-3"
+          },
+          "controlFlowOutput": {
+            "id": "cf-out-hw-3"
+          },
+          "isStartingPoint": false,
+          "connectedOutputs": [
+            "cf-out-hw-3"
+          ]
+        },
+        "measured": {
+          "width": 137,
+          "height": 140
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "node_4",
+        "type": "scripting-node",
+        "position": {
+          "x": 650,
+          "y": 200
+        },
+        "data": {
+          "nodeId": "finish",
+          "label": "Finish",
+          "inputs": [],
+          "outputs": [],
+          "variadicInputs": true,
+          "variadicOutputs": false,
+          "multitypeInputs": true,
+          "multitypeOutputs": false,
+          "availableInputTypes": [],
+          "solo": true,
+          "metadataPath": "atomic/control-flow",
+          "constantData": [],
+          "controlFlowInput": {
+            "id": "cf-in-hw-4"
+          },
+          "isStartingPoint": false,
+          "connectedOutputs": []
+        },
+        "measured": {
+          "width": 56,
+          "height": 104
+        },
+        "selected": false,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "node_3",
+        "sourceHandle": "cf-out-hw-3",
+        "target": "node_4",
+        "targetHandle": "cf-in-hw-4",
+        "id": "node_3-cf-out-hw-3-node_4-cf-in-hw-4",
+        "strong": true,
+        "className": "strong-connection control-flow-connection",
+        "style": {
+          "stroke": "#4A5568",
+          "--edge-color": "#4A5568"
+        },
+        "selected": false
+      },
+      {
+        "source": "node_2",
+        "sourceHandle": "output-hw-2-0",
+        "target": "node_3",
+        "targetHandle": "input-hw-3-0",
+        "id": "node_2-output-hw-2-0-node_3-input-hw-3-0",
+        "strong": true,
+        "className": "strong-connection",
+        "style": {
+          "stroke": "#FF8C00",
+          "--edge-color": "#FF8C00"
+        },
+        "selected": false
+      },
+      {
+        "source": "node_1",
+        "sourceHandle": "cf-out-hw-1",
+        "target": "node_2",
+        "targetHandle": "cf-in-hw-2",
+        "id": "node_1-cf-out-hw-1-node_2-cf-in-hw-2",
+        "strong": true,
+        "className": "strong-connection control-flow-connection",
+        "style": {
+          "stroke": "#4A5568",
+          "--edge-color": "#4A5568"
+        }
+      },
+      {
+        "source": "node_2",
+        "sourceHandle": "cf-out-hw-2",
+        "target": "node_3",
+        "targetHandle": "cf-in-hw-3",
+        "id": "node_2-cf-out-hw-2-node_3-cf-in-hw-3",
+        "strong": true,
+        "className": "strong-connection control-flow-connection",
+        "style": {
+          "stroke": "#4A5568",
+          "--edge-color": "#4A5568"
+        }
+      }
+    ],
+    "viewport": {
+      "x": 114.16253135728948,
+      "y": 342.1674598050303,
+      "zoom": 0.8823965638429822
+    }
+  },
+  "variables": []
+}

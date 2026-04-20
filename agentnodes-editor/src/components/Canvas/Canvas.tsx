@@ -99,6 +99,7 @@ interface IDName {
 const initialEdges: Edge[] = [];
 
 // Helper function to check if automatic casting is supported (shared logic)
+// Only allows casts that the backend's try_cast actually supports: Integer <-> Float
 const canAutocastTypes = (fromType: IOType, toType: IOType): boolean => {
   // Same type - always valid
   if (fromType === toType) return true;
@@ -106,16 +107,47 @@ const canAutocastTypes = (fromType: IOType, toType: IOType): boolean => {
   // None type: only None <-> None (strict control flow separation)
   if (fromType === IOType.None || toType === IOType.None) return false;
 
-  // Other supported automatic casts:
+  // Backend-supported automatic casts (Integer <-> Float only):
   if (fromType === IOType.Integer && toType === IOType.Float) return true;
   if (fromType === IOType.Float && toType === IOType.Integer) return true;
 
-  // Additional implicit conversions for string concatenation:
-  if (toType === IOType.String && (fromType === IOType.Integer || fromType === IOType.Float || fromType === IOType.Boolean)) {
-    return true;
+  return false;
+};
+
+// Helper: check if a connection is valid via multitype port compatibility
+// Returns the resolved source type if compatible, or undefined if not
+const checkMultitypeCompatibility = (
+  sourceData: ScriptingNodeData,
+  targetData: ScriptingNodeData,
+  sourceHandleId: string | null | undefined,
+  targetHandleId: string | null | undefined,
+): IOType | undefined => {
+  const sourceOutput = sourceData?.outputs?.find(o => o.id === sourceHandleId);
+  const targetInput = targetData?.inputs?.find(i => i.id === targetHandleId);
+  if (!sourceOutput || !targetInput) return undefined;
+
+  const sourceType = Array.isArray(sourceOutput.type) ? sourceOutput.type[0] : (sourceOutput.type ?? IOType.None);
+
+  // Check if target is multitype and source type is in its available types
+  if (targetData.multitypeInputs && targetData.availableInputTypes) {
+    const portIndex = targetData.inputs.indexOf(targetInput);
+    const availableTypes = targetData.availableInputTypes?.[portIndex];
+    if (availableTypes && availableTypes.includes(sourceType)) {
+      return sourceType;
+    }
   }
 
-  return false;
+  // Check if source is multitype and target type is in its available types
+  const targetType = Array.isArray(targetInput.type) ? targetInput.type[0] : (targetInput.type ?? IOType.None);
+  if (sourceData.multitypeOutputs && sourceData.availableOutputTypes) {
+    const portIndex = sourceData.outputs.indexOf(sourceOutput);
+    const availableTypes = sourceData.availableOutputTypes?.[portIndex];
+    if (availableTypes && availableTypes.includes(targetType)) {
+      return targetType;
+    }
+  }
+
+  return undefined;
 };
 
 // Helper function to validate connections and remove invalid ones
@@ -132,7 +164,8 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
     const targetData = targetNode.data as ScriptingNodeData;
 
     // Check if this is a control flow connection
-    const isSourceControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle;
+    const isSourceControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle ||
+      (sourceData?.controlFlowOutputs?.some(h => h.id === edge.sourceHandle) ?? false);
     const isTargetControlFlow = targetData?.controlFlowInput?.id === edge.targetHandle;
 
     if (isSourceControlFlow || isTargetControlFlow) {
@@ -148,12 +181,15 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
       return false;
     }
 
-    // Type validation - allow exact matches or auto-castable types
+    // Type validation - allow exact matches, auto-castable types, or multitype compatibility
     const sourceType = Array.isArray(sourceHandle.type) ? sourceHandle.type[0] : (sourceHandle.type ?? IOType.None);
     const targetType = Array.isArray(targetHandle.type) ? targetHandle.type[0] : (targetHandle.type ?? IOType.None);
 
     if (!canAutocastTypes(sourceType, targetType)) {
-      return false;
+      // Check multitype compatibility as fallback
+      if (checkMultitypeCompatibility(sourceData, targetData, edge.sourceHandle, edge.targetHandle) === undefined) {
+        return false;
+      }
     }
 
     return true;
@@ -165,7 +201,8 @@ const validateAndCleanConnections = (nodes: Node[], edges: Edge[]): Edge[] => {
 
     // Preserve control-flow-connection class for CF edges
     const sourceData = sourceNode?.data as ScriptingNodeData | undefined;
-    const isControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle;
+    const isControlFlow = sourceData?.controlFlowOutput?.id === edge.sourceHandle ||
+      (sourceData?.controlFlowOutputs?.some(h => h.id === edge.sourceHandle) ?? false);
     const baseClass = getConnectionStyleClass(strong);
     const className = isControlFlow ? `${baseClass} control-flow-connection` : baseClass;
 
@@ -608,7 +645,29 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
             id: `cf-in-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
           };
         }
-        if (!scriptingData.controlFlowOutput && nodeId !== 'finish') {
+        // If node and while-loop get dual CF outputs; all others (except finish) get single CF output
+        if (nodeId === 'if-condition') {
+          if (!scriptingData.controlFlowOutputs || scriptingData.controlFlowOutputs.length !== 2) {
+            // Migrate: if it had a single controlFlowOutput, remove it
+            scriptingData.controlFlowOutput = undefined;
+            scriptingData.controlFlowOutputs = [
+              { id: `cf-out-false-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` },
+              { id: `cf-out-true-${Date.now()}-${Math.random().toString(36).substring(2, 11)}` }
+            ];
+          }
+        } else if (nodeId === 'while-loop') {
+          // Migration: revert while-loop from dual CF outputs back to single CF output
+          if (scriptingData.controlFlowOutputs) {
+            scriptingData.controlFlowOutputs = undefined;
+          }
+          if (!scriptingData.controlFlowOutput) {
+            scriptingData.controlFlowOutput = {
+              id: `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+            };
+          }
+          // Migration: clear old Condition data inputs (stale edges cleaned by validateAndCleanConnections)
+          scriptingData.inputs = [];
+        } else if (!scriptingData.controlFlowOutput && nodeId !== 'finish') {
           scriptingData.controlFlowOutput = {
             id: `cf-out-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
           };
@@ -1118,7 +1177,8 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
         const targetData = targetNode.data as ScriptingNodeData;
 
         // Check if source or target is a control flow handle
-        const isSourceControlFlow = sourceData?.controlFlowOutput?.id === connection.sourceHandle;
+        const isSourceControlFlow = sourceData?.controlFlowOutput?.id === connection.sourceHandle ||
+          (sourceData?.controlFlowOutputs?.some(h => h.id === connection.sourceHandle) ?? false);
         const isTargetControlFlow = targetData?.controlFlowInput?.id === connection.targetHandle;
 
         // Control flow handles can only connect to other control flow handles
@@ -1135,7 +1195,10 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
           const targetType = Array.isArray(targetHandle.type) ? targetHandle.type[0] : (targetHandle.type ?? IOType.None);
 
           if (!canAutocastTypes(sourceType, targetType)) {
-            return false;
+            // Check multitype compatibility as fallback
+            if (checkMultitypeCompatibility(sourceData, targetData, connection.sourceHandle, connection.targetHandle) === undefined) {
+              return false;
+            }
           }
         }
       }
@@ -1155,7 +1218,8 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       // Check if this is a control flow connection
       const sourceNode = propNodes.find(node => node.id === params.source);
       const sourceData = sourceNode?.data as ScriptingNodeData;
-      const isControlFlow = sourceData?.controlFlowOutput?.id === params.sourceHandle;
+      const isControlFlow = sourceData?.controlFlowOutput?.id === params.sourceHandle ||
+        (sourceData?.controlFlowOutputs?.some(h => h.id === params.sourceHandle) ?? false);
 
       // Determine connection strength using shared logic
       const targetNode = propNodes.find(node => node.id === params.target);
@@ -1191,13 +1255,64 @@ const CanvasComponent = forwardRef<CanvasMethods, CanvasProps>(({
       // Compute the new edges
       const newEdges = addEdge(newEdge, filteredEdges);
 
+      // Auto-switch multitype port types to match the connected type
+      let updatedNodes = propNodes;
+      if (!isControlFlow && targetNode) {
+        const targetData = targetNode.data as ScriptingNodeData;
+        const srcHandle = sourceData?.outputs?.find(o => o.id === params.sourceHandle);
+        const tgtHandle = targetData?.inputs?.find(i => i.id === params.targetHandle);
+
+        if (srcHandle && tgtHandle) {
+          const srcType = Array.isArray(srcHandle.type) ? srcHandle.type[0] : srcHandle.type;
+          const tgtType = Array.isArray(tgtHandle.type) ? tgtHandle.type[0] : tgtHandle.type;
+
+          if (srcType !== tgtType) {
+            // Auto-switch target input type if it's multitype and source type is available
+            if (targetData.multitypeInputs && targetData.availableInputTypes) {
+              const tgtPortIndex = targetData.inputs.indexOf(tgtHandle);
+              const tgtAvail = targetData.availableInputTypes?.[tgtPortIndex];
+              if (tgtAvail && tgtAvail.includes(srcType)) {
+                updatedNodes = updatedNodes.map(n => {
+                  if (n.id === params.target) {
+                    const d = n.data as ScriptingNodeData;
+                    const newInputs = [...d.inputs];
+                    newInputs[tgtPortIndex] = { ...newInputs[tgtPortIndex], type: srcType };
+                    return { ...n, data: { ...d, inputs: newInputs } };
+                  }
+                  return n;
+                });
+              }
+            }
+            // Auto-switch source output type if it's multitype and target type is available
+            else if (sourceData?.multitypeOutputs && sourceData.availableOutputTypes) {
+              const srcPortIndex = sourceData.outputs.indexOf(srcHandle);
+              const srcAvail = sourceData.availableOutputTypes?.[srcPortIndex];
+              if (srcAvail && srcAvail.includes(tgtType)) {
+                updatedNodes = updatedNodes.map(n => {
+                  if (n.id === params.source) {
+                    const d = n.data as ScriptingNodeData;
+                    const newOutputs = [...d.outputs];
+                    newOutputs[srcPortIndex] = { ...newOutputs[srcPortIndex], type: tgtType };
+                    return { ...n, data: { ...d, outputs: newOutputs } };
+                  }
+                  return n;
+                });
+              }
+            }
+          }
+        }
+      }
+
       // Flush pre-connect state and save post-connect state immediately
       saveHistoryState(propNodes, edges, projectState.variables || [], projectState.openedNodeName, true);
-      saveHistoryState(propNodes, newEdges, projectState.variables || [], projectState.openedNodeName, true);
+      saveHistoryState(updatedNodes, newEdges, projectState.variables || [], projectState.openedNodeName, true);
 
+      if (updatedNodes !== propNodes) {
+        propOnNodesChange(updatedNodes);
+      }
       setEdges(newEdges);
     },
-    [edges, setEdges, propNodes, saveHistoryState, projectState.variables, projectState.openedNodeName]
+    [edges, setEdges, propNodes, propOnNodesChange, saveHistoryState, projectState.variables, projectState.openedNodeName]
   );
 
 
